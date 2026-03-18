@@ -94,6 +94,13 @@ public class ConnectionInfoHandler {
         connectInfo.setUrl(dataSource.getUrl());
         connectInfo.setPort(StringUtils.isNotBlank(dataSource.getPort()) ? Integer.parseInt(dataSource.getPort()) : null);
         connectInfo.setHost(dataSource.getHost());
+        if ("REDIS".equalsIgnoreCase(dataSource.getType())
+                && StringUtils.isNotBlank(dataSource.getHost())
+                && StringUtils.isNotBlank(dataSource.getPort())) {
+            String dbName = StringUtils.isNotBlank(database) ? database.trim() : "0";
+            connectInfo.setUrl(String.format("jdbc:redis://%s:%s/%s",
+                    dataSource.getHost().trim(), dataSource.getPort().trim(), dbName));
+        }
         connectInfo.setLoginUser(ContextUtils.getLoginUser().getId() + "");
         DriverConfig driverConfig = dataSource.getDriverConfig();
         if (driverConfig != null && driverConfig.notEmpty()) {

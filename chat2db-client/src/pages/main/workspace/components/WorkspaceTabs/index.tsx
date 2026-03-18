@@ -222,12 +222,13 @@ const WorkspaceTabs = memo(() => {
   // 渲染搜索结果
   const renderSearchResult = (item: IWorkspaceTab) => {
     const { uniqueData } = item;
+    const isRedis = uniqueData?.databaseType === 'REDIS';
     return (
       <SearchResult
         isActive={activeConsoleId === item.id}
         sql={uniqueData.sql}
         executeSqlParams={uniqueData}
-        viewTable
+        viewTable={!isRedis}
         concealTabHeader
       />
     );

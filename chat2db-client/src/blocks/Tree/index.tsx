@@ -357,6 +357,7 @@ const TreeNode = memo((props: TreeNodeIProps) => {
   const handelDoubleClickTreeNode = () => {
     if (
       treeNodeData.treeNodeType === TreeNodeType.TABLE ||
+      treeNodeData.treeNodeType === TreeNodeType.KEY ||
       treeNodeData.treeNodeType === TreeNodeType.VIEW ||
       treeNodeData.treeNodeType === TreeNodeType.PROCEDURE ||
       treeNodeData.treeNodeType === TreeNodeType.FUNCTION ||

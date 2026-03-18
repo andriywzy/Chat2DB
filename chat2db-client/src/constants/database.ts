@@ -125,13 +125,13 @@ export const databaseMap: {
     // port: 8123,
     icon: '\ue8f4',
   },
-  // [DatabaseTypeCode.REDIS]: {
-  //   name: 'Redis',
-  //   img: moreDBLogo,
-  //   code: DatabaseTypeCode.REDIS,
-  //   // port: 6379,
-  //   icon: '\ue6a2',
-  // },
+  [DatabaseTypeCode.REDIS]: {
+    name: 'Redis',
+    img: redisLogo,
+    code: DatabaseTypeCode.REDIS,
+    // port: 6379,
+    icon: '\ue6a2',
+  },
 };
 
 export const databaseTypeList = Object.keys(databaseMap).map((keys) => {

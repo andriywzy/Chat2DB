@@ -16,6 +16,9 @@
 ### Visual Studio Code ###
 package-lock.json
 
+### Maven ###
+**/target/
+
 ### Mac
 .DS_Store
 /chat2db-server/ali-dbhub-server-start/src/main/resources/static/front/*
@@ -29,3 +32,7 @@ package-lock.json
 /chat2db-server/ali-dbhub-server-domain/ali-dbhub-server-domain-support/lib/*
 /lib
 /out/*
+
+### Local build caches
+/.m2repo/
+/.jdk/

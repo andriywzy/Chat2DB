@@ -21,6 +21,7 @@ import { handelPinTable } from '../functions/pinTable';
 import { viewDDL } from '../functions/viewDDL';
 import { deleteTable } from '../functions/deleteTable';
 import { deleteSequence } from '../functions/deleteSequence';
+import sqlService from '@/service/sql';
 
 // ----- utils -----
 import { compatibleDataBaseName } from '@/utils/database';
@@ -106,6 +107,12 @@ export const useGetRightClickMenu = (props: IProps) => {
     }
 
     const operationColumnConfig: { [key in string]: IOperationColumnConfigItem } = {
+      // redis key 双击：先识别类型，再执行对应读取语句并直接展示结果
+      _redisKeyReaderHelper: {
+        text: '',
+        icon: '',
+        handle: () => {},
+      },
       // 刷新
       [OperationColumn.Refresh]: {
         text: i18n('common.button.refresh'),
@@ -137,10 +144,11 @@ export const useGetRightClickMenu = (props: IProps) => {
         text: i18n('workspace.menu.viewAllTable'),
         icon: '\ue611',
         handle: () => {
+          const isRedis = treeNodeData.extraParams?.databaseType === 'REDIS';
           addWorkspaceTab({
             id: uuid(),
             type: WorkspaceTabType.ViewAllTable,
-            title: `${treeNodeData.extraParams!.databaseName!}-tables`,
+            title: `${treeNodeData.extraParams!.databaseName!}-${isRedis ? 'keys' : 'tables'}`,
             uniqueData: {
               dataSourceId: treeNodeData.extraParams!.dataSourceId!,
               dataSourceName: treeNodeData.extraParams!.dataSourceName!,
@@ -247,6 +255,51 @@ export const useGetRightClickMenu = (props: IProps) => {
         icon: '\ue618',
         doubleClickTrigger: true,
         handle: () => {
+          if (treeNodeData.extraParams?.databaseType === 'REDIS' && treeNodeData.treeNodeType === TreeNodeType.KEY) {
+            const redisKey = (treeNodeData.name || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+            const quotedKey = `"${redisKey}"`;
+            const buildReadSql = (keyType: string) => {
+              const t = (keyType || '').toLowerCase();
+              if (t === 'hash') return `hgetall ${quotedKey}`;
+              if (t === 'list') return `lrange ${quotedKey} 0 -1`;
+              if (t === 'set') return `smembers ${quotedKey}`;
+              if (t === 'zset') return `zrange ${quotedKey} 0 -1 withscores`;
+              if (t === 'stream') return `xrange ${quotedKey} - + count 200`;
+              return `get ${quotedKey}`;
+            };
+            (async () => {
+              let keyType = 'string';
+              try {
+                const typeResult = await sqlService.executeSql({
+                  sql: `type ${quotedKey}`,
+                  pageNo: 1,
+                  pageSize: 200,
+                  dataSourceId: treeNodeData.extraParams!.dataSourceId!,
+                  databaseName: treeNodeData.extraParams?.databaseName,
+                  schemaName: treeNodeData.extraParams?.schemaName || null,
+                });
+                const firstResult = Array.isArray(typeResult) ? typeResult[0] : null;
+                const row = firstResult?.dataList?.[0] || [];
+                const rawType = row.find((v) => `${v || ''}`.trim().length > 0) || row[0];
+                keyType = `${rawType || 'string'}`.trim().toLowerCase();
+              } catch (e) {}
+
+              addWorkspaceTab({
+                id: `${OperationColumn.OpenTable}-${treeNodeData.uuid}`,
+                title: treeNodeData.name,
+                type: WorkspaceTabType.EditTableData,
+                uniqueData: {
+                  dataSourceId: treeNodeData.extraParams!.dataSourceId!,
+                  databaseType: treeNodeData.extraParams!.databaseType!,
+                  databaseName: treeNodeData.extraParams?.databaseName,
+                  schemaName: treeNodeData.extraParams?.schemaName,
+                  tableName: treeNodeData.name,
+                  sql: buildReadSql(keyType),
+                },
+              });
+            })();
+            return;
+          }
           const databaseName = compatibleDataBaseName(treeNodeData.name!, treeNodeData.extraParams!.databaseType);
           addWorkspaceTab({
             id: `${OperationColumn.OpenTable}-${treeNodeData.uuid}`,
@@ -508,10 +561,11 @@ export const getRightClickMenu = (props: IProps) => {
       text: i18n('workspace.menu.viewAllTable'),
       icon: '\ue611',
       handle: () => {
+        const isRedis = treeNodeData.extraParams?.databaseType === 'REDIS';
         addWorkspaceTab({
           id: uuid(),
           type: WorkspaceTabType.ViewAllTable,
-          title: `${treeNodeData.extraParams!.databaseName!}-tables`,
+          title: `${treeNodeData.extraParams!.databaseName!}-${isRedis ? 'keys' : 'tables'}`,
           uniqueData: {
             dataSourceId: treeNodeData.extraParams!.dataSourceId!,
             dataSourceName: treeNodeData.extraParams!.dataSourceName!,
@@ -603,11 +657,56 @@ export const getRightClickMenu = (props: IProps) => {
     },
 
     // 打开表
-    [OperationColumn.OpenTable]: {
+      [OperationColumn.OpenTable]: {
       text: i18n('workspace.menu.openTable'),
       icon: '\ue618',
       doubleClickTrigger: true,
       handle: () => {
+        if (treeNodeData.extraParams?.databaseType === 'REDIS' && treeNodeData.treeNodeType === TreeNodeType.KEY) {
+          const redisKey = (treeNodeData.name || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+          const quotedKey = `"${redisKey}"`;
+          const buildReadSql = (keyType: string) => {
+            const t = (keyType || '').toLowerCase();
+            if (t === 'hash') return `hgetall ${quotedKey}`;
+            if (t === 'list') return `lrange ${quotedKey} 0 -1`;
+            if (t === 'set') return `smembers ${quotedKey}`;
+            if (t === 'zset') return `zrange ${quotedKey} 0 -1 withscores`;
+            if (t === 'stream') return `xrange ${quotedKey} - + count 200`;
+            return `get ${quotedKey}`;
+          };
+          (async () => {
+            let keyType = 'string';
+            try {
+              const typeResult = await sqlService.executeSql({
+                sql: `type ${quotedKey}`,
+                pageNo: 1,
+                pageSize: 200,
+                dataSourceId: treeNodeData.extraParams!.dataSourceId!,
+                databaseName: treeNodeData.extraParams?.databaseName,
+                schemaName: treeNodeData.extraParams?.schemaName || null,
+              });
+              const firstResult = Array.isArray(typeResult) ? typeResult[0] : null;
+              const row = firstResult?.dataList?.[0] || [];
+              const rawType = row.find((v) => `${v || ''}`.trim().length > 0) || row[0];
+              keyType = `${rawType || 'string'}`.trim().toLowerCase();
+            } catch (e) {}
+
+            addWorkspaceTab({
+              id: `${OperationColumn.OpenTable}-${treeNodeData.uuid}`,
+              title: treeNodeData.name,
+              type: WorkspaceTabType.EditTableData,
+              uniqueData: {
+                dataSourceId: treeNodeData.extraParams!.dataSourceId!,
+                databaseType: treeNodeData.extraParams!.databaseType!,
+                databaseName: treeNodeData.extraParams?.databaseName,
+                schemaName: treeNodeData.extraParams?.schemaName,
+                tableName: treeNodeData.name,
+                sql: buildReadSql(keyType),
+              },
+            });
+          })();
+          return;
+        }
         const databaseName = compatibleDataBaseName(treeNodeData.name!, treeNodeData.extraParams!.databaseType);
         addWorkspaceTab({
           id: `${OperationColumn.OpenTable}-${treeNodeData.uuid}`,

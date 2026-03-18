@@ -202,6 +202,18 @@ export const treeConfig: { [key in TreeNodeType]: ITreeConfigItem } = {
       const { dataSourceId, databaseName, schemaName } = parentData.extraParams!;
       const preCode = [dataSourceId, databaseName, schemaName].join('-');
       return new Promise((r: (value: ITreeNode[]) => void) => {
+        if (parentData.extraParams?.databaseType === 'REDIS') {
+          r([
+            {
+              uuid: uuid(),
+              key: `${preCode}-keys`,
+              name: 'keys',
+              treeNodeType: TreeNodeType.TABLES,
+              extraParams: parentData.extraParams,
+            },
+          ]);
+          return;
+        }
         const data = [
           {
             uuid: uuid(),
@@ -265,13 +277,15 @@ export const treeConfig: { [key in TreeNodeType]: ITreeConfigItem } = {
           .getTableList(params, options)
           .then((res) => {
             const tableList: ITreeNode[] = res.data?.map((t: any) => {
+              const isRedis = _extraParams?.databaseType === 'REDIS';
               return {
                 uuid: uuid(),
                 name: t.name,
-                treeNodeType: TreeNodeType.TABLE,
+                treeNodeType: isRedis ? TreeNodeType.KEY : TreeNodeType.TABLE,
                 key: t.name,
                 pinned: t.pinned,
                 comment: t.comment,
+                isLeaf: isRedis,
                 extraParams: {
                   ..._extraParams,
                   tableName: t.name,
@@ -613,7 +627,7 @@ export const treeConfig: { [key in TreeNodeType]: ITreeConfigItem } = {
   },
   [TreeNodeType.KEY]: {
     icon: '\ue775',
-    operationColumn: [OperationColumn.CreateConsole, OperationColumn.CopyName],
+    operationColumn: [OperationColumn.CreateConsole, OperationColumn.OpenTable, OperationColumn.CopyName],
   },
   [TreeNodeType.INDEXES]: {
     icon: '\ueac5',
