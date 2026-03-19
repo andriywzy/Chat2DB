@@ -37,5 +37,18 @@ export default {
   'workspace.tips.maxConsole': 'コンソールは最大20個まで開くことができます',
   'workspace.tips.openExecutiveLogging': '実行ログを開く',
   'workspace.tree.delete.sequence.tip': 'シーケンス{1}を削除してもよろしいですか？',
+  'workspace.redis.allData': 'すべてのデータ',
+  'workspace.redis.key': 'キー',
+  'workspace.redis.type': 'タイプ',
+  'workspace.redis.value': '値',
+  'workspace.redis.ttl': 'TTL',
+  'workspace.redis.createKey': 'キーを追加',
+  'workspace.redis.deleteKey': 'キーを削除',
+  'workspace.redis.keyName': 'キー名',
+  'workspace.redis.ttlSeconds': 'TTL（秒）',
+  'workspace.redis.noExpire': '有効期限なし',
+  'workspace.redis.expired': '期限切れ',
+  'workspace.redis.batchDeleteTip': '選択したキーを完全に削除しますか？',
+  'workspace.redis.deleteSelectFirst': '削除するキーを選択してください',
   
 };

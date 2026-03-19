@@ -143,12 +143,13 @@ export const useGetRightClickMenu = (props: IProps) => {
       [OperationColumn.ViewAllTable]: {
         text: i18n('workspace.menu.viewAllTable'),
         icon: '\ue611',
+        doubleClickTrigger: true,
         handle: () => {
           const isRedis = treeNodeData.extraParams?.databaseType === 'REDIS';
           addWorkspaceTab({
             id: uuid(),
             type: WorkspaceTabType.ViewAllTable,
-            title: `${treeNodeData.extraParams!.databaseName!}-${isRedis ? 'keys' : 'tables'}`,
+            title: `${treeNodeData.extraParams!.databaseName!}-${isRedis ? 'all_data' : 'tables'}`,
             uniqueData: {
               dataSourceId: treeNodeData.extraParams!.dataSourceId!,
               dataSourceName: treeNodeData.extraParams!.dataSourceName!,
@@ -282,7 +283,9 @@ export const useGetRightClickMenu = (props: IProps) => {
                 const row = firstResult?.dataList?.[0] || [];
                 const rawType = row.find((v) => `${v || ''}`.trim().length > 0) || row[0];
                 keyType = `${rawType || 'string'}`.trim().toLowerCase();
-              } catch (e) {}
+              } catch (e) {
+                // ignore redis TYPE command fallback errors
+              }
 
               addWorkspaceTab({
                 id: `${OperationColumn.OpenTable}-${treeNodeData.uuid}`,
@@ -560,12 +563,13 @@ export const getRightClickMenu = (props: IProps) => {
     [OperationColumn.ViewAllTable]: {
       text: i18n('workspace.menu.viewAllTable'),
       icon: '\ue611',
+      doubleClickTrigger: true,
       handle: () => {
         const isRedis = treeNodeData.extraParams?.databaseType === 'REDIS';
         addWorkspaceTab({
           id: uuid(),
           type: WorkspaceTabType.ViewAllTable,
-          title: `${treeNodeData.extraParams!.databaseName!}-${isRedis ? 'keys' : 'tables'}`,
+          title: `${treeNodeData.extraParams!.databaseName!}-${isRedis ? 'all_data' : 'tables'}`,
           uniqueData: {
             dataSourceId: treeNodeData.extraParams!.dataSourceId!,
             dataSourceName: treeNodeData.extraParams!.dataSourceName!,
@@ -689,7 +693,9 @@ export const getRightClickMenu = (props: IProps) => {
               const row = firstResult?.dataList?.[0] || [];
               const rawType = row.find((v) => `${v || ''}`.trim().length > 0) || row[0];
               keyType = `${rawType || 'string'}`.trim().toLowerCase();
-            } catch (e) {}
+            } catch (e) {
+              // ignore redis TYPE command fallback errors
+            }
 
             addWorkspaceTab({
               id: `${OperationColumn.OpenTable}-${treeNodeData.uuid}`,

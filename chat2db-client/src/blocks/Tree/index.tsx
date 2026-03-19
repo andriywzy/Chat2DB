@@ -356,6 +356,7 @@ const TreeNode = memo((props: TreeNodeIProps) => {
   // 双击节点
   const handelDoubleClickTreeNode = () => {
     if (
+      treeNodeData.treeNodeType === TreeNodeType.TABLES ||
       treeNodeData.treeNodeType === TreeNodeType.TABLE ||
       treeNodeData.treeNodeType === TreeNodeType.KEY ||
       treeNodeData.treeNodeType === TreeNodeType.VIEW ||

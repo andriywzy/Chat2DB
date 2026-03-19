@@ -20,6 +20,46 @@ export interface IGetTableListParams extends IPageParams {
   databaseType?: DatabaseTypeCode;
 }
 
+export interface IRedisKeyItem {
+  keyName: string;
+  keyType: string;
+  valuePreview: string;
+  ttlSeconds: number | null;
+}
+
+export interface IRedisFieldValue {
+  field: string;
+  value: string;
+}
+
+export interface IRedisZSetValue {
+  member: string;
+  score: string;
+}
+
+export interface IRedisStreamValue {
+  id?: string;
+  values: IRedisFieldValue[];
+}
+
+export interface IRedisKeyDetail {
+  keyName: string;
+  keyType: string;
+  ttlSeconds: number | null;
+  stringValue?: string;
+  hashValues?: IRedisFieldValue[];
+  listValues?: string[];
+  setValues?: string[];
+  zsetValues?: IRedisZSetValue[];
+  streamValues?: IRedisStreamValue[];
+}
+
+export interface IRedisKeyPageParams extends IPageParams {
+  dataSourceId: number;
+  databaseName: string;
+  schemaName?: string;
+}
+
 export interface IExecuteSqlParams {
   sql?: string;
   consoleId?: number;
@@ -46,6 +86,59 @@ export interface IConnectConsoleParams {
 }
 
 const getTableList = createRequest<IGetTableListParams, IPageResponse<ITable>>('/api/rdb/table/list', { method: 'get' });
+
+const getRedisKeyPage = createRequest<IRedisKeyPageParams, IPageResponse<IRedisKeyItem>>('/api/redis/browser/key_page', {
+  method: 'get',
+});
+
+const getRedisKeyDetail = createRequest<
+  { dataSourceId: number; databaseName: string; schemaName?: string; keyName: string },
+  IRedisKeyDetail
+>('/api/redis/browser/key/detail', {
+  method: 'get',
+});
+
+const saveRedisKey = createRequest<
+  {
+    dataSourceId: number;
+    databaseName: string;
+    schemaName?: string;
+    originalKeyName?: string;
+    keyName: string;
+    keyType: string;
+    ttlSeconds?: number;
+    stringValue?: string;
+    hashValues?: IRedisFieldValue[];
+    listValues?: string[];
+    setValues?: string[];
+    zsetValues?: IRedisZSetValue[];
+    streamValues?: IRedisStreamValue[];
+  },
+  void
+>('/api/redis/browser/key/save', { method: 'post' });
+
+const createRedisKey = createRequest<
+  {
+    dataSourceId: number;
+    databaseName: string;
+    schemaName?: string;
+    keyName: string;
+    value?: string;
+    ttlSeconds?: number;
+    overwrite?: boolean;
+  },
+  void
+>('/api/redis/browser/key/create', { method: 'post' });
+
+const deleteRedisKeys = createRequest<
+  {
+    dataSourceId: number;
+    databaseName: string;
+    schemaName?: string;
+    keyNames: string[];
+  },
+  void
+>('/api/redis/browser/key/delete', { method: 'post' });
 
 const executeSql = createRequest<IExecuteSqlParams, IManageResultData[]>('/api/rdb/dml/execute', { method: 'post', delayTime: 10 });
 
@@ -368,6 +461,11 @@ export default {
   getFunctionList,
   getViewList,
   getTableList,
+  getRedisKeyPage,
+  getRedisKeyDetail,
+  saveRedisKey,
+  createRedisKey,
+  deleteRedisKeys,
   executeSql,
   executeTable,
   connectConsole,

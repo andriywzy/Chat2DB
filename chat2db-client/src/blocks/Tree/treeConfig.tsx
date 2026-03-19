@@ -2,6 +2,7 @@ import { ITreeNode, IConnectionDetails } from '@/typings';
 import { TreeNodeType, OperationColumn } from '@/constants';
 import connectionService from '@/service/connection';
 import { v4 as uuid } from 'uuid';
+import i18n from '@/i18n';
 
 import mysqlServer from '@/service/sql';
 
@@ -206,9 +207,10 @@ export const treeConfig: { [key in TreeNodeType]: ITreeConfigItem } = {
           r([
             {
               uuid: uuid(),
-              key: `${preCode}-keys`,
-              name: 'keys',
+              key: `${preCode}-all-data`,
+              name: i18n('workspace.redis.allData'),
               treeNodeType: TreeNodeType.TABLES,
+              isLeaf: true,
               extraParams: parentData.extraParams,
             },
           ]);
@@ -270,6 +272,15 @@ export const treeConfig: { [key in TreeNodeType]: ITreeConfigItem } = {
     icon: '\ueac5',
     getChildren: (params, options) => {
       const _extraParams = params.extraParams;
+      if (_extraParams?.databaseType === 'REDIS') {
+        return Promise.resolve({
+          data: [],
+          pageNo: 1,
+          pageSize: 0,
+          total: 0,
+          hasNextPage: false,
+        } as any);
+      }
       delete params.extraParams;
       params.pageSize = 1000;
       return new Promise((r, j) => {
@@ -700,6 +711,11 @@ export const treeConfig: { [key in TreeNodeType]: ITreeConfigItem } = {
   },
   [TreeNodeType.SEQUENCE]: {
     icon: '\ue611',
-    operationColumn: [OperationColumn.OpenSequence, OperationColumn.EditSequence, OperationColumn.CopyName,OperationColumn.DeleteSequence],
+    operationColumn: [
+      OperationColumn.OpenSequence,
+      OperationColumn.EditSequence,
+      OperationColumn.CopyName,
+      OperationColumn.DeleteSequence,
+    ],
   },
 };

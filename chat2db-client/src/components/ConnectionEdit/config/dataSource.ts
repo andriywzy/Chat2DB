@@ -183,7 +183,7 @@ export const dataSourceFormConfigs: IConnectionConfig[] = [
           },
         },
         {
-          defaultValue: AuthenticationType.USERANDPASSWORD,
+          defaultValue: AuthenticationType.NONE,
           inputType: InputType.SELECT,
           labelNameCN: '身份验证',
           labelNameEN: 'Authentication',
@@ -1221,12 +1221,12 @@ export const dataSourceFormConfigs: IConnectionConfig[] = [
             {
               items: [
                 {
-                  defaultValue: 'root',
+                  defaultValue: 'default',
                   inputType: InputType.INPUT,
                   labelNameCN: '用户名',
                   labelNameEN: 'User',
                   name: 'user',
-                  required: true,
+                  required: false,
                   styles: {
                     width: '100%',
                   },
@@ -1237,7 +1237,7 @@ export const dataSourceFormConfigs: IConnectionConfig[] = [
                   labelNameCN: '密码',
                   labelNameEN: 'Password',
                   name: 'password',
-                  required: true,
+                  required: false,
                   styles: {
                     width: '100%',
                   },
@@ -1614,18 +1614,18 @@ export const dataSourceFormConfigs: IConnectionConfig[] = [
           },
         },
         {
-          defaultValue: '',
+          defaultValue: '0',
           inputType: InputType.INPUT,
-          labelNameCN: '数据库',
-          labelNameEN: 'Database',
+          labelNameCN: '数据库编号',
+          labelNameEN: 'Database Index',
           name: 'database',
-          required: false,
+          required: true,
           styles: {
             width: '100%',
           },
         },
         {
-          defaultValue: 'jdbc:redis://localhost:6379',
+          defaultValue: 'jdbc:redis://localhost:6379/0',
           inputType: InputType.INPUT,
           labelNameCN: 'URL',
           labelNameEN: 'URL',

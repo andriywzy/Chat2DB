@@ -34,5 +34,18 @@ export default {
   'workspace.tree.delete.tip': 'Bu işlemin kalıcı olarak silindiğini anlıyorum',
   'workspace.tree.delete.table.tip': '{1} tablosunu silmek istediğinizden emin misiniz?',
   'workspace.tips.noConnection': 'Henüz bir bağlantı oluşturmadınız',
-  'workspace.tree.delete.sequence.tip': '{1} i silmek istediğinize emin misiniz?'
+  'workspace.tree.delete.sequence.tip': '{1} i silmek istediğinize emin misiniz?',
+  'workspace.redis.allData': 'Tüm Veriler',
+  'workspace.redis.key': 'Anahtar',
+  'workspace.redis.type': 'Tür',
+  'workspace.redis.value': 'Değer',
+  'workspace.redis.ttl': 'TTL',
+  'workspace.redis.createKey': 'Anahtar Oluştur',
+  'workspace.redis.deleteKey': 'Anahtarı Sil',
+  'workspace.redis.keyName': 'Anahtar Adı',
+  'workspace.redis.ttlSeconds': 'TTL (saniye)',
+  'workspace.redis.noExpire': 'Süresiz',
+  'workspace.redis.expired': 'Süresi Doldu',
+  'workspace.redis.batchDeleteTip': 'Seçili anahtarlar kalıcı olarak silinsin mi?',
+  'workspace.redis.deleteSelectFirst': 'Önce anahtar seçin'
 };
