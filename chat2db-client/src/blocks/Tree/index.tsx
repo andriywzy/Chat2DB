@@ -42,6 +42,14 @@ interface IContext {
 
 export const Context = createContext<IContext>({} as any);
 
+const buildLoadExtraParams = (extraParams?: ITreeNode['extraParams']) => {
+  if (!extraParams) {
+    return {};
+  }
+  const { connectionDetail, ...rest } = extraParams as any;
+  return rest;
+};
+
 // 树转平级
 const smoothTree = (treeData: ITreeNode[], result: ITreeNode[] = [], parentNode?: ITreeNode) => {
   treeData.forEach((item) => {
@@ -236,6 +244,7 @@ const TreeNode = memo((props: TreeNodeIProps) => {
   function loadData(_props?: { refresh: boolean; pageNo: number; treeNodeData?: ITreeNode }) {
     const _treeNodeData = _props?.treeNodeData || props.data;
     const treeNodeConfig: ITreeConfigItem = treeConfig[_treeNodeData.pretendNodeType || _treeNodeData.treeNodeType];
+    const loadExtraParams = buildLoadExtraParams(_treeNodeData.extraParams);
     setIsLoading(true);
     if (_props?.pageNo === 1 || !_props?.pageNo) {
       insertData(treeData!, _treeNodeData.uuid!, null,[treeData, setTreeData]);
@@ -246,10 +255,8 @@ const TreeNode = memo((props: TreeNodeIProps) => {
 
     treeNodeConfig
       .getChildren?.({
-        ..._treeNodeData.extraParams,
-        extraParams: {
-          ..._treeNodeData.extraParams,
-        },
+        ...loadExtraParams,
+        extraParams: loadExtraParams,
         refresh: _props?.refresh || false,
         pageNo: _props?.pageNo || 1,
       })
