@@ -129,6 +129,16 @@ public class DataSourceVO {
     private String serviceType;
 
     /**
+     * datasource group id
+     */
+    private Long groupId;
+
+    /**
+     * datasource group name
+     */
+    private String groupName;
+
+    /**
      * Whether to support database
      */
     private boolean supportDatabase;

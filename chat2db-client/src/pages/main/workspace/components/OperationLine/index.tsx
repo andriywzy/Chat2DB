@@ -1,115 +1,119 @@
 import React, { memo, useMemo, useState } from 'react';
 import i18n from '@/i18n';
 import styles from './index.less';
-import { Input } from 'antd';
-
-// ----- constants -----
-import { DatabaseTypeCode } from '@/constants';
+import { Dropdown, Input, type MenuProps } from 'antd';
+import { ThunderboltOutlined } from '@ant-design/icons';
 
 // ----- components -----
 import Iconfont from '@/components/Iconfont';
+import FileUploadModal from '@/components/ImportConnection';
 
 // ----- store -----
-import { useWorkspaceStore } from '@/pages/main/workspace/store';
+import { setMainPageActiveTab } from '@/pages/main/store/main';
 
 interface IProps {
   searchValue: string;
   setSearchValue: (value: string) => void;
   getTreeData: (refresh?: boolean) => void;
+  onCreateGroup?: () => void;
 }
 
-// 不支持创建数据库的数据库类型
-const notSupportCreateDatabaseType = [DatabaseTypeCode.H2];
-
-// 不支持创建schema的数据库类型
-const notSupportCreateSchemaType = [DatabaseTypeCode.ORACLE];
-
 const OperationLine = (props: IProps) => {
-  const [searchIng, setSearchIng] = useState<boolean>(false);
-  const { searchValue, setSearchValue, getTreeData } = props;
-  const { currentConnectionDetails, openCreateDatabaseModal } = useWorkspaceStore((state) => {
-    return {
-      currentConnectionDetails: state.currentConnectionDetails,
-      openCreateDatabaseModal: state.openCreateDatabaseModal,
-    };
-  });
+  const { searchValue, setSearchValue, getTreeData, onCreateGroup } = props;
+  const [isImportOpen, setIsImportOpen] = useState(false);
 
-  const handelOpenCreateDatabaseModal = () => {
-    const type = currentConnectionDetails?.supportDatabase ? 'database' : 'schema';
-
-    openCreateDatabaseModal?.({
-      type,
-      relyOnParams: {
-        databaseType: currentConnectionDetails!.type!,
-        dataSourceId: currentConnectionDetails!.id!,
+  const menuItems = useMemo<MenuProps['items']>(
+    () => [
+      {
+        key: 'new-group',
+        label: (
+          <div className={styles.menuItemLabel}>
+            <Iconfont code="&#xe63f;" />
+            <span>{i18n('workspace.database.newGroup')}</span>
+          </div>
+        ),
+        onClick: () => {
+          onCreateGroup?.();
+        },
       },
-      executedCallback: () => {
-        getTreeData(true);
+      {
+        key: 'new-connection',
+        label: (
+          <div className={styles.menuItemLabel}>
+            <Iconfont code="&#xe638;" />
+            <span>{i18n('workspace.database.newConnection')}</span>
+            <Iconfont className={styles.menuArrow} code="&#xe631;" />
+          </div>
+        ),
+        onClick: () => {
+          setMainPageActiveTab('connections');
+        },
       },
-    });
-  };
-
-  const showCreate = useMemo(() => {
-    if (currentConnectionDetails?.supportDatabase) {
-      return !notSupportCreateDatabaseType.includes(currentConnectionDetails!.type!);
-    }
-    if (currentConnectionDetails?.supportSchema) {
-      return !notSupportCreateSchemaType.includes(currentConnectionDetails!.type!);
-    }
-  }, [currentConnectionDetails]);
+      {
+        key: 'import-connection',
+        label: (
+          <div className={styles.menuItemLabel}>
+            <Iconfont code="&#xe66c;" />
+            <span>{i18n('workspace.database.importConnection')}</span>
+            <Iconfont className={styles.menuArrow} code="&#xe631;" />
+          </div>
+        ),
+        onClick: () => {
+          setIsImportOpen(true);
+        },
+      },
+    ],
+    [onCreateGroup],
+  );
 
   return (
     <>
       <div className={styles.operationLine}>
         <div className={styles.operationLineLeft}>
-          {showCreate && (
-            <Iconfont onClick={handelOpenCreateDatabaseModal} code="&#xeb78;" box boxSize={20} size={15} />
-          )}
-          <Iconfont
+          <Dropdown
+            menu={{ items: menuItems }}
+            overlayClassName={styles.createMenuOverlay}
+            trigger={['click']}
+            placement="bottomLeft"
+          >
+            <div className={styles.iconButton}>
+              <Iconfont code="&#xeb78;" />
+            </div>
+          </Dropdown>
+          <div
+            className={styles.iconButton}
             onClick={() => {
               getTreeData(true);
             }}
-            code="&#xe668;"
-            box
-            boxSize={20}
-            size={14}
-          />
-          {/* {searchIng ? (
-            <Iconfont
-              onClick={() => {
-                setSearchIng(false);
-                setSearchValue('');
-              }}
-              box
-              boxSize={20}
-              code="&#xe634;"
-            />
-          ) : (
-            <Iconfont
-              onClick={() => {
-                setSearchIng(true);
-              }}
-              code="&#xe888;"
-              box
-              boxSize={20}
-              size={14}
-            />
-          )} */}
+          >
+            <Iconfont code="&#xe668;" />
+          </div>
+          <div className={styles.iconButton}>
+            <ThunderboltOutlined />
+          </div>
         </div>
-        {/* <div>1</div> */}
+        <div className={styles.searchBox}>
+          <Input
+            size="small"
+            prefix={<Iconfont code="&#xe888;" />}
+            value={searchValue}
+            onChange={(e) => setSearchValue(e.target.value)}
+            allowClear
+            placeholder={i18n('common.text.search')}
+            suffix={<span className={styles.searchShortcut}>⌘F</span>}
+          />
+        </div>
       </div>
-      {/* {searchIng && ( */}
-      <div className={styles.searchBox}>
-        <Input
-          size="small"
-          prefix={<Iconfont code="&#xe888;" />}
-          value={searchValue}
-          onChange={(e) => setSearchValue(e.target.value)}
-          allowClear
-          placeholder={i18n('workspace.tree.search.placeholder')}
-        />
-      </div>
-      {/* )} */}
+      <FileUploadModal
+        open={isImportOpen}
+        onClose={() => {
+          setIsImportOpen(false);
+        }}
+        onConfirm={() => {
+          setIsImportOpen(false);
+          getTreeData(true);
+        }}
+      />
     </>
   );
 };

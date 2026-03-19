@@ -143,6 +143,15 @@ public class DataSource {
      */
     private String serviceType;
 
+    /**
+     * Current user's group id
+     */
+    private Long groupId;
+
+    /**
+     * Current user's group name
+     */
+    private String groupName;
 
     private boolean supportDatabase;
 

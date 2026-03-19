@@ -14,6 +14,11 @@ export interface IConnectionEnv {
   color: string;
 }
 
+export interface IConnectionGroupItem {
+  id: number;
+  name: string;
+}
+
 // 连接列表的信息
 export interface IConnectionListItem {
   id: number;
@@ -23,6 +28,8 @@ export interface IConnectionListItem {
   supportDatabase: boolean;
   supportSchema: boolean;
   user: string;
+  groupId?: number;
+  groupName?: string;
 }
 
 
@@ -39,6 +46,8 @@ export interface IConnectionDetails {
   ConsoleOpenedStatus: 'y' | 'n';
   extendInfo: IConnectionExtendInfoItem[];
   environmentId: number;
+  groupId?: number;
+  groupName?: string;
   ssh: any;
   driverConfig: {
     jdbcDriver: string;
@@ -52,10 +61,11 @@ export interface IConnectionListItem {
   alias: string;
   environment: IConnectionEnv;
   type: DatabaseTypeCode;
-  supportDatabase: boolean; 
+  supportDatabase: boolean;
   supportSchema: boolean;
   user: string;
+  groupId?: number;
+  groupName?: string;
 }
 
 export type ICreateConnectionDetails = Omit<IConnectionDetails, 'id'>
-

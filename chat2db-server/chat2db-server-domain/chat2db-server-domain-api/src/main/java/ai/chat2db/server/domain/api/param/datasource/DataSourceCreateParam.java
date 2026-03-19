@@ -118,4 +118,9 @@ public class DataSourceCreateParam {
      * Service type
      */
     private String serviceType;
+
+    /**
+     * datasource group id
+     */
+    private Long groupId;
 }

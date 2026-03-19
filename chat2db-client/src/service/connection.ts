@@ -1,4 +1,12 @@
-import { IPageResponse, IConnectionDetails, ICreateConnectionDetails, IConnectionEnv, IPageParams, IConnectionListItem } from '@/typings';
+import {
+  IPageResponse,
+  IConnectionDetails,
+  ICreateConnectionDetails,
+  IConnectionEnv,
+  IPageParams,
+  IConnectionListItem,
+  IConnectionGroupItem,
+} from '@/typings';
 import { DatabaseTypeCode } from '@/constants';
 import createRequest from './base';
 
@@ -76,6 +84,22 @@ const saveDriver = createRequest<IUploadDriver, void>('/api/jdbc/driver/save', {
 
 const getEnvList = createRequest<void, IConnectionEnv[]>('/api/common/environment/list_all', { errorLevel: false });
 
+const getGroupList = createRequest<void, IConnectionGroupItem[]>('/api/connection/group/list', {
+  method: 'get',
+});
+
+const createGroup = createRequest<{ name: string }, number>('/api/connection/group/create', {
+  method: 'post',
+});
+
+const updateGroup = createRequest<{ id: number; name: string }, number>('/api/connection/group/update', {
+  method: 'post',
+});
+
+const deleteGroup = createRequest<{ id: number }, void>('/api/connection/group/:id', {
+  method: 'delete',
+});
+
 /** 导入Navicat链接 */
 // const importNavicatConnection = createRequest<
 //   {
@@ -88,6 +112,10 @@ const getEnvList = createRequest<void, IConnectionEnv[]>('/api/common/environmen
 
 export default {
   getEnvList,
+  getGroupList,
+  createGroup,
+  updateGroup,
+  deleteGroup,
   getList,
   getDetails,
   save,

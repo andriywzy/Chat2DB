@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import java.io.Serializable;
 import java.util.Date;
+import com.baomidou.mybatisplus.annotation.TableField;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -138,5 +139,11 @@ public class DataSourceDO implements Serializable {
      * Service type
      */
     private String serviceType;
+
+    @TableField(exist = false)
+    private Long groupId;
+
+    @TableField(exist = false)
+    private String groupName;
 
 }

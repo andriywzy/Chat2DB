@@ -1,25 +1,38 @@
 @import '../../../../../styles/var.less';
 
-.splitViewLeft {
-}
-
-.selectConnection {
-  padding: 6px;
+.header {
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--color-border-secondary);
+  background-color: var(--color-bg-subtle);
+}
+
+.title {
+  font-size: 16px;
+  line-height: 1;
+  font-weight: 600;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.iconButton {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  box-sizing: border-box;
-  height: 32px;
-  .menuLabel {
-    flex: 1;
-    width: 0px;
-  }
-  .dropDownArrow {
-    transform: rotate(90deg);
-    color: var(--color-text-secondary);
-  }
+  color: var(--color-text-secondary);
   &:hover {
+    color: var(--color-text);
     background: var(--color-hover-bg);
   }
 }

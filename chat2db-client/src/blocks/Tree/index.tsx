@@ -7,7 +7,7 @@ import { ITreeNode } from '@/typings';
 import { TreeNodeType, databaseMap } from '@/constants';
 import { treeConfig, switchIcon, ITreeConfigItem } from './treeConfig';
 import { useCommonStore } from '@/store/common';
-import { setCurrentWorkspaceGlobalExtend } from '@/pages/main/workspace/store/common';
+import { setCurrentConnectionDetails, setCurrentWorkspaceGlobalExtend } from '@/pages/main/workspace/store/common';
 import LoadingGracile from '@/components/Loading/LoadingGracile';
 import { setFocusId, setFocusTreeNode, useTreeStore, clearTreeStore } from './treeStore';
 import { useGetRightClickMenu } from './hooks/useGetRightClickMenu';
@@ -20,11 +20,17 @@ interface IProps {
   className?: string;
   treeData: ITreeNode[] | null;
   searchValue: string;
+  getNodeDraggable?: (node: ITreeNode) => boolean;
+  onNodeDragStart?: (node: ITreeNode, event: React.DragEvent<HTMLDivElement>) => void;
+  onNodeDragEnd?: (node: ITreeNode, event: React.DragEvent<HTMLDivElement>) => void;
 }
 
 interface TreeNodeIProps {
   data: ITreeNode;
   level: number;
+  getNodeDraggable?: (node: ITreeNode) => boolean;
+  onNodeDragStart?: (node: ITreeNode, event: React.DragEvent<HTMLDivElement>) => void;
+  onNodeDragEnd?: (node: ITreeNode, event: React.DragEvent<HTMLDivElement>) => void;
 }
 
 interface IContext {
@@ -160,9 +166,25 @@ const Tree = (props: IProps) => {
   const treeNodes = useMemo(() => {
     const realNodeList = (searchSmoothTreeData || smoothTreeData).slice(startIdx, startIdx + 50);
     return realNodeList.map((item) => {
-      return <TreeNode key={item.uuid} level={item.level || 0} data={item} />;
+      return (
+        <TreeNode
+          key={item.uuid}
+          level={item.level || 0}
+          data={item}
+          getNodeDraggable={props.getNodeDraggable}
+          onNodeDragStart={props.onNodeDragStart}
+          onNodeDragEnd={props.onNodeDragEnd}
+        />
+      );
     });
-  }, [smoothTreeData, searchSmoothTreeData, startIdx]);
+  }, [
+    smoothTreeData,
+    searchSmoothTreeData,
+    startIdx,
+    props.getNodeDraggable,
+    props.onNodeDragStart,
+    props.onNodeDragEnd,
+  ]);
 
   useEffect(() => {
     if (searchValue && treeData) {
@@ -208,6 +230,7 @@ const TreeNode = memo((props: TreeNodeIProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const indentArr = new Array(level).fill('indent');
   const { treeData, setTreeData, searchTreeData, setSearchTreeData } = useContext(Context);
+  const isDraggable = props.getNodeDraggable?.(treeNodeData);
 
   // 加载数据
   function loadData(_props?: { refresh: boolean; pageNo: number; treeNodeData?: ITreeNode }) {
@@ -329,6 +352,9 @@ const TreeNode = memo((props: TreeNodeIProps) => {
     useCommonStore.setState({
       focusedContent: (treeNodeData.name || '') as any,
     });
+    if (treeNodeData.treeNodeType === TreeNodeType.DATA_SOURCE && treeNodeData.extraParams?.connectionDetail) {
+      setCurrentConnectionDetails(treeNodeData.extraParams.connectionDetail);
+    }
     if(treeNodeData.treeNodeType === TreeNodeType.TABLE){
       setCurrentWorkspaceGlobalExtend({
         code: 'viewDDL',
@@ -399,10 +425,26 @@ const TreeNode = memo((props: TreeNodeIProps) => {
       >
         <Tooltip placement="right" color={window._AppThemePack?.colorPrimary} title={treeNodeData.comment}>
           <div
-            className={classnames(styles.treeNode, { [styles.treeNodeFocus]: isFocus })}
+            className={classnames(styles.treeNode, {
+              [styles.treeNodeFocus]: isFocus,
+              [styles.treeNodeDraggable]: isDraggable,
+            })}
             onClick={handelClickTreeNode}
             onContextMenu={handelClickTreeNode}
             onDoubleClick={handelDoubleClickTreeNode}
+            draggable={isDraggable}
+            onDragStart={(event) => {
+              if (!isDraggable) {
+                return;
+              }
+              props.onNodeDragStart?.(treeNodeData, event);
+            }}
+            onDragEnd={(event) => {
+              if (!isDraggable) {
+                return;
+              }
+              props.onNodeDragEnd?.(treeNodeData, event);
+            }}
             data-chat2db-general-can-copy-element
           >
             <div className={styles.left}>

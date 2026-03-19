@@ -7,6 +7,7 @@ export default {
   'connection.label.name': '名称',
   'connection.label.host': '主机',
   'connection.label.authentication': '身份验证',
+  'connection.label.group': '分组',
   'connection.label.database': '数据库',
   'connection.label.JDBCDrive': 'JDBC驱动',
   'connection.label.port': '端口',

@@ -21,7 +21,11 @@ import MenuLabel from '@/components/MenuLabel';
 import useClickAndDoubleClick from '@/hooks/useClickAndDoubleClick';
 
 // ----- store -----
-import { useConnectionStore, getConnectionList } from '@/pages/main/store/connection';
+import {
+  useConnectionStore,
+  getConnectionList,
+  setConnectionManageActiveId,
+} from '@/pages/main/store/connection';
 import { setMainPageActiveTab } from '@/pages/main/store/main';
 import { setCurrentConnectionDetails } from '@/pages/main/workspace/store/common';
 import { getOpenConsoleList } from '@/pages/main/workspace/store/console';
@@ -29,9 +33,10 @@ import { getOpenConsoleList } from '@/pages/main/workspace/store/console';
 import styles from './index.less';
 
 const ConnectionsPage = () => {
-  const { connectionList } = useConnectionStore((state) => {
+  const { connectionList, connectionManageActiveId } = useConnectionStore((state) => {
     return {
       connectionList: state.connectionList,
+      connectionManageActiveId: state.connectionManageActiveId,
     };
   });
   const volatileRef = useRef<any>();
@@ -42,6 +47,7 @@ const ConnectionsPage = () => {
   const handleMenuItemSingleClick = (t: IConnectionListItem) => {
     if (connectionActiveId !== t.id) {
       setConnectionActiveId(t.id);
+      setConnectionManageActiveId(t.id);
     }
   };
 
@@ -70,6 +76,12 @@ const ConnectionsPage = () => {
       });
   }, [connectionActiveId]);
 
+  useEffect(() => {
+    if (connectionManageActiveId && connectionManageActiveId !== connectionActiveId) {
+      setConnectionActiveId(connectionManageActiveId);
+    }
+  }, [connectionManageActiveId, connectionActiveId]);
+
   //
   const createDropdownItems = (t) => {
     const handelDelete = (e) => {
@@ -83,6 +95,7 @@ const ConnectionsPage = () => {
         if (connectionActiveId === t.id) {
           setConnectionActiveId(null);
           setConnectionDetail(null);
+          setConnectionManageActiveId(null);
         }
       });
     };
@@ -97,6 +110,7 @@ const ConnectionsPage = () => {
       connectionService.clone({ id: t.id }).then((res) => {
         getConnectionList();
         setConnectionActiveId(res);
+        setConnectionManageActiveId(res);
       });
     }
 
@@ -161,6 +175,7 @@ const ConnectionsPage = () => {
       .then((res) => {
         getConnectionList();
         setConnectionActiveId(res);
+        setConnectionManageActiveId(res);
       });
   };
 
@@ -177,6 +192,7 @@ const ConnectionsPage = () => {
               onClick={() => {
                 setConnectionActiveId(null);
                 setConnectionDetail(null);
+                setConnectionManageActiveId(null);
               }}
             >
               {i18n('connection.button.addConnection')}

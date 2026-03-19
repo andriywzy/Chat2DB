@@ -115,4 +115,9 @@ public class DataSourceCreateRequest {
      */
     private String serviceType;
 
+    /**
+     * datasource group id
+     */
+    private Long groupId;
+
 }

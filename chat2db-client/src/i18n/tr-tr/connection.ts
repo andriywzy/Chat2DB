@@ -7,6 +7,7 @@ export default {
   'connection.label.name': 'ad',
   'connection.label.host': 'ana bilgisayar',
   'connection.label.authentication': 'doğrulama',
+  'connection.label.group': 'grup',
   'connection.label.database': 'veritabanı',
   'connection.label.JDBCDrive': 'JDBC Sürücüsü',
   'connection.label.port': 'port',

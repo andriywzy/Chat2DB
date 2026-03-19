@@ -114,4 +114,9 @@ public class DataSourceUpdateParam {
      */
     private String serviceType;
 
+    /**
+     * datasource group id
+     */
+    private Long groupId;
+
 }

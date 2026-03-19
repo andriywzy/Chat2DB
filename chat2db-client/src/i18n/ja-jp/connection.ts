@@ -7,6 +7,7 @@ export default {
   'connection.label.name': '名前',
   'connection.label.host': 'ホスト',
   'connection.label.authentication': '認証',
+  'connection.label.group': 'グループ',
   'connection.label.database': 'データベース',
   'connection.label.JDBCDrive': 'JDBCドライバ',
   'connection.label.port': 'ポート',

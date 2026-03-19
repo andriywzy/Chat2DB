@@ -2,9 +2,11 @@ package ai.chat2db.server.domain.core.impl;
 
 import java.sql.Connection;
 import java.util.List;
+import java.util.Map;
 
 import ai.chat2db.server.domain.api.enums.DataSourceKindEnum;
 import ai.chat2db.server.domain.api.model.DataSource;
+import ai.chat2db.server.domain.api.model.DataSourceGroup;
 import ai.chat2db.server.domain.api.param.datasource.DataSourceCloseParam;
 import ai.chat2db.server.domain.api.param.datasource.DataSourceCreateParam;
 import ai.chat2db.server.domain.api.param.datasource.DataSourcePageQueryParam;
@@ -21,8 +23,10 @@ import ai.chat2db.server.domain.core.util.PermissionUtils;
 import ai.chat2db.server.domain.repository.Dbutils;
 import ai.chat2db.server.domain.repository.entity.DataSourceAccessDO;
 import ai.chat2db.server.domain.repository.entity.DataSourceDO;
+import ai.chat2db.server.domain.repository.entity.DataSourceGroupMappingDO;
 import ai.chat2db.server.domain.repository.mapper.DataSourceAccessMapper;
 import ai.chat2db.server.domain.repository.mapper.DataSourceCustomMapper;
+import ai.chat2db.server.domain.repository.mapper.DataSourceGroupMappingMapper;
 import ai.chat2db.server.domain.repository.mapper.DataSourceMapper;
 import ai.chat2db.server.tools.base.wrapper.result.ActionResult;
 import ai.chat2db.server.tools.base.wrapper.result.DataResult;
@@ -50,6 +54,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
@@ -78,6 +83,9 @@ public class DataSourceServiceImpl implements DataSourceService {
     @Autowired
     private DatabaseService databaseService;
 
+    @Autowired
+    private DataSourceGroupServiceImpl dataSourceGroupService;
+
 
     private DataSourceCustomMapper getCustomMapper() {
         return Dbutils.getMapper(DataSourceCustomMapper.class);
@@ -86,6 +94,10 @@ public class DataSourceServiceImpl implements DataSourceService {
     private EnvironmentConverter environmentConverter;
     private DataSourceAccessMapper getAccessMapper() {
         return Dbutils.getMapper(DataSourceAccessMapper.class);
+    }
+
+    private DataSourceGroupMappingMapper getGroupMappingMapper() {
+        return Dbutils.getMapper(DataSourceGroupMappingMapper.class);
     }
 
     @Override
@@ -105,6 +117,7 @@ public class DataSourceServiceImpl implements DataSourceService {
         //dataSourceDO.setExtendInfo(null);
 
         getMapper().insert(dataSourceDO);
+        syncGroupRelation(dataSourceDO.getId(), param.getGroupId());
         preWarmingData(dataSourceDO.getId());
         return DataResult.of(dataSourceDO.getId());
     }
@@ -140,6 +153,7 @@ public class DataSourceServiceImpl implements DataSourceService {
         DataSourceDO dataSourceDO = dataSourceConverter.param2do(param);
         dataSourceDO.setGmtModified(DateUtil.date());
         getMapper().updateById(dataSourceDO);
+        syncGroupRelation(param.getId(), param.getGroupId());
         return DataResult.of(dataSourceDO.getId());
     }
 
@@ -155,6 +169,10 @@ public class DataSourceServiceImpl implements DataSourceService {
         dataSourceAccessQueryWrapper.eq(DataSourceAccessDO::getDataSourceId, id)
         ;
         getAccessMapper().delete(dataSourceAccessQueryWrapper);
+
+        LambdaQueryWrapper<DataSourceGroupMappingDO> dataSourceGroupMappingQueryWrapper = new LambdaQueryWrapper<>();
+        dataSourceGroupMappingQueryWrapper.eq(DataSourceGroupMappingDO::getDataSourceId, id);
+        getGroupMappingMapper().delete(dataSourceGroupMappingQueryWrapper);
         return ActionResult.isSuccess();
     }
 
@@ -188,6 +206,7 @@ public class DataSourceServiceImpl implements DataSourceService {
         dataSourceDO.setGmtCreate(DateUtil.date());
         dataSourceDO.setGmtModified(DateUtil.date());
         getMapper().insert(dataSourceDO);
+        cloneGroupRelation(id, dataSourceDO.getId());
         return DataResult.of(dataSourceDO.getId());
     }
 
@@ -279,7 +298,13 @@ public class DataSourceServiceImpl implements DataSourceService {
     }
 
     private void fillData(List<DataSource> list, DataSourceSelector selector) {
-        if (CollectionUtils.isEmpty(list) || selector == null) {
+        if (CollectionUtils.isEmpty(list)) {
+            return;
+        }
+
+        fillGroup(list);
+
+        if (selector == null) {
             return;
         }
 
@@ -311,6 +336,82 @@ public class DataSourceServiceImpl implements DataSourceService {
             return;
         }
         environmentConverter.fillDetail(EasyCollectionUtils.toList(list, DataSource::getEnvironment));
+    }
+
+    private void fillGroup(List<DataSource> list) {
+        if (CollectionUtils.isEmpty(list) || ContextUtils.queryLoginUser() == null) {
+            return;
+        }
+        List<Long> dataSourceIds = EasyCollectionUtils.toList(list, DataSource::getId);
+        if (CollectionUtils.isEmpty(dataSourceIds)) {
+            return;
+        }
+        LambdaQueryWrapper<DataSourceGroupMappingDO> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(DataSourceGroupMappingDO::getUserId, ContextUtils.getUserId());
+        queryWrapper.in(DataSourceGroupMappingDO::getDataSourceId, dataSourceIds);
+        List<DataSourceGroupMappingDO> mappingList = getGroupMappingMapper().selectList(queryWrapper);
+        if (CollectionUtils.isEmpty(mappingList)) {
+            return;
+        }
+
+        Map<Long, Long> dataSourceGroupMap = Maps.newHashMap();
+        for (DataSourceGroupMappingDO mapping : mappingList) {
+            dataSourceGroupMap.put(mapping.getDataSourceId(), mapping.getGroupId());
+        }
+
+        List<Long> groupIds = mappingList.stream().map(DataSourceGroupMappingDO::getGroupId).distinct().toList();
+        Map<Long, DataSourceGroup> groupMap = Maps.newHashMap();
+        for (DataSourceGroup group : dataSourceGroupService.queryCurrentUserList(groupIds)) {
+            groupMap.put(group.getId(), group);
+        }
+
+        for (DataSource dataSource : list) {
+            Long groupId = dataSourceGroupMap.get(dataSource.getId());
+            if (groupId == null) {
+                continue;
+            }
+            DataSourceGroup group = groupMap.get(groupId);
+            if (group == null) {
+                continue;
+            }
+            dataSource.setGroupId(groupId);
+            dataSource.setGroupName(group.getName());
+        }
+    }
+
+    private void syncGroupRelation(Long dataSourceId, Long groupId) {
+        LambdaQueryWrapper<DataSourceGroupMappingDO> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(DataSourceGroupMappingDO::getUserId, ContextUtils.getUserId());
+        queryWrapper.eq(DataSourceGroupMappingDO::getDataSourceId, dataSourceId);
+        getGroupMappingMapper().delete(queryWrapper);
+
+        if (groupId == null) {
+            return;
+        }
+
+        dataSourceGroupService.queryCurrentUserGroup(groupId);
+
+        DataSourceGroupMappingDO mapping = new DataSourceGroupMappingDO();
+        mapping.setUserId(ContextUtils.getUserId());
+        mapping.setGroupId(groupId);
+        mapping.setDataSourceId(dataSourceId);
+        mapping.setGmtCreate(DateUtil.date());
+        mapping.setGmtModified(DateUtil.date());
+        getGroupMappingMapper().insert(mapping);
+    }
+
+    private void cloneGroupRelation(Long sourceDataSourceId, Long targetDataSourceId) {
+        if (ContextUtils.queryLoginUser() == null) {
+            return;
+        }
+        LambdaQueryWrapper<DataSourceGroupMappingDO> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(DataSourceGroupMappingDO::getUserId, ContextUtils.getUserId());
+        queryWrapper.eq(DataSourceGroupMappingDO::getDataSourceId, sourceDataSourceId);
+        DataSourceGroupMappingDO mapping = getGroupMappingMapper().selectOne(queryWrapper);
+        if (mapping == null) {
+            return;
+        }
+        syncGroupRelation(targetDataSourceId, mapping.getGroupId());
     }
 
 }

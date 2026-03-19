@@ -14,6 +14,8 @@ import { useMemo } from 'react';
 // ----- store -----
 import { createConsole, addWorkspaceTab } from '@/pages/main/workspace/store/console';
 import { useWorkspaceStore } from '@/pages/main/workspace/store';
+import { getConnectionList, setConnectionManageActiveId } from '@/pages/main/store/connection';
+import { setMainPageActiveTab } from '@/pages/main/store/main';
 
 // ---- functions -----
 import { openView, openFunction, openProcedure, openTrigger, openSequence} from '../functions/openAsyncSql';
@@ -22,6 +24,7 @@ import { viewDDL } from '../functions/viewDDL';
 import { deleteTable } from '../functions/deleteTable';
 import { deleteSequence } from '../functions/deleteSequence';
 import sqlService from '@/service/sql';
+import connectionService from '@/service/connection';
 
 // ----- utils -----
 import { compatibleDataBaseName } from '@/utils/database';
@@ -79,6 +82,28 @@ export const useGetRightClickMenu = (props: IProps) => {
     });
   };
 
+  const handleEditSource = () => {
+    const connectionDetail = treeNodeData.extraParams?.connectionDetail;
+    if (!connectionDetail?.id) {
+      return;
+    }
+    setConnectionManageActiveId(connectionDetail.id);
+    setMainPageActiveTab('connections');
+  };
+
+  const handleShiftOut = async () => {
+    const connectionId = treeNodeData.extraParams?.connectionDetail?.id || treeNodeData.extraParams?.dataSourceId;
+    if (!connectionId) {
+      return;
+    }
+    const detail = await connectionService.getDetails({ id: connectionId });
+    await connectionService.update({
+      ...detail,
+      groupId: null as any,
+    });
+    await getConnectionList();
+  };
+
   const rightClickMenu = useMemo(() => {
     // 拿出当前节点的配置
     const treeNodeConfig: ITreeConfigItem = treeConfig[treeNodeData.treeNodeType];
@@ -122,6 +147,19 @@ export const useGetRightClickMenu = (props: IProps) => {
             refresh: true,
           });
         },
+      },
+
+      [OperationColumn.EditSource]: {
+        text: i18n('connection.title.editConnection'),
+        icon: '\ue602',
+        handle: handleEditSource,
+      },
+
+      [OperationColumn.ShiftOut]: {
+        text: i18n('workspace.database.removeFromGroup'),
+        icon: '\ue6a7',
+        handle: handleShiftOut,
+        discard: !treeNodeData.extraParams?.connectionDetail?.groupId,
       },
 
       // 创建console
@@ -462,18 +500,19 @@ export const useGetRightClickMenu = (props: IProps) => {
     const finalList: IRightClickMenu[] = [];
     excludeSomeOperation().forEach((t, i) => {
       const concrete = operationColumnConfig[t];
-      if (!concrete.discard) {
-        finalList.push({
-          key: i,
-          onClick: concrete?.handle,
-          type: t,
-          doubleClickTrigger: concrete.doubleClickTrigger,
-          labelProps: {
-            icon: concrete?.icon,
-            label: concrete?.text,
-          },
-        });
+      if (!concrete || concrete.discard) {
+        return;
       }
+      finalList.push({
+        key: i,
+        onClick: concrete.handle,
+        type: t,
+        doubleClickTrigger: concrete.doubleClickTrigger,
+        labelProps: {
+          icon: concrete.icon,
+          label: concrete.text,
+        },
+      });
     });
     return finalList;
   }, [treeNodeData]);
@@ -504,6 +543,28 @@ export const getRightClickMenu = (props: IProps) => {
         });
       },
     });
+  };
+
+  const handleEditSource = () => {
+    const connectionDetail = treeNodeData.extraParams?.connectionDetail;
+    if (!connectionDetail?.id) {
+      return;
+    }
+    setConnectionManageActiveId(connectionDetail.id);
+    setMainPageActiveTab('connections');
+  };
+
+  const handleShiftOut = async () => {
+    const connectionId = treeNodeData.extraParams?.connectionDetail?.id || treeNodeData.extraParams?.dataSourceId;
+    if (!connectionId) {
+      return;
+    }
+    const detail = await connectionService.getDetails({ id: connectionId });
+    await connectionService.update({
+      ...detail,
+      groupId: null as any,
+    });
+    await getConnectionList();
   };
 
   // 拿出当前节点的配置
@@ -542,6 +603,19 @@ export const getRightClickMenu = (props: IProps) => {
           refresh: true,
         });
       },
+    },
+
+    [OperationColumn.EditSource]: {
+      text: i18n('connection.title.editConnection'),
+      icon: '\ue602',
+      handle: handleEditSource,
+    },
+
+    [OperationColumn.ShiftOut]: {
+      text: i18n('workspace.database.removeFromGroup'),
+      icon: '\ue6a7',
+      handle: handleShiftOut,
+      discard: !treeNodeData.extraParams?.connectionDetail?.groupId,
     },
 
     // 创建console
@@ -847,18 +921,19 @@ export const getRightClickMenu = (props: IProps) => {
   const finalList: IRightClickMenu[] = [];
   excludeSomeOperation().forEach((t,i) => {
     const concrete = operationColumnConfig[t];
-    if (!concrete.discard) {
-      finalList.push({
-        key: i,
-        onClick: concrete?.handle,
-        type: t,
-        doubleClickTrigger: concrete.doubleClickTrigger,
-        labelProps: {
-          icon: concrete?.icon,
-          label: concrete?.text,
-        },
-      });
+    if (!concrete || concrete.discard) {
+      return;
     }
+    finalList.push({
+      key: i,
+      onClick: concrete.handle,
+      type: t,
+      doubleClickTrigger: concrete.doubleClickTrigger,
+      labelProps: {
+        icon: concrete.icon,
+        label: concrete.text,
+      },
+    });
   });
   return finalList;
 };
