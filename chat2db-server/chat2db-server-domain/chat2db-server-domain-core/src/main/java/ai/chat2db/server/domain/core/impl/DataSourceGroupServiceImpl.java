@@ -18,6 +18,7 @@ import ai.chat2db.server.tools.base.wrapper.result.DataResult;
 import ai.chat2db.server.tools.base.wrapper.result.ListResult;
 import ai.chat2db.server.tools.common.exception.DataNotFoundException;
 import ai.chat2db.server.tools.common.util.ContextUtils;
+import ai.chat2db.server.domain.core.util.PermissionUtils;
 import cn.hutool.core.date.DateUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import org.apache.commons.collections4.CollectionUtils;
@@ -49,11 +50,11 @@ public class DataSourceGroupServiceImpl implements DataSourceGroupService {
     public DataResult<Long> update(DataSourceGroupUpdateParam param) {
         LambdaQueryWrapper<DataSourceGroupDO> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(DataSourceGroupDO::getId, param.getId());
-        queryWrapper.eq(DataSourceGroupDO::getUserId, ContextUtils.getUserId());
         DataSourceGroupDO data = getMapper().selectOne(queryWrapper);
         if (data == null) {
             throw new DataNotFoundException();
         }
+        PermissionUtils.checkOperationPermission(data.getUserId());
         data.setName(param.getName());
         data.setGmtModified(DateUtil.date());
         getMapper().updateById(data);
@@ -64,14 +65,13 @@ public class DataSourceGroupServiceImpl implements DataSourceGroupService {
     public ActionResult delete(Long id) {
         LambdaQueryWrapper<DataSourceGroupDO> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(DataSourceGroupDO::getId, id);
-        queryWrapper.eq(DataSourceGroupDO::getUserId, ContextUtils.getUserId());
         DataSourceGroupDO data = getMapper().selectOne(queryWrapper);
         if (data == null) {
             throw new DataNotFoundException();
         }
+        PermissionUtils.checkOperationPermission(data.getUserId());
 
         LambdaQueryWrapper<DataSourceGroupMappingDO> mappingQueryWrapper = new LambdaQueryWrapper<>();
-        mappingQueryWrapper.eq(DataSourceGroupMappingDO::getUserId, ContextUtils.getUserId());
         mappingQueryWrapper.eq(DataSourceGroupMappingDO::getGroupId, id);
         getGroupMappingMapper().delete(mappingQueryWrapper);
 
@@ -80,18 +80,16 @@ public class DataSourceGroupServiceImpl implements DataSourceGroupService {
     }
 
     @Override
-    public ListResult<DataSourceGroup> queryCurrentUserList() {
+    public ListResult<DataSourceGroup> queryList() {
         LambdaQueryWrapper<DataSourceGroupDO> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(DataSourceGroupDO::getUserId, ContextUtils.getUserId());
         queryWrapper.orderByAsc(DataSourceGroupDO::getGmtCreate, DataSourceGroupDO::getId);
         return ListResult.of(toModelList(getMapper().selectList(queryWrapper)));
     }
 
     @Override
-    public DataResult<DataSourceGroup> queryCurrentUserGroup(Long id) {
+    public DataResult<DataSourceGroup> query(Long id) {
         LambdaQueryWrapper<DataSourceGroupDO> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(DataSourceGroupDO::getId, id);
-        queryWrapper.eq(DataSourceGroupDO::getUserId, ContextUtils.getUserId());
         DataSourceGroupDO data = getMapper().selectOne(queryWrapper);
         if (data == null) {
             throw new DataNotFoundException();
@@ -100,13 +98,12 @@ public class DataSourceGroupServiceImpl implements DataSourceGroupService {
     }
 
     @Override
-    public List<DataSourceGroup> queryCurrentUserList(List<Long> ids) {
+    public List<DataSourceGroup> queryList(List<Long> ids) {
         if (CollectionUtils.isEmpty(ids)) {
             return Collections.emptyList();
         }
         LambdaQueryWrapper<DataSourceGroupDO> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.in(DataSourceGroupDO::getId, ids);
-        queryWrapper.eq(DataSourceGroupDO::getUserId, ContextUtils.getUserId());
         return toModelList(getMapper().selectList(queryWrapper));
     }
 

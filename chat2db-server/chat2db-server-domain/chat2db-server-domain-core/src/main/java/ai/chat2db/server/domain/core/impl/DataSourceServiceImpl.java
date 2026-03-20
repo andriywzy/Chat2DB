@@ -347,7 +347,6 @@ public class DataSourceServiceImpl implements DataSourceService {
             return;
         }
         LambdaQueryWrapper<DataSourceGroupMappingDO> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(DataSourceGroupMappingDO::getUserId, ContextUtils.getUserId());
         queryWrapper.in(DataSourceGroupMappingDO::getDataSourceId, dataSourceIds);
         List<DataSourceGroupMappingDO> mappingList = getGroupMappingMapper().selectList(queryWrapper);
         if (CollectionUtils.isEmpty(mappingList)) {
@@ -361,7 +360,7 @@ public class DataSourceServiceImpl implements DataSourceService {
 
         List<Long> groupIds = mappingList.stream().map(DataSourceGroupMappingDO::getGroupId).distinct().toList();
         Map<Long, DataSourceGroup> groupMap = Maps.newHashMap();
-        for (DataSourceGroup group : dataSourceGroupService.queryCurrentUserList(groupIds)) {
+        for (DataSourceGroup group : dataSourceGroupService.queryList(groupIds)) {
             groupMap.put(group.getId(), group);
         }
 
@@ -381,7 +380,6 @@ public class DataSourceServiceImpl implements DataSourceService {
 
     private void syncGroupRelation(Long dataSourceId, Long groupId) {
         LambdaQueryWrapper<DataSourceGroupMappingDO> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(DataSourceGroupMappingDO::getUserId, ContextUtils.getUserId());
         queryWrapper.eq(DataSourceGroupMappingDO::getDataSourceId, dataSourceId);
         getGroupMappingMapper().delete(queryWrapper);
 
@@ -389,7 +387,7 @@ public class DataSourceServiceImpl implements DataSourceService {
             return;
         }
 
-        dataSourceGroupService.queryCurrentUserGroup(groupId);
+        dataSourceGroupService.query(groupId);
 
         DataSourceGroupMappingDO mapping = new DataSourceGroupMappingDO();
         mapping.setUserId(ContextUtils.getUserId());
@@ -405,7 +403,6 @@ public class DataSourceServiceImpl implements DataSourceService {
             return;
         }
         LambdaQueryWrapper<DataSourceGroupMappingDO> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(DataSourceGroupMappingDO::getUserId, ContextUtils.getUserId());
         queryWrapper.eq(DataSourceGroupMappingDO::getDataSourceId, sourceDataSourceId);
         DataSourceGroupMappingDO mapping = getGroupMappingMapper().selectOne(queryWrapper);
         if (mapping == null) {

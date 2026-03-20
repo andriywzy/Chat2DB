@@ -17,9 +17,9 @@ public interface DataSourceGroupService {
 
     ActionResult delete(Long id);
 
-    ListResult<DataSourceGroup> queryCurrentUserList();
+    ListResult<DataSourceGroup> queryList();
 
-    DataResult<DataSourceGroup> queryCurrentUserGroup(Long id);
+    DataResult<DataSourceGroup> query(Long id);
 
-    List<DataSourceGroup> queryCurrentUserList(List<Long> ids);
+    List<DataSourceGroup> queryList(List<Long> ids);
 }

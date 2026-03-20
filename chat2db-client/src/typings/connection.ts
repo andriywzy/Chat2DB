@@ -17,6 +17,7 @@ export interface IConnectionEnv {
 export interface IConnectionGroupItem {
   id: number;
   name: string;
+  canManage?: boolean;
 }
 
 // 连接列表的信息

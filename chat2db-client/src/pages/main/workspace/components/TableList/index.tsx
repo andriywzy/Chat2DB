@@ -46,6 +46,7 @@ export default memo<IProps>((props) => {
         key: `group-${group.id}`,
         id: group.id,
         name: group.name,
+        canManage: group.canManage,
         treeData: [] as ITreeNode[],
       })) || [];
     const groupMap = new Map(groups.map((group) => [group.key, group]));
@@ -57,6 +58,7 @@ export default memo<IProps>((props) => {
           key: groupKey,
           id: connection.groupId,
           name: connection.groupName || i18n('workspace.database.ungrouped'),
+          canManage: false,
           treeData: [],
         });
       }
@@ -74,7 +76,7 @@ export default memo<IProps>((props) => {
       });
     });
 
-    return Array.from(groupMap.values());
+    return Array.from(groupMap.values()).filter((group) => group.treeData.length > 0 || group.canManage);
   }, [connectionList, groupList]);
 
   useEffect(() => {
@@ -282,7 +284,7 @@ export default memo<IProps>((props) => {
                     <span className={styles.groupName} title={group.name}>
                       {group.name}
                     </span>
-                    {group.id ? (
+                    {group.id && group.canManage ? (
                       <>
                         <div
                           className={styles.groupAction}

@@ -8,4 +8,6 @@ public class DataSourceGroupVO {
     private Long id;
 
     private String name;
+
+    private Boolean canManage;
 }

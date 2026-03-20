@@ -13,6 +13,7 @@ import ai.chat2db.server.web.api.aspect.ConnectionInfoAspect;
 import ai.chat2db.server.web.api.controller.data.source.request.DataSourceGroupCreateRequest;
 import ai.chat2db.server.web.api.controller.data.source.request.DataSourceGroupUpdateRequest;
 import ai.chat2db.server.web.api.controller.data.source.vo.DataSourceGroupVO;
+import ai.chat2db.server.tools.common.util.ContextUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,7 +33,7 @@ public class DataSourceGroupController {
 
     @GetMapping("/list")
     public ListResult<DataSourceGroupVO> list() {
-        List<DataSourceGroup> groups = dataSourceGroupService.queryCurrentUserList().getData();
+        List<DataSourceGroup> groups = dataSourceGroupService.queryList().getData();
         List<DataSourceGroupVO> result = groups.stream().map(this::toVO).toList();
         return ListResult.of(result);
     }
@@ -61,6 +62,7 @@ public class DataSourceGroupController {
         DataSourceGroupVO vo = new DataSourceGroupVO();
         vo.setId(group.getId());
         vo.setName(group.getName());
+        vo.setCanManage(ContextUtils.getLoginUser().getAdmin() || ContextUtils.getUserId().equals(group.getUserId()));
         return vo;
     }
 }
