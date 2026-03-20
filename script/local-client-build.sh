@@ -23,7 +23,7 @@ chmod -R 777 "$JRE_TARGET_DIR"
 mvn clean package -B '-Dmaven.test.skip=true' -f chat2db-server/pom.xml
 mkdir -p chat2db-client/versions/99.0.${CURRENT_ID}/static
 echo -n 99.0.${CURRENT_ID} > chat2db-client/versions/version
-cp chat2db-server/chat2db-server-start/target/chat2db-server-start.jar chat2db-client/versions/99.0.${CURRENT_ID}/static/
+cp chat2db-server/chat2db-server-web-start/target/chat2db-server-web-start.jar chat2db-client/versions/99.0.${CURRENT_ID}/static/chat2db-server-start.jar
 
 # Packaging front-end code
 cd chat2db-client

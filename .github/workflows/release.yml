@@ -145,8 +145,8 @@ jobs:
           cd chat2db-client
           yarn 
           yarn run build:web:prod --app_version=${{ steps.chat2db_version.outputs.substring }}
-          cp -r dist ../chat2db-server/chat2db-server-start/src/main/resources/static/front
-          cp -r dist/index.html ../chat2db-server/chat2db-server-start/src/main/resources/thymeleaf/
+          cp -r dist ../chat2db-server/chat2db-server-web-start/src/main/resources/static/front
+          cp -r dist/index.html ../chat2db-server/chat2db-server-web-start/src/main/resources/thymeleaf/
           cd src/main
           yarn
           yarn run build
@@ -169,8 +169,8 @@ jobs:
       # Copy server-side java to the specified location
       - name: Copy App
         run: |
-          cp chat2db-server/chat2db-server-start/target/chat2db-server-start.jar chat2db-client/versions/${{ steps.chat2db_version.outputs.substring }}/static/
-      #    cp -r chat2db-server/chat2db-server-start/target/lib chat2db-client/versions/${{ steps.chat2db_version.outputs.substring }}/static/lib
+          cp chat2db-server/chat2db-server-web-start/target/chat2db-server-web-start.jar chat2db-client/versions/${{ steps.chat2db_version.outputs.substring }}/static/chat2db-server-start.jar
+      #    cp -r chat2db-server/chat2db-server-web-start/target/lib chat2db-client/versions/${{ steps.chat2db_version.outputs.substring }}/static/lib
 
       - name: Prepare Build Electron
         run: |

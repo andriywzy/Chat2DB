@@ -290,15 +290,17 @@ $ yarn run start:web
 ```bash
 $ cd ../chat2db-server
 $ mvn clean install # Maven version 3.8 or higher is required
-$ cd chat2db-server/chat2db-server-start/target/
-$ java -jar -Dloader.path=./lib -Dchatgpt.apiKey=xxxxx chat2db-server-start.jar  # 需要安装java 17以上版本，启动应用 chatgpt.apiKey 需要输入ChatGPT的key,如果不输入无法使用AIGC功能
+$ java -Dchatgpt.apiKey=xxxxx -jar chat2db-server-web-start/target/chat2db-server-web-start.jar
 ```
 **Standalone Deployment**
 ```bash
-# chat2db-client
-$ npm run build:web:prod 
-$ cp -r dist ../chat2db-server/chat2db-server-start/src/main/resources/static/front 
-$ cp -r dist/index.html ../chat2db-server/chat2db-server-start/src/main/resources/thymeleaf
+$ mvn -pl chat2db-server-web-start -am -DskipTests package -f chat2db-server/pom.xml
+$ java -Dspring.profiles.active=release -jar chat2db-server/chat2db-server-web-start/target/chat2db-server-web-start.jar
+```
+**Docker Deployment**
+```bash
+$ docker compose -f docker/compose.yml build
+$ docker compose -f docker/compose.yml up -d
 ```
 
 ##  Contact Us
@@ -332,4 +334,3 @@ Thanks to everyone who has contributed to Chat2DB~~
 
 ## License
 The primary license used by this software is the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0), supplemented by the [Chat2DB License](./Chat2DB_LICENSE).
-

@@ -1,0 +1,42 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: chat2db-dev-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ali_dbhub
+      MYSQL_DATABASE: ali_dbhub_test
+      TZ: Asia/Shanghai
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: chat2db-dev-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ali_dbhub
+      POSTGRES_PASSWORD: ali_dbhub
+      POSTGRES_DB: ali_dbhub_test
+      TZ: Asia/Shanghai
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    container_name: chat2db-dev-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "12345678"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+volumes:
+  mysql-data:
+  postgres-data:
+  redis-data:

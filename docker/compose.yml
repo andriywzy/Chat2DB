@@ -1,0 +1,15 @@
+services:
+  chat2db:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      args:
+        APP_VERSION: ${CHAT2DB_TAG:-local}
+        APP_PORT: ${CHAT2DB_PORT:-10824}
+    image: chat2db/chat2db:${CHAT2DB_TAG:-local}
+    container_name: chat2db
+    restart: unless-stopped
+    ports:
+      - "${CHAT2DB_PORT:-10824}:10824"
+    volumes:
+      - ${CHAT2DB_DATA_DIR:-${HOME}/.chat2db-docker}:/root/.chat2db
