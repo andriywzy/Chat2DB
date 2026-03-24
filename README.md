@@ -50,17 +50,17 @@
 
 </div>
 
-**1. Intelligent SQL Generation**:  
-Chat2DB Pro supports AI-driven intelligent SQL development to help you write SQL queries faster.
+**1. Multi-database workspace**  
+The open-source edition supports MySQL, PostgreSQL, H2, Oracle, SQLServer, SQLite, MariaDB, ClickHouse, DM, Presto, DB2, OceanBase, Hive, KingBase, MongoDB, Redis, Snowflake, and more, with schema browsing, SQL console, formatting, and query history.
 
-**2. Database Management**:  
-Supports more than 10 databases, including MySQL, PostgreSQL, H2, Oracle, SQLServer, SQLite, MariaDB, ClickHouse, DM, Presto, DB2, OceanBase, Hive, KingBase, MongoDB, Redis, Snowflake, and more.
+**2. Redis browser and editor**  
+Redis connections open a dedicated data browser with paginated key lists, a lower-pane editor, key rename support, add/delete operations, and full-type value editing.
 
-**3. Intelligent Report Generation**:  
-Chat2DB Pro supports AI-driven intelligent data reporting to help you generate dashboards faster.
+**3. Global datasource grouping and permissions**  
+Datasource groups are globally consistent across users. Connections can be grouped, renamed, deleted, reassigned, and dragged between groups. The backend also includes admin/user/team management and datasource access control.
 
-**4. Data Structure Synchronization**:  
-Chat2DB Pro supports database table structure synchronization to help you sync database table structures faster.
+**4. Flexible deployment**  
+You can run Chat2DB from source, from the packaged Spring Boot jar, or with the multi-stage Docker and Docker Compose flow under `docker/`.
 
 ## Feature Comparison
 
@@ -127,7 +127,25 @@ Chat2DB Pro supports database table structure synchronization to help you sync d
   </tr>
   <tr>
     <td align="center">Database Grouping</td>
-    <td align="center">❌</td>
+    <td align="center">✅</td>
+    <td align="center">✅</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td align="center">Redis Browser & Key Editor</td>
+    <td align="center">✅</td>
+    <td align="center">✅</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td align="center">User / Team Management</td>
+    <td align="center">✅ (Admin)</td>
+    <td align="center">✅</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td align="center">Datasource Permission Control</td>
+    <td align="center">✅</td>
     <td align="center">✅</td>
     <td align="center">✅</td>
   </tr>
@@ -239,7 +257,7 @@ Chat2DB Pro supports database table structure synchronization to help you sync d
 Chat2DB is a cross-platform application that supports Windows, MacOS, and Linux. You can download Chat2DB from the following links:
 - [Download Pro Version](https://chat2db.ai/download)
 - [Download Local Version](https://chat2db.ai/download)
-- [Download Open Source Version](https://github.com/CodePhiliaX/Chat2DB/releases/tag/v0.3.6)
+- [Download Open Source Version](https://github.com/chat2db/Chat2DB/releases)
 
 ## Community Edition Docker Installation
 
@@ -252,12 +270,31 @@ Before installing Chat2DB, ensure your system meets the following requirements:
 - RAM >= 4 GiB
 
 ```bash
-  docker rm chat2db
-  
-  docker run --name=chat2db -ti -p 10824:10824 -v ~/.chat2db-docker:/root/.chat2db  chat2db/chat2db:latest
+cp docker/.env.example docker/.env
+docker compose -f docker/compose.yml up -d --build
+curl -I http://127.0.0.1:10824/login
+```
 
-  docker start chat2db
-  
+The container stores application data under `/root/.chat2db`. By default, `docker/compose.yml` mounts it to `${HOME}/.chat2db-docker` on the host.
+
+### Local Development Dependencies
+
+If you only need MySQL, PostgreSQL, and Redis for local integration testing:
+
+```bash
+docker compose -f docker/compose.dev-services.yml up -d
+```
+
+### Build from Source
+
+```bash
+cd chat2db-client
+yarn
+yarn run build:web:prod --app_version=local --app_port=10824
+
+cd ..
+mvn -pl chat2db-server-web-start -am -DskipTests package -f chat2db-server/pom.xml
+java -Dspring.profiles.active=release -jar chat2db-server/chat2db-server-web-start/target/chat2db-server-web-start.jar
 ```
 ## Code Debugging
 

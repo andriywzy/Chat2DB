@@ -47,20 +47,17 @@ https://github.com/user-attachments/assets/3c857883-8153-4bda-92b8-d25c6adb5b13
 # 
 Chat2DB 是一个智能的通用SQL客户端和数据报表工具，它集成了AI的能力。Chat2DB可以帮助您更快地编写SQL查询、管理数据库、生成报告、探索数据、并且可以与多种数据库进行交互。Chat2DB是一个开源项目，我们欢迎您的贡献。
 
-**1. 智能生成SQL**:
-Chat2DB Pro支持AI驱动的智能SQL开发，可以帮助您更快地编写SQL查询。
+**1. 多数据库工作台**:
+开源版已经支持 MySQL、PostgreSQL、H2、Oracle、SQLServer、SQLite、MariaDB、ClickHouse、DM、Presto、DB2、OceanBase、Hive、KingBase、MongoDB、Redis、Snowflake 等数据库，包含库表浏览、SQL 控制台、格式化和查询历史。
 
+**2. Redis 专用浏览与编辑**:
+Redis 连接会打开专用数据页，支持分页浏览 key、下半区编辑器、修改 key 名、增加或删除 key，以及全类型 value 编辑。
 
-**2. 数据库管理**:
- 支持多种10+数据库，包括MySQL、PostgreSQL、H2、Oracle、SQLServer、SQLite、MariaDB、ClickHouse、DM、Presto、DB2、OceanBase、Hive、KingBase、MongoDB、Redis、Snowflake等。
+**3. 全局一致的连接分组与权限控制**:
+连接分组已经改成全局一致模型。支持创建、重命名、删除分组，拖拽连接到目标分组，修改连接所属分组；后端同时提供管理员/用户/团队管理和数据源授权能力。
 
-
-
-**3. 智能生成报表**:
-    Chat2DB Pro支持AI驱动的智能数据报表，可以帮助您更快地生成看板。
-
-**4. 数据结构同步**:
-    Chat2DB Pro支持数据库表结构同步，可以帮助您更快地同步数据库表结构。
+**4. 多种部署方式**:
+支持源码运行、Spring Boot fat jar 运行，以及 `docker/` 目录中的多阶段 Docker / Docker Compose 部署流程。
 
 ## 功能比较
 
@@ -127,7 +124,25 @@ Chat2DB Pro支持AI驱动的智能SQL开发，可以帮助您更快地编写SQL�
   </tr>
   <tr>
     <td align="center">数据库分组</td>
-    <td align="center">❌</td>
+    <td align="center">✅</td>
+    <td align="center">✅</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td align="center">Redis 浏览与 Key 编辑</td>
+    <td align="center">✅</td>
+    <td align="center">✅</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td align="center">用户 / 团队管理</td>
+    <td align="center">✅（管理员）</td>
+    <td align="center">✅</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td align="center">数据源权限控制</td>
+    <td align="center">✅</td>
     <td align="center">✅</td>
     <td align="center">✅</td>
   </tr>
@@ -241,7 +256,7 @@ Insert/update
 Chat2DB 是一个跨平台的应用程序，支持Windows、MacOS和Linux。您可以从以下链接下载Chat2DB。
 - [下载 Pro 版](https://chat2db.ai/download)
 - [下载 Local 版](https://chat2db.ai/download)
-- [下载开源版](https://github.com/CodePhiliaX/Chat2DB/releases/tag/v0.3.6)
+- [下载开源版](https://github.com/chat2db/Chat2DB/releases)
 
 ## 社区版 Docker 安装
 
@@ -255,14 +270,31 @@ Chat2DB 是一个跨平台的应用程序，支持Windows、MacOS和Linux。您�
 
 
 ```bash
-  // 拉取最新客户端,然后运行docker,名字是 `chat2db` , 并且将 `/root/.chat2db` 挂载到 `~/.chat2db-docker`
-  docker run --name=chat2db -ti -p 10824:10824 -v ~/.chat2db-docker:/root/.chat2db  chat2db/chat2db:latest
-  // 这里正常会提示`Tomcat started on port(s): 10824 (http) with context path` 就可以结束了
+cp docker/.env.example docker/.env
+docker compose -f docker/compose.yml up -d --build
+curl -I http://127.0.0.1:10824/login
+```
 
-  // 如果这里提示  `The container name "/chat2db" is already in use by container`, 代表已经存在容器了 运行
-  docker start chat2db
-  // 如果想更新chat2db 则需要先rm
-  docker rm chat2db
+容器内应用数据目录是 `/root/.chat2db`。默认情况下，`docker/compose.yml` 会把它挂载到宿主机的 `${HOME}/.chat2db-docker`。
+
+### 本地联调依赖服务
+
+如果你只需要拉起 MySQL、PostgreSQL、Redis 作为本地联调环境：
+
+```bash
+docker compose -f docker/compose.dev-services.yml up -d
+```
+
+### 源码构建与运行
+
+```bash
+cd chat2db-client
+yarn
+yarn run build:web:prod --app_version=local --app_port=10824
+
+cd ..
+mvn -pl chat2db-server-web-start -am -DskipTests package -f chat2db-server/pom.xml
+java -Dspring.profiles.active=release -jar chat2db-server/chat2db-server-web-start/target/chat2db-server-web-start.jar
 ```
 ## 代码调试
 
@@ -340,5 +372,3 @@ $ docker compose -f docker/compose.yml up -d
 
 ## License
 The primary license used by this software is the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0), supplemented by the [Chat2DB License](./Chat2DB_LICENSE).
-
-
