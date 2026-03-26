@@ -4,7 +4,7 @@ import i18n from '@/i18n';
 import { Button } from 'antd';
 
 // ----- constants -----
-import { WorkspaceTabType, workspaceTabConfig } from '@/constants';
+import { WorkspaceTabType, workspaceTabConfig, isRedisWorkspace } from '@/constants';
 import { IWorkspaceTab } from '@/typings';
 
 // ----- components -----
@@ -222,7 +222,7 @@ const WorkspaceTabs = memo(() => {
   // 渲染搜索结果
   const renderSearchResult = (item: IWorkspaceTab) => {
     const { uniqueData } = item;
-    const isRedis = uniqueData?.databaseType === 'REDIS';
+    const isRedis = isRedisWorkspace(uniqueData?.databaseType);
     return (
       <SearchResult
         isActive={activeConsoleId === item.id}

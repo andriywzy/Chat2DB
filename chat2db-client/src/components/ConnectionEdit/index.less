@@ -63,6 +63,12 @@
   justify-content: space-between;
   margin-top: 20px;
   margin-bottom: 50px;
+
+  .delete {
+    margin-right: 12px;
+    .f-button();
+  }
+
   .cancel {
     margin-right: 20px;
     .f-button();
@@ -70,11 +76,13 @@
 
   .rightButton {
     display: flex;
+    align-items: center;
   }
 
   .test,
   .save,
-  .cancel {
+  .cancel,
+  .delete {
     .f-button();
   }
 }

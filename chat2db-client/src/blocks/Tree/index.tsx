@@ -5,7 +5,7 @@ import Iconfont from '@/components/Iconfont';
 import { Tooltip, Dropdown } from 'antd';
 import { ITreeNode } from '@/typings';
 import { TreeNodeType, databaseMap } from '@/constants';
-import { treeConfig, switchIcon, ITreeConfigItem } from './treeConfig';
+import { getTreeConfigItem, switchIcon, ITreeConfigItem } from './treeConfig';
 import { useCommonStore } from '@/store/common';
 import { setCurrentConnectionDetails, setCurrentWorkspaceGlobalExtend } from '@/pages/main/workspace/store/common';
 import LoadingGracile from '@/components/Loading/LoadingGracile';
@@ -46,7 +46,8 @@ const buildLoadExtraParams = (extraParams?: ITreeNode['extraParams']) => {
   if (!extraParams) {
     return {};
   }
-  const { connectionDetail, ...rest } = extraParams as any;
+  const rest = { ...(extraParams as any) };
+  delete rest.connectionDetail;
   return rest;
 };
 
@@ -243,7 +244,7 @@ const TreeNode = memo((props: TreeNodeIProps) => {
   // 加载数据
   function loadData(_props?: { refresh: boolean; pageNo: number; treeNodeData?: ITreeNode }) {
     const _treeNodeData = _props?.treeNodeData || props.data;
-    const treeNodeConfig: ITreeConfigItem = treeConfig[_treeNodeData.pretendNodeType || _treeNodeData.treeNodeType];
+    const treeNodeConfig: ITreeConfigItem = getTreeConfigItem(_treeNodeData);
     const loadExtraParams = buildLoadExtraParams(_treeNodeData.extraParams);
     setIsLoading(true);
     if (_props?.pageNo === 1 || !_props?.pageNo) {

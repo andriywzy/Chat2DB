@@ -1,5 +1,5 @@
 import React, { useRef, useState, Fragment, useEffect } from 'react';
-import { Button, Dropdown } from 'antd';
+import { Button, Dropdown, Modal } from 'antd';
 import classnames from 'classnames';
 import i18n from '@/i18n';
 // import RefreshLoadingButton from '@/components/RefreshLoadingButton';
@@ -82,22 +82,33 @@ const ConnectionsPage = () => {
     }
   }, [connectionManageActiveId, connectionActiveId]);
 
+  const handleDeleteConnection = async (id: IConnectionListItem['id']) => {
+    await connectionService.remove({ id });
+    await getConnectionList();
+    // 连接删除后需要更新下 consoleList
+    getOpenConsoleList();
+    if (connectionActiveId === id) {
+      setConnectionActiveId(null);
+      setConnectionDetail(null);
+      setConnectionManageActiveId(null);
+    }
+  };
+
+  const openDeleteConfirm = (id: IConnectionListItem['id']) => {
+    Modal.confirm({
+      title: i18n('common.tips.delete.confirm'),
+      okText: i18n('common.button.affirm'),
+      cancelText: i18n('common.button.cancel'),
+      onOk: () => handleDeleteConnection(id),
+    });
+  };
+
   //
-  const createDropdownItems = (t) => {
+  const createDropdownItems = (t: IConnectionListItem) => {
     const handelDelete = (e) => {
       // 禁止冒泡到menuItem
       e.domEvent?.stopPropagation?.();
-      connectionService.remove({ id: t.id }).then(() => {
-        getConnectionList().then(() => {
-          // 连接删除后需要更新下 consoleList
-          getOpenConsoleList();
-        });
-        if (connectionActiveId === t.id) {
-          setConnectionActiveId(null);
-          setConnectionDetail(null);
-          setConnectionManageActiveId(null);
-        }
-      });
+      openDeleteConfirm(t.id);
     };
 
     const enterWorkSpace = (e) => {
@@ -203,7 +214,11 @@ const ConnectionsPage = () => {
           className={styles.layoutRight}
           isLoading={connectionDetail === undefined && !!connectionActiveId}
         >
-          <CreateConnection connectionDetail={connectionDetail} onSubmit={onSubmit} />
+          <CreateConnection
+            connectionDetail={connectionDetail}
+            onSubmit={onSubmit}
+            onDelete={handleDeleteConnection}
+          />
         </LoadingContent>
       </div>
     </>

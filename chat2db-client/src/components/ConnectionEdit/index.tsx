@@ -9,7 +9,7 @@ import { IConnectionConfig, IFormItem, ISelect } from './config/types';
 import { InputType } from './config/enum';
 import { IConnectionDetails } from '@/typings';
 import { deepClone } from '@/utils';
-import { Select, Form, Input, message, Table, Button, Collapse } from 'antd';
+import { Select, Form, Input, message, Table, Button, Collapse, Popconfirm } from 'antd';
 import Iconfont from '@/components/Iconfont';
 import LoadingGracile from '@/components/Loading/LoadingGracile';
 import Driver from './components/Driver';
@@ -31,6 +31,7 @@ interface IProps {
   closeCreateConnection: () => void;
   connectionData: IConnectionDetails;
   submit?: (data: IConnectionDetails) => Promise<any>;
+  onDelete?: (id: number) => Promise<void> | void;
 }
 
 export interface ICreateConnectionFunction {
@@ -38,7 +39,7 @@ export interface ICreateConnectionFunction {
 }
 
 const ConnectionEdit = forwardRef((props: IProps, ref: ForwardedRef<ICreateConnectionFunction>) => {
-  const { closeCreateConnection, connectionData, submit } = props;
+  const { closeCreateConnection, connectionData, submit, onDelete } = props;
   const [baseInfoForm] = Form.useForm();
   const [sshForm] = Form.useForm();
   const [driveData, setDriveData] = useState<any>({});
@@ -47,6 +48,7 @@ const ConnectionEdit = forwardRef((props: IProps, ref: ForwardedRef<ICreateConne
     confirmButton: false,
     testButton: false,
     sshTestLoading: false,
+    deleteButton: false,
   });
 
   const { connectionEnvList } = useConnectionStore((state) => {
@@ -275,6 +277,24 @@ const ConnectionEdit = forwardRef((props: IProps, ref: ForwardedRef<ICreateConne
     closeCreateConnection();
   }
 
+  async function handleDeleteConnection() {
+    if (!backfillData.id || !onDelete) {
+      return;
+    }
+    setLoading((prev) => ({
+      ...prev,
+      deleteButton: true,
+    }));
+    try {
+      await onDelete(backfillData.id);
+    } finally {
+      setLoading((prev) => ({
+        ...prev,
+        deleteButton: false,
+      }));
+    }
+  }
+
   function testSSH() {
     const p = sshForm.getFieldsValue();
     setLoading({
@@ -323,6 +343,18 @@ const ConnectionEdit = forwardRef((props: IProps, ref: ForwardedRef<ICreateConne
           }
         </div>
         <div className={styles.rightButton}>
+          {backfillData.id && onDelete && (
+            <Popconfirm
+              title={i18n('common.tips.delete.confirm')}
+              onConfirm={handleDeleteConnection}
+              okText={i18n('common.button.affirm')}
+              cancelText={i18n('common.button.cancel')}
+            >
+              <Button danger loading={loadings.deleteButton} className={styles.delete}>
+                {i18n('common.button.delete')}
+              </Button>
+            </Popconfirm>
+          )}
           <Button onClick={onCancel} className={styles.cancel}>
             {i18n('common.button.cancel')}
           </Button>
