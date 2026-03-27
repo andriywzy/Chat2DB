@@ -1,0 +1,39 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100%;
+}
+
+.toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.uploadBox {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.statusTag {
+  min-width: 84px;
+  text-align: center;
+}
+
+.preview {
+  max-height: 320px;
+  overflow: auto;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--color-bg-container, #f7f7f7);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.tips {
+  margin-bottom: 4px;
+}

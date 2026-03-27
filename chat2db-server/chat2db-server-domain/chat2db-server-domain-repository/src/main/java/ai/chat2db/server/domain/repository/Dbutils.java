@@ -2,6 +2,7 @@ package ai.chat2db.server.domain.repository;
 
 import ai.chat2db.server.domain.repository.mapper.DataSourceGroupMapper;
 import ai.chat2db.server.domain.repository.mapper.DataSourceGroupMappingMapper;
+import ai.chat2db.server.domain.repository.mapper.KnowledgeDocumentMapper;
 import ai.chat2db.server.tools.common.model.ConfigJson;
 import ai.chat2db.server.tools.common.util.ConfigUtils;
 import com.baomidou.mybatisplus.annotation.DbType;
@@ -84,6 +85,7 @@ public class Dbutils {
         // Some mappers rely only on BaseMapper methods and have no XML namespace to trigger registration.
         configuration.addMapper(DataSourceGroupMapper.class);
         configuration.addMapper(DataSourceGroupMappingMapper.class);
+        configuration.addMapper(KnowledgeDocumentMapper.class);
         //Globalconfig required to build mybatis-plus
         GlobalConfig globalConfig = GlobalConfigUtils.getGlobalConfig(configuration);
         //This parameter will automatically generate the basic method mapping that implements baseMapper.

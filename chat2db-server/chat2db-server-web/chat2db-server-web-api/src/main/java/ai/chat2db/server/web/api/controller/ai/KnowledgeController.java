@@ -2,13 +2,19 @@ package ai.chat2db.server.web.api.controller.ai;
 
 import ai.chat2db.server.tools.base.wrapper.result.ActionResult;
 import ai.chat2db.server.tools.base.wrapper.result.DataResult;
+import ai.chat2db.server.tools.base.wrapper.result.PageResult;
+import ai.chat2db.server.tools.base.wrapper.result.web.WebPageResult;
 import ai.chat2db.server.tools.common.exception.ParamBusinessException;
+import ai.chat2db.server.tools.common.util.ContextUtils;
 import ai.chat2db.server.web.api.aspect.ConnectionInfoAspect;
-import ai.chat2db.server.web.api.controller.ai.DocParser.AbstractParser;
-import ai.chat2db.server.web.api.controller.ai.DocParser.PdfParse;
 import ai.chat2db.server.web.api.controller.ai.enums.PromptType;
 import ai.chat2db.server.web.api.controller.ai.fastchat.embeddings.FastChatEmbeddingResponse;
 import ai.chat2db.server.web.api.controller.ai.request.ChatQueryRequest;
+import ai.chat2db.server.web.api.controller.ai.request.KnowledgeDocumentQueryRequest;
+import ai.chat2db.server.web.api.controller.ai.service.KnowledgeDocumentAppService;
+import ai.chat2db.server.domain.api.model.KnowledgeDocument;
+import ai.chat2db.server.domain.api.param.knowledge.KnowledgeDocumentPageQueryParam;
+import ai.chat2db.server.domain.api.service.KnowledgeDocumentService;
 import ai.chat2db.server.web.api.http.GatewayClientService;
 import ai.chat2db.server.web.api.http.model.Knowledge;
 import ai.chat2db.server.web.api.http.request.KnowledgeRequest;
@@ -24,7 +30,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -50,6 +55,12 @@ public class KnowledgeController extends ChatController {
     @Resource
     private GatewayClientService gatewayClientService;
 
+    @Resource
+    private KnowledgeDocumentService knowledgeDocumentService;
+
+    @Resource
+    private KnowledgeDocumentAppService knowledgeDocumentAppService;
+
     /**
      * save knowledge from pdf file
      *
@@ -61,28 +72,46 @@ public class KnowledgeController extends ChatController {
     @CrossOrigin
     public ActionResult embeddings(MultipartFile file, HttpServletRequest request)
         throws Exception {
-        AbstractParser pdfParse = new PdfParse();
-        List<String> sentenceList = pdfParse.parse(file.getInputStream());
-
-        List<Integer> contentWordCount = new ArrayList<>();
-        List<List<BigDecimal>> contentVector = new ArrayList<>();
-        for(String str : sentenceList){
-            contentWordCount.add(str.length());
-
-            // request embedding
-            FastChatEmbeddingResponse response = distributeAIEmbedding(str);
-            if(response == null){
-                continue;
-            }
-            contentVector.add(response.getData().get(0).getEmbedding());
+        DataResult<KnowledgeDocument> result = knowledgeDocumentAppService.upload(null, file);
+        if (!result.success()) {
+            return ActionResult.fail(result.getErrorCode(), result.getErrorMessage(), result.getErrorDetail());
         }
+        return ActionResult.isSuccess();
+    }
 
-        KnowledgeRequest knowledgeRequest = new KnowledgeRequest();
-        knowledgeRequest.setContentVector(contentVector);
-        knowledgeRequest.setSentenceList(sentenceList);
-        // save knowledge embedding
-        ActionResult actionResult = gatewayClientService.knowledgeVectorSave(knowledgeRequest);
-        return actionResult;
+    @PostMapping("/document/upload")
+    @CrossOrigin
+    public DataResult<KnowledgeDocument> uploadDocument(
+        @RequestParam(value = "name", required = false) String name,
+        @RequestParam("file") MultipartFile file
+    ) throws Exception {
+        return knowledgeDocumentAppService.upload(name, file);
+    }
+
+    @GetMapping("/document/list")
+    public WebPageResult<KnowledgeDocument> listDocument(KnowledgeDocumentQueryRequest request) {
+        KnowledgeDocumentPageQueryParam param = new KnowledgeDocumentPageQueryParam();
+        param.setPageNo(request.getPageNo());
+        param.setPageSize(request.getPageSize());
+        param.setSearchKey(request.getSearchKey());
+        param.setStatus(request.getStatus());
+        param.setUserId(ContextUtils.getUserId());
+        PageResult<KnowledgeDocument> result = knowledgeDocumentService.queryPage(param);
+        return WebPageResult.of(result.getData(), result.getTotal(), result.getPageNo(), result.getPageSize());
+    }
+
+    @GetMapping("/document/{id}")
+    public DataResult<KnowledgeDocument> getDocument(@PathVariable Long id) {
+        KnowledgeDocument document = knowledgeDocumentService.queryExistent(id).getData();
+        if (!document.getUserId().equals(ContextUtils.getUserId())) {
+            throw new ParamBusinessException("id");
+        }
+        return DataResult.of(document);
+    }
+
+    @DeleteMapping("/document/{id}")
+    public ActionResult deleteDocument(@PathVariable Long id) {
+        return knowledgeDocumentService.deleteWithPermission(id);
     }
 
     /**

@@ -11,3 +11,4 @@ export * from './workspace';
 export * from './editTable';
 export * from './console';
 export * from './editSequence';
+export * from './knowledge';

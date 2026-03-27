@@ -5,6 +5,7 @@ import { Modal, Tooltip } from 'antd';
 import i18n from '@/i18n';
 import BaseSetting from './BaseSetting';
 import AISetting from './AiSetting';
+import KnowledgeBaseSetting from './KnowledgeBase';
 import ProxySetting from './ProxySetting';
 import About from './About';
 import styles from './index.less';
@@ -81,12 +82,20 @@ function Setting(props: IProps) {
       icon: '\ue646',
       body: <AISetting aiConfig={aiConfig} handleApplyAiConfig={setAiSystemConfig} />,
       code: 'ai',
+      requiresLogin: true,
     },
     {
       label: i18n('setting.nav.proxy'),
       icon: '\ue63f',
       body: <ProxySetting />,
       code: 'proxy',
+    },
+    {
+      label: i18n('setting.nav.knowledge'),
+      icon: '\ue646',
+      body: <KnowledgeBaseSetting />,
+      code: 'knowledge',
+      requiresLogin: true,
     },
     {
       label: i18n('setting.nav.aboutUs'),
@@ -135,7 +144,7 @@ function Setting(props: IProps) {
             <div className={classnames(styles.menusTitle)}>{i18n('setting.title.setting')}</div>
             {menusList.map((t, index) => {
               // 如果是没有登录的页面，不显示ai设置等需要登录的功能
-              if (noLogin && index === 1) {
+              if (noLogin && (t as any).requiresLogin) {
                 return false;
               }
               return (

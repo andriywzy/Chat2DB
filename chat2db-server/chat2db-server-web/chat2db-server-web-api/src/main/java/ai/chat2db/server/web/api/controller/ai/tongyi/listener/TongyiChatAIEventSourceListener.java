@@ -4,7 +4,6 @@ import ai.chat2db.server.web.api.controller.ai.fastchat.model.FastChatChoice;
 import ai.chat2db.server.web.api.controller.ai.fastchat.model.FastChatCompletions;
 import ai.chat2db.server.web.api.controller.ai.fastchat.model.FastChatCompletionsUsage;
 import ai.chat2db.server.web.api.controller.ai.fastchat.model.FastChatMessage;
-import ai.chat2db.server.web.api.controller.ai.tongyi.model.TongyiChatCompletions;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.unfbx.chatgpt.entity.chat.Message;
@@ -62,16 +61,37 @@ public class TongyiChatAIEventSourceListener extends EventSourceListener {
             return;
         }
 
-        TongyiChatCompletions chatCompletions = mapper.readValue(data, TongyiChatCompletions.class);
-        String text = chatCompletions.getOutput().getText();
+        FastChatCompletions chatCompletions = mapper.readValue(data, FastChatCompletions.class);
+        String text = "";
+        for (FastChatChoice choice : chatCompletions.getChoices()) {
+            FastChatMessage message = choice.getDelta();
+            if (message != null && message.getContent() != null) {
+                text = message.getContent();
+                break;
+            }
+            if (choice.getText() != null) {
+                text = choice.getText();
+                break;
+            }
+        }
+
+        FastChatCompletionsUsage usage = chatCompletions.getUsage();
+        if (usage != null) {
+            log.info(
+                "Usage: number of prompt token is {}, number of completion token is {}, and number of total "
+                    + "tokens in request and response is {}.%n", usage.getPromptTokens(),
+                usage.getCompletionTokens(), usage.getTotalTokens());
+        }
         log.info("id: {}, text: {}", chatCompletions.getId(), text);
 
-        Message message = new Message();
-        message.setContent(text);
-        sseEmitter.send(SseEmitter.event()
-            .id(null)
-            .data(message)
-            .reconnectTime(3000));
+        if (StringUtils.isNotBlank(text)) {
+            Message message = new Message();
+            message.setContent(text);
+            sseEmitter.send(SseEmitter.event()
+                .id(chatCompletions.getId())
+                .data(message)
+                .reconnectTime(3000));
+        }
     }
 
     @Override
