@@ -14,4 +14,6 @@ public interface DataSourceCustomMapper extends Mapper<DataSourceDO> {
     IPage<DataSourceDO> selectPageWithPermission(IPage<DataSourceDO> page, @Param("admin") Boolean admin,
         @Param("userId") Long userId, @Param("searchKey") String searchKey, @Param("kind") String kind, @Param("orderBy") String orderBy);
 
+    Integer countReadable(@Param("admin") Boolean admin, @Param("userId") Long userId, @Param("dataSourceId") Long dataSourceId);
+
 }

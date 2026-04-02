@@ -146,4 +146,9 @@ public class DataSourceDO implements Serializable {
     @TableField(exist = false)
     private String groupName;
 
+    private Long projectId;
+
+    @TableField(exist = false)
+    private String projectName;
+
 }

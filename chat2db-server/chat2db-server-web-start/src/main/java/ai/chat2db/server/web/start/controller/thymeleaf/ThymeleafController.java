@@ -22,7 +22,17 @@ public class ThymeleafController {
      *
      * @return
      */
-    @GetMapping(value = {"/", "/web/", "/web/**","/login","/workspace","/dashboard","/connections","/team"})
+    @GetMapping(value = {
+        "/",
+        "/web/",
+        "/web/**",
+        "/login",
+        "/workspace",
+        "/dashboard",
+        "/connections",
+        "/knowledge",
+        "/team"
+    })
     public String index() {
         return "index";
     }

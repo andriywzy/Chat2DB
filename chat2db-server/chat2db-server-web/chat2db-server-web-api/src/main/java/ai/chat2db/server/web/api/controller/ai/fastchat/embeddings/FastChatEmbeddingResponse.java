@@ -1,5 +1,6 @@
 package ai.chat2db.server.web.api.controller.ai.fastchat.embeddings;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.unfbx.chatgpt.entity.common.Usage;
 import lombok.Data;
 
@@ -13,6 +14,7 @@ import java.util.List;
  *  2023-02-15
  */
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class FastChatEmbeddingResponse implements Serializable {
 
     private String object;

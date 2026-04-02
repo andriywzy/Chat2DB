@@ -136,7 +136,7 @@ const buildRightClickMenu = ({ treeNodeData, loadData }: IProps, runtime: IMenuR
     const detail = await connectionService.getDetails({ id: connectionId });
     await connectionService.update({
       ...detail,
-      groupId: null as any,
+      projectId: null as any,
     });
     await getConnectionList();
   };
@@ -157,10 +157,13 @@ const buildRightClickMenu = ({ treeNodeData, loadData }: IProps, runtime: IMenuR
       handle: handleEditSource,
     },
     [OperationColumn.ShiftOut]: {
-      text: i18n('workspace.database.removeFromGroup'),
+      text: i18n('workspace.database.removeFromProject'),
       icon: '\ue6a7',
       handle: handleShiftOut,
-      discard: !treeNodeData.extraParams?.connectionDetail?.groupId,
+      discard: !(
+        treeNodeData.extraParams?.connectionDetail?.projectId ||
+        treeNodeData.extraParams?.connectionDetail?.groupId
+      ),
     },
     [OperationColumn.CreateConsole]: {
       text: i18n('workspace.menu.queryConsole'),

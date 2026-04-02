@@ -1,60 +1,6 @@
 import createRequest from './base';
-import { IConnectionDetails, IPageParams, IPageResponse } from '@/typings';
-import { IDataSourceAccessObjectVO, IDataSourceVO, ITeamAndUserVO, ITeamVO, ITeamWithDataSourceVO, ITeamWithUserVO, IUserVO, IUserWithDataSourceVO, IUserWithTeamVO, RoleType } from '@/typings/team';
-
-// =============================== DataSource ============================
-/**
- * 链接-获取共享链接列表
- */
-const getDataSourceList = createRequest<IPageParams, IPageResponse<IDataSourceVO>>('/api/admin/data_source/page', {
-  method: 'get',
-});
-
-/**
- * 链接-创建链接
- */
-const createDataSource = createRequest<IConnectionDetails | {}, number>('/api/admin/data_source/create', {
-  method: 'post',
-});
-/**
- * 链接-更新链接
- */
-const updateDataSource = createRequest<IConnectionDetails, number>('/api/admin/data_source/update', {
-  method: 'post',
-});
-/**
- * 链接-删除链接
- */
-const deleteDataSource = createRequest<{ id: number }, boolean>('/api/admin/data_source/:id', {
-  method: 'delete',
-});
-/**
- * 链接-获取链接包含的团队/用户列表
- */
-const getUserAndTeamListFromDataSource = createRequest<
-  IPageParams & { dataSourceId: number },
-  IPageResponse<IDataSourceAccessObjectVO>
->('/api/admin/data_source/access/page', {
-  method: 'get',
-});
-
-/**
- * 链接-添加团队/人员权限到共享链接
- */
-const updateUserAndTeamListFromDataSource = createRequest<
-  { dataSourceId: number; accessObjectList: Array<{ id: number; type: RoleType }> }, number
->('/api/admin/data_source/access/batch_create', {
-  method: 'post',
-});
-
-/**
- * 链接-删除团队/人员权限到共享链接
- */
-const deleteUserOrTeamFromDataSource = createRequest<{ id: number }, boolean>('/api/admin/data_source/access/:id', {
-  method: 'delete',
-});
-
-
+import { IPageParams, IPageResponse } from '@/typings';
+import { IProjectVO, ITeamProjectGrantPayload, ITeamVO, ITeamWithProjectVO, ITeamWithUserVO, IUserVO, IUserWithTeamVO } from '@/typings/team';
 // ====================== User ======================
 
 /** 用户-用户管理列表查询 */
@@ -95,27 +41,6 @@ const deleteTeamListFromUser = createRequest<{ id: number }, boolean>('/api/admi
   method: 'delete',
 });
 
-/** 用户-用户管理中添加链接 */
-const getDataSourceListFromUser = createRequest<
-  IPageParams & { userId: number },
-  IPageResponse<IUserWithDataSourceVO>
->('/api/admin/user/data_source/page', {
-  method: 'get',
-});
-
-/** 用户-用户管理中更新链接 */
-const updateDataSourceListFromUser = createRequest<
-  { userId: number; dataSourceIdList: number[] }, number>(
-    '/api/admin/user/data_source/batch_create', {
-    method: 'post',
-  });
-
-/** 用户-用户管理中删除链接 */
-const deleteDataSourceFromUser = createRequest<{ id: number }, boolean>('/api/admin/user/data_source/:id', {
-  method: 'delete',
-});
-
-
 // ======================== 团队 ======================
 
 /** 团队-团队管理列表查询 */
@@ -155,24 +80,23 @@ const deleteUserFromTeam = createRequest<{ id: number }, boolean>('/api/admin/te
   method: 'delete',
 });
 
-
-/** 用户-用户管理中添加归属链接 */
-const getDataSourceListFromTeam = createRequest<
-  IPageParams & { userId: number },
-  IPageResponse<ITeamWithDataSourceVO>
->('/api/admin/team/data_source/page', {
+/** 团队-团队管理中获取归属项目列表 */
+const getProjectListFromTeam = createRequest<
+  IPageParams & { teamId: number },
+  IPageResponse<ITeamWithProjectVO>
+>('/api/admin/team/project/page', {
   method: 'get',
 });
 
-/** 用户-用户管理中更新归属链接 */
-const updateDataSourceListFromTeam = createRequest<
-  { userId: number; dataSourceIdList: number[] }, number
->('/api/admin/team/data_source/batch_create', {
+/** 团队-团队管理中更新归属项目 */
+const updateProjectListFromTeam = createRequest<
+  { teamId: number; projectIdList?: number[]; projectGrantList?: ITeamProjectGrantPayload[] }, number
+>('/api/admin/team/project/batch_create', {
   method: 'post',
 });
 
-/** 用户-用户管理中删除所属团队 */
-const deleteDataSourceFromTeam = createRequest<{ id: number }, boolean>('/api/admin/team/data_source/:id', {
+/** 团队-团队管理中删除归属项目 */
+const deleteProjectFromTeam = createRequest<{ id: number }, boolean>('/api/admin/team/project/:id', {
   method: 'delete',
 });
 
@@ -185,30 +109,15 @@ const getCommonUserList = createRequest<{ searchKey: string }, IUserVO[]>('/api/
 const getCommonTeamList = createRequest<{ searchKey: string }, ITeamVO[]>('/api/admin/common/team/list', {
   method: 'get',
 });
-/** 通用-获取DataSource列表 */
-const getCommonDataSourceList = createRequest<{ searchKey: string }, IDataSourceVO[]>(
-  '/api/admin/common/data_source/list',
-  {
-    method: 'get',
-  },
-);
-/** 通用-获取user和team列表 */
-const getCommonUserAndTeamList = createRequest<{ searchKey: string }, ITeamAndUserVO[]>(
-  '/api/admin/common/team_user/list',
+/** 通用-获取Project列表 */
+const getCommonProjectList = createRequest<{ searchKey: string }, IProjectVO[]>(
+  '/api/admin/common/project/list',
   {
     method: 'get',
   },
 );
 
 export {
-  // dataSource
-  getDataSourceList,
-  createDataSource,
-  updateDataSource,
-  deleteDataSource,
-  getUserAndTeamListFromDataSource,
-  updateUserAndTeamListFromDataSource,
-  deleteUserOrTeamFromDataSource,
   // user
   getUserManagementList,
   createUser,
@@ -217,9 +126,6 @@ export {
   getTeamListFromUser,
   updateTeamListFromUser,
   deleteTeamListFromUser,
-  getDataSourceListFromUser,
-  updateDataSourceListFromUser,
-  deleteDataSourceFromUser,
   // team
   getTeamManagementList,
   createTeam,
@@ -228,12 +134,11 @@ export {
   getUserListFromTeam,
   updateUserListFromTeam,
   deleteUserFromTeam,
-  getDataSourceListFromTeam,
-  updateDataSourceListFromTeam,
-  deleteDataSourceFromTeam,
+  getProjectListFromTeam,
+  updateProjectListFromTeam,
+  deleteProjectFromTeam,
   // common
   getCommonUserList,
   getCommonTeamList,
-  getCommonDataSourceList,
-  getCommonUserAndTeamList,
+  getCommonProjectList,
 };

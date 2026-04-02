@@ -29,7 +29,6 @@ public abstract class DataSourceAdminConverter {
      */
     @Mappings({
         @Mapping(target = "enableReturnCount", expression = "java(true)"),
-        @Mapping(target = "kind", expression = "java(DataSourceKindEnum.SHARED.getCode())"),
     })
     public abstract DataSourcePageQueryParam request2param(CommonPageQueryRequest request);
 
@@ -60,7 +59,7 @@ public abstract class DataSourceAdminConverter {
      */
     @Mappings({
         @Mapping(source = "user", target = "userName"),
-        @Mapping(target = "kind", expression = "java(DataSourceKindEnum.SHARED.getCode())"),
+        @Mapping(target = "kind", expression = "java(DataSourceKindEnum.PRIVATE.getCode())"),
     })
     public abstract DataSourceCreateParam createReq2param(DataSourceCreateRequest request);
 

@@ -21,6 +21,8 @@ public class KnowledgeDocument {
 
     private String fileType;
 
+    private String storagePath;
+
     private String status;
 
     private Integer sentenceCount;

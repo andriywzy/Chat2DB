@@ -3,7 +3,7 @@ import { devtools } from 'zustand/middleware';
 import { shallow } from 'zustand/shallow';
 import { StoreApi } from 'zustand';
 
-import { IConnectionListItem, IConnectionEnv, IConnectionGroupItem } from '@/typings/connection';
+import { IConnectionListItem, IConnectionEnv, IConnectionProjectItem } from '@/typings/connection';
 import connectionService from '@/service/connection';
 
 import { setCurrentConnectionDetails } from '@/pages/main/workspace/store/common';
@@ -12,14 +12,14 @@ import { useWorkspaceStore } from '@/pages/main/workspace/store';
 export interface IConnectionStore {
   connectionList: IConnectionListItem[] | null;
   connectionEnvList: IConnectionEnv[] | null;
-  groupList: IConnectionGroupItem[] | null;
+  projectList: IConnectionProjectItem[] | null;
   connectionManageActiveId: number | null;
 }
 
 export const initConnectionStore = {
   connectionList: null,
   connectionEnvList: null,
-  groupList: null,
+  projectList: null,
   connectionManageActiveId: null,
 };
 
@@ -36,8 +36,8 @@ export const setConnectionEnvList = (connectionEnvList: IConnectionEnv[]) => {
   return useConnectionStore.setState({ connectionEnvList });
 };
 
-export const setGroupList = (groupList: IConnectionGroupItem[]) => {
-  return useConnectionStore.setState({ groupList });
+export const setProjectList = (projectList: IConnectionProjectItem[]) => {
+  return useConnectionStore.setState({ projectList });
 };
 
 export const setConnectionManageActiveId = (connectionManageActiveId: number | null) => {
@@ -53,11 +53,16 @@ export const getConnectionList: () => Promise<IConnectionListItem[]> = () => {
         pageSize: 1000,
         refresh: true,
       }),
-      connectionService.getGroupList(),
+      connectionService.getEnvList(),
+      connectionService.getProjectList(),
     ])
-      .then(([listRes, groupList]) => {
+      .then(([listRes, connectionEnvList, projectList]) => {
         const connectionList = listRes?.data || [];
-        useConnectionStore.setState({ connectionList, groupList: groupList || [] });
+        useConnectionStore.setState({
+          connectionList,
+          connectionEnvList: connectionEnvList || [],
+          projectList: projectList || [],
+        });
         resolve(connectionList);
 
         if (connectionList.length === 0) {
@@ -76,7 +81,7 @@ export const getConnectionList: () => Promise<IConnectionListItem[]> = () => {
         }
       })
       .catch(() => {
-        useConnectionStore.setState({ connectionList: [], groupList: [] });
+        useConnectionStore.setState({ connectionList: [], connectionEnvList: [], projectList: [] });
         reject([]);
       });
   });

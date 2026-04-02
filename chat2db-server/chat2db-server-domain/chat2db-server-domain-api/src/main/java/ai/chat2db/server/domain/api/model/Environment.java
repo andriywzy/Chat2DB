@@ -42,4 +42,24 @@ public class Environment implements Serializable {
      * color
      */
     private String color;
+
+    /**
+     * scope type
+     */
+    private String scopeType;
+
+    /**
+     * scope id
+     */
+    private Long scopeId;
+
+    /**
+     * creator user id
+     */
+    private Long createUserId;
+
+    /**
+     * project id
+     */
+    private Long projectId;
 }

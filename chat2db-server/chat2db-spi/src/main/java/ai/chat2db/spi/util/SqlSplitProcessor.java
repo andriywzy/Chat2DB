@@ -808,12 +808,33 @@ public class SqlSplitProcessor {
 
     }
 
-    @Data
-    @AllArgsConstructor
-    @NoArgsConstructor
     static class OrderChar {
         private char ch;
         private int order;
+
+        OrderChar() {
+        }
+
+        OrderChar(char ch, int order) {
+            this.ch = ch;
+            this.order = order;
+        }
+
+        public char getCh() {
+            return ch;
+        }
+
+        public void setCh(char ch) {
+            this.ch = ch;
+        }
+
+        public int getOrder() {
+            return order;
+        }
+
+        public void setOrder(int order) {
+            this.order = order;
+        }
 
         static OrderChar newOrderChar(OrderChar orderChar) {
             return new OrderChar(orderChar.getCh(), orderChar.getOrder());

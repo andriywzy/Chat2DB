@@ -15,25 +15,25 @@ interface IProps {
   searchValue: string;
   setSearchValue: (value: string) => void;
   getTreeData: (refresh?: boolean) => void;
-  onCreateGroup?: () => void;
+  onCreateProject?: () => void;
 }
 
 const OperationLine = (props: IProps) => {
-  const { searchValue, setSearchValue, getTreeData, onCreateGroup } = props;
+  const { searchValue, setSearchValue, getTreeData, onCreateProject } = props;
   const [isImportOpen, setIsImportOpen] = useState(false);
 
   const menuItems = useMemo<MenuProps['items']>(
     () => [
       {
-        key: 'new-group',
+        key: 'new-project',
         label: (
           <div className={styles.menuItemLabel}>
             <Iconfont code="&#xe63f;" />
-            <span>{i18n('workspace.database.newGroup')}</span>
+            <span>{i18n('workspace.database.newProject')}</span>
           </div>
         ),
         onClick: () => {
-          onCreateGroup?.();
+          onCreateProject?.();
         },
       },
       {
@@ -63,7 +63,7 @@ const OperationLine = (props: IProps) => {
         },
       },
     ],
-    [onCreateGroup],
+    [onCreateProject],
   );
 
   return (

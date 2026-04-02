@@ -1,12 +1,14 @@
 package ai.chat2db.server.domain.core.impl;
 
 import java.sql.Connection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import ai.chat2db.server.domain.api.enums.DataSourceKindEnum;
 import ai.chat2db.server.domain.api.model.DataSource;
-import ai.chat2db.server.domain.api.model.DataSourceGroup;
+import ai.chat2db.server.domain.api.model.Environment;
+import ai.chat2db.server.domain.api.model.Project;
 import ai.chat2db.server.domain.api.param.datasource.DataSourceCloseParam;
 import ai.chat2db.server.domain.api.param.datasource.DataSourceCreateParam;
 import ai.chat2db.server.domain.api.param.datasource.DataSourcePageQueryParam;
@@ -17,17 +19,18 @@ import ai.chat2db.server.domain.api.param.datasource.DataSourceUpdateParam;
 import ai.chat2db.server.domain.api.param.datasource.DatabaseQueryAllParam;
 import ai.chat2db.server.domain.api.service.DataSourceService;
 import ai.chat2db.server.domain.api.service.DatabaseService;
+import ai.chat2db.server.domain.api.service.ProjectService;
 import ai.chat2db.server.domain.core.converter.DataSourceConverter;
 import ai.chat2db.server.domain.core.converter.EnvironmentConverter;
 import ai.chat2db.server.domain.core.util.PermissionUtils;
 import ai.chat2db.server.domain.repository.Dbutils;
 import ai.chat2db.server.domain.repository.entity.DataSourceAccessDO;
 import ai.chat2db.server.domain.repository.entity.DataSourceDO;
-import ai.chat2db.server.domain.repository.entity.DataSourceGroupMappingDO;
+import ai.chat2db.server.domain.repository.entity.ProjectAccessDO;
 import ai.chat2db.server.domain.repository.mapper.DataSourceAccessMapper;
 import ai.chat2db.server.domain.repository.mapper.DataSourceCustomMapper;
-import ai.chat2db.server.domain.repository.mapper.DataSourceGroupMappingMapper;
 import ai.chat2db.server.domain.repository.mapper.DataSourceMapper;
+import ai.chat2db.server.domain.repository.mapper.ProjectAccessMapper;
 import ai.chat2db.server.tools.base.wrapper.result.ActionResult;
 import ai.chat2db.server.tools.base.wrapper.result.DataResult;
 import ai.chat2db.server.tools.base.wrapper.result.ListResult;
@@ -54,7 +57,6 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
@@ -84,7 +86,7 @@ public class DataSourceServiceImpl implements DataSourceService {
     private DatabaseService databaseService;
 
     @Autowired
-    private DataSourceGroupServiceImpl dataSourceGroupService;
+    private ProjectService projectService;
 
 
     private DataSourceCustomMapper getCustomMapper() {
@@ -96,18 +98,16 @@ public class DataSourceServiceImpl implements DataSourceService {
         return Dbutils.getMapper(DataSourceAccessMapper.class);
     }
 
-    private DataSourceGroupMappingMapper getGroupMappingMapper() {
-        return Dbutils.getMapper(DataSourceGroupMappingMapper.class);
+    private ProjectAccessMapper getProjectAccessMapper() {
+        return Dbutils.getMapper(ProjectAccessMapper.class);
     }
 
     @Override
     public DataResult<Long> createWithPermission(DataSourceCreateParam param) {
         DataSourceKindEnum dataSourceKind = EasyEnumUtils.getEnum(DataSourceKindEnum.class, param.getKind());
         if (dataSourceKind == null) {
-            throw new ParamBusinessException("kind");
-        }
-        if (dataSourceKind == DataSourceKindEnum.SHARED && !ContextUtils.getLoginUser().getAdmin()) {
-            throw new PermissionDeniedBusinessException();
+            dataSourceKind = DataSourceKindEnum.PRIVATE;
+            param.setKind(dataSourceKind.getCode());
         }
         JdbcUtils.removePropertySameAsDefault(param.getDriverConfig());
         DataSourceDO dataSourceDO = dataSourceConverter.param2do(param);
@@ -116,8 +116,8 @@ public class DataSourceServiceImpl implements DataSourceService {
         dataSourceDO.setUserId(ContextUtils.getUserId());
         //dataSourceDO.setExtendInfo(null);
 
+        dataSourceDO.setProjectId(resolveProjectId(param.getProjectId(), param.getGroupId()));
         getMapper().insert(dataSourceDO);
-        syncGroupRelation(dataSourceDO.getId(), param.getGroupId());
         preWarmingData(dataSourceDO.getId());
         return DataResult.of(dataSourceDO.getId());
     }
@@ -152,8 +152,8 @@ public class DataSourceServiceImpl implements DataSourceService {
         JdbcUtils.removePropertySameAsDefault(param.getDriverConfig());
         DataSourceDO dataSourceDO = dataSourceConverter.param2do(param);
         dataSourceDO.setGmtModified(DateUtil.date());
+        dataSourceDO.setProjectId(resolveProjectId(param.getProjectId(), param.getGroupId()));
         getMapper().updateById(dataSourceDO);
-        syncGroupRelation(param.getId(), param.getGroupId());
         return DataResult.of(dataSourceDO.getId());
     }
 
@@ -169,10 +169,6 @@ public class DataSourceServiceImpl implements DataSourceService {
         dataSourceAccessQueryWrapper.eq(DataSourceAccessDO::getDataSourceId, id)
         ;
         getAccessMapper().delete(dataSourceAccessQueryWrapper);
-
-        LambdaQueryWrapper<DataSourceGroupMappingDO> dataSourceGroupMappingQueryWrapper = new LambdaQueryWrapper<>();
-        dataSourceGroupMappingQueryWrapper.eq(DataSourceGroupMappingDO::getDataSourceId, id);
-        getGroupMappingMapper().delete(dataSourceGroupMappingQueryWrapper);
         return ActionResult.isSuccess();
     }
 
@@ -188,6 +184,7 @@ public class DataSourceServiceImpl implements DataSourceService {
         if (dataResult.getData() == null) {
             throw new DataNotFoundException();
         }
+        checkReadPermission(id);
 
         fillData(Lists.newArrayList(dataResult.getData()), selector);
 
@@ -206,7 +203,7 @@ public class DataSourceServiceImpl implements DataSourceService {
         dataSourceDO.setGmtCreate(DateUtil.date());
         dataSourceDO.setGmtModified(DateUtil.date());
         getMapper().insert(dataSourceDO);
-        cloneGroupRelation(id, dataSourceDO.getId());
+        cloneProjectRelation(id, dataSourceDO.getId());
         return DataResult.of(dataSourceDO.getId());
     }
 
@@ -302,7 +299,7 @@ public class DataSourceServiceImpl implements DataSourceService {
             return;
         }
 
-        fillGroup(list);
+        fillProject(list);
 
         if (selector == null) {
             return;
@@ -311,6 +308,14 @@ public class DataSourceServiceImpl implements DataSourceService {
         fillEnvironment(list, selector);
 
         fillSupportDatabase(list);
+    }
+
+    private void checkReadPermission(Long dataSourceId) {
+        LoginUser loginUser = ContextUtils.getLoginUser();
+        Integer count = getCustomMapper().countReadable(BooleanUtils.isTrue(loginUser.getAdmin()), loginUser.getId(), dataSourceId);
+        if (count == null || count <= 0) {
+            throw new PermissionDeniedBusinessException();
+        }
     }
 
     private void fillSupportDatabase(List<DataSource> list) {
@@ -335,80 +340,106 @@ public class DataSourceServiceImpl implements DataSourceService {
         if (BooleanUtils.isNotTrue(selector.getEnvironment())) {
             return;
         }
-        environmentConverter.fillDetail(EasyCollectionUtils.toList(list, DataSource::getEnvironment));
+        List<Long> environmentIds = EasyCollectionUtils.toList(list, DataSource::getEnvironmentId).stream()
+            .filter(id -> id != null)
+            .distinct()
+            .toList();
+        if (CollectionUtils.isEmpty(environmentIds)) {
+            return;
+        }
+        Map<Long, Environment> environmentMap = new HashMap<>();
+        environmentConverter
+            .do2dto(
+                Dbutils.getMapper(ai.chat2db.server.domain.repository.mapper.EnvironmentMapper.class)
+                    .selectBatchIds(environmentIds)
+            )
+            .forEach(environment -> environmentMap.put(environment.getId(), environment));
+
+        for (DataSource dataSource : list) {
+            Long environmentId = dataSource.getEnvironmentId();
+            if (environmentId == null) {
+                continue;
+            }
+            Environment environment = dataSource.getEnvironment();
+            if (environment == null) {
+                environment = new Environment();
+                environment.setId(environmentId);
+                dataSource.setEnvironment(environment);
+            }
+            Environment detail = environmentMap.get(environmentId);
+            if (detail != null) {
+                environmentConverter.add(environment, detail);
+            }
+            if (StringUtils.isBlank(environment.getName())) {
+                environment.setName("Environment " + environmentId);
+            }
+            if (StringUtils.isBlank(environment.getShortName())) {
+                environment.setShortName(environment.getName());
+            }
+            if (StringUtils.isBlank(environment.getColor())) {
+                environment.setColor("BLUE");
+            }
+        }
     }
 
-    private void fillGroup(List<DataSource> list) {
+    private void fillProject(List<DataSource> list) {
         if (CollectionUtils.isEmpty(list) || ContextUtils.queryLoginUser() == null) {
             return;
         }
-        List<Long> dataSourceIds = EasyCollectionUtils.toList(list, DataSource::getId);
-        if (CollectionUtils.isEmpty(dataSourceIds)) {
+        List<Long> projectIds = EasyCollectionUtils.toList(list, DataSource::getProjectId)
+            .stream()
+            .filter(id -> id != null)
+            .distinct()
+            .toList();
+        if (CollectionUtils.isEmpty(projectIds)) {
             return;
         }
-        LambdaQueryWrapper<DataSourceGroupMappingDO> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.in(DataSourceGroupMappingDO::getDataSourceId, dataSourceIds);
-        List<DataSourceGroupMappingDO> mappingList = getGroupMappingMapper().selectList(queryWrapper);
-        if (CollectionUtils.isEmpty(mappingList)) {
-            return;
-        }
-
-        Map<Long, Long> dataSourceGroupMap = Maps.newHashMap();
-        for (DataSourceGroupMappingDO mapping : mappingList) {
-            dataSourceGroupMap.put(mapping.getDataSourceId(), mapping.getGroupId());
-        }
-
-        List<Long> groupIds = mappingList.stream().map(DataSourceGroupMappingDO::getGroupId).distinct().toList();
-        Map<Long, DataSourceGroup> groupMap = Maps.newHashMap();
-        for (DataSourceGroup group : dataSourceGroupService.queryList(groupIds)) {
-            groupMap.put(group.getId(), group);
-        }
+        Map<Long, Project> projectMap = projectService.queryList(projectIds).stream()
+            .collect(java.util.stream.Collectors.toMap(Project::getId, project -> project));
+        LambdaQueryWrapper<ProjectAccessDO> accessQueryWrapper = new LambdaQueryWrapper<>();
+        accessQueryWrapper.in(ProjectAccessDO::getProjectId, projectIds);
+        List<ProjectAccessDO> projectAccessList = getProjectAccessMapper().selectList(accessQueryWrapper);
+        java.util.Set<Long> sharedProjectIds = projectAccessList.stream()
+            .map(ProjectAccessDO::getProjectId)
+            .collect(java.util.stream.Collectors.toSet());
 
         for (DataSource dataSource : list) {
-            Long groupId = dataSourceGroupMap.get(dataSource.getId());
-            if (groupId == null) {
+            Long projectId = dataSource.getProjectId();
+            if (projectId == null) {
+                dataSource.setAccessScope("PERSONAL");
                 continue;
             }
-            DataSourceGroup group = groupMap.get(groupId);
-            if (group == null) {
-                continue;
+            Project project = projectMap.get(projectId);
+            if (project != null) {
+                dataSource.setProjectId(projectId);
+                dataSource.setProjectName(project.getName());
+                dataSource.setGroupId(projectId);
+                dataSource.setGroupName(project.getName());
             }
-            dataSource.setGroupId(groupId);
-            dataSource.setGroupName(group.getName());
+            dataSource.setAccessScope(sharedProjectIds.contains(projectId) ? "PROJECT" : "PERSONAL");
         }
     }
 
-    private void syncGroupRelation(Long dataSourceId, Long groupId) {
-        LambdaQueryWrapper<DataSourceGroupMappingDO> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(DataSourceGroupMappingDO::getDataSourceId, dataSourceId);
-        getGroupMappingMapper().delete(queryWrapper);
-
-        if (groupId == null) {
-            return;
+    private Long resolveProjectId(Long projectId, Long groupId) {
+        Long resolvedProjectId = projectId != null ? projectId : groupId;
+        if (resolvedProjectId != null) {
+            projectService.query(resolvedProjectId);
         }
-
-        dataSourceGroupService.query(groupId);
-
-        DataSourceGroupMappingDO mapping = new DataSourceGroupMappingDO();
-        mapping.setUserId(ContextUtils.getUserId());
-        mapping.setGroupId(groupId);
-        mapping.setDataSourceId(dataSourceId);
-        mapping.setGmtCreate(DateUtil.date());
-        mapping.setGmtModified(DateUtil.date());
-        getGroupMappingMapper().insert(mapping);
+        return resolvedProjectId;
     }
 
-    private void cloneGroupRelation(Long sourceDataSourceId, Long targetDataSourceId) {
+    private void cloneProjectRelation(Long sourceDataSourceId, Long targetDataSourceId) {
         if (ContextUtils.queryLoginUser() == null) {
             return;
         }
-        LambdaQueryWrapper<DataSourceGroupMappingDO> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(DataSourceGroupMappingDO::getDataSourceId, sourceDataSourceId);
-        DataSourceGroupMappingDO mapping = getGroupMappingMapper().selectOne(queryWrapper);
-        if (mapping == null) {
+        DataSourceDO source = getMapper().selectById(sourceDataSourceId);
+        if (source == null || source.getProjectId() == null) {
             return;
         }
-        syncGroupRelation(targetDataSourceId, mapping.getGroupId());
+        DataSourceDO target = new DataSourceDO();
+        target.setId(targetDataSourceId);
+        target.setProjectId(source.getProjectId());
+        getMapper().updateById(target);
     }
 
 }

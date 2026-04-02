@@ -1,5 +1,15 @@
 import createRequest from './base';
-import { IKnowledgeDocument, IKnowledgeDocumentPageParams, IKnowledgeDocumentPageResponse } from '@/typings';
+import {
+  IKnowledgeDocument,
+  IKnowledgeDocumentPageParams,
+  IKnowledgeDocumentPageResponse,
+  IKnowledgeSearchContextResponse,
+} from '@/typings';
+
+export interface IKnowledgeServiceError extends Error {
+  code?: string;
+  detail?: string | null;
+}
 
 const getKnowledgeDocumentList = createRequest<IKnowledgeDocumentPageParams, IKnowledgeDocumentPageResponse>(
   '/api/ai/knowledge/document/list',
@@ -14,6 +24,11 @@ const getKnowledgeDocumentDetail = createRequest<{ id: number }, IKnowledgeDocum
 const deleteKnowledgeDocument = createRequest<{ id: number }, void>(
   '/api/ai/knowledge/document/:id',
   { method: 'delete' },
+);
+
+const rebuildKnowledgeDocument = createRequest<{ id: number }, IKnowledgeDocument>(
+  '/api/ai/knowledge/document/:id/rebuild',
+  { method: 'post' },
 );
 
 async function uploadKnowledgeDocument(payload: { name?: string; file: File }): Promise<IKnowledgeDocument> {
@@ -38,7 +53,42 @@ async function uploadKnowledgeDocument(payload: { name?: string; file: File }): 
 
   const result = await response.json();
   if (!result?.success) {
-    throw new Error(result?.errorMessage || 'Knowledge upload failed');
+    const error = new Error(result?.errorMessage || 'Knowledge upload failed') as IKnowledgeServiceError;
+    error.code = result?.errorCode;
+    error.detail = result?.errorDetail;
+    throw error;
+  }
+  return result.data;
+}
+
+async function searchKnowledgeContext(payload: {
+  message: string;
+  documentIds?: number[];
+}): Promise<IKnowledgeSearchContextResponse> {
+  const headers: Record<string, string> = {};
+  const chat2db = localStorage.getItem('Chat2db');
+  if (chat2db) {
+    headers.Chat2db = chat2db;
+  }
+
+  const params = new URLSearchParams();
+  params.append('message', payload.message);
+  payload.documentIds?.forEach((documentId) => {
+    params.append('documentIds', String(documentId));
+  });
+
+  const response = await fetch(`${window._BaseURL}/api/ai/knowledge/search_context?${params.toString()}`, {
+    method: 'GET',
+    credentials: 'include',
+    headers,
+  });
+
+  const result = await response.json();
+  if (!result?.success) {
+    const error = new Error(result?.errorMessage || 'Knowledge search failed') as IKnowledgeServiceError;
+    error.code = result?.errorCode;
+    error.detail = result?.errorDetail;
+    throw error;
   }
   return result.data;
 }
@@ -47,5 +97,7 @@ export default {
   getKnowledgeDocumentList,
   getKnowledgeDocumentDetail,
   deleteKnowledgeDocument,
+  rebuildKnowledgeDocument,
   uploadKnowledgeDocument,
+  searchKnowledgeContext,
 };

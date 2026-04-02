@@ -5,7 +5,7 @@ import {
   IConnectionEnv,
   IPageParams,
   IConnectionListItem,
-  IConnectionGroupItem,
+  IConnectionProjectItem,
 } from '@/typings';
 import { DatabaseTypeCode } from '@/constants';
 import createRequest from './base';
@@ -82,21 +82,39 @@ const downloadDriver = createRequest<{ dbType: string }, void>('/api/jdbc/driver
 
 const saveDriver = createRequest<IUploadDriver, void>('/api/jdbc/driver/save', { method: 'post' });
 
-const getEnvList = createRequest<void, IConnectionEnv[]>('/api/common/environment/list_all', { errorLevel: false });
+const getEnvList = createRequest<void, IConnectionEnv[]>('/api/environment/list', { errorLevel: false });
 
-const getGroupList = createRequest<void, IConnectionGroupItem[]>('/api/connection/group/list', {
+const createEnvironment = createRequest<
+  { name: string; shortName?: string; color?: string; scopeType?: string; scopeId?: number; projectId?: number },
+  number
+>('/api/environment/create', {
+  method: 'post',
+});
+
+const updateEnvironment = createRequest<
+  { id: number; name: string; shortName?: string; color?: string; scopeType?: string; scopeId?: number; projectId?: number },
+  number
+>('/api/environment/update', {
+  method: 'post',
+});
+
+const deleteEnvironment = createRequest<{ id: number }, void>('/api/environment/:id', {
+  method: 'delete',
+});
+
+const getProjectList = createRequest<void, IConnectionProjectItem[]>('/api/project/list', {
   method: 'get',
 });
 
-const createGroup = createRequest<{ name: string }, number>('/api/connection/group/create', {
+const createProject = createRequest<{ name: string }, number>('/api/project/create', {
   method: 'post',
 });
 
-const updateGroup = createRequest<{ id: number; name: string }, number>('/api/connection/group/update', {
+const updateProject = createRequest<{ id: number; name: string }, number>('/api/project/update', {
   method: 'post',
 });
 
-const deleteGroup = createRequest<{ id: number }, void>('/api/connection/group/:id', {
+const deleteProject = createRequest<{ id: number }, void>('/api/project/:id', {
   method: 'delete',
 });
 
@@ -112,10 +130,17 @@ const deleteGroup = createRequest<{ id: number }, void>('/api/connection/group/:
 
 export default {
   getEnvList,
-  getGroupList,
-  createGroup,
-  updateGroup,
-  deleteGroup,
+  createEnvironment,
+  updateEnvironment,
+  deleteEnvironment,
+  getProjectList,
+  createProject,
+  updateProject,
+  deleteProject,
+  getGroupList: getProjectList,
+  createGroup: createProject,
+  updateGroup: updateProject,
+  deleteGroup: deleteProject,
   getList,
   getDetails,
   save,

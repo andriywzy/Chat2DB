@@ -13,6 +13,8 @@ public class KnowledgeDocumentUpdateParam {
 
     private String fileType;
 
+    private String storagePath;
+
     private String status;
 
     private Integer sentenceCount;

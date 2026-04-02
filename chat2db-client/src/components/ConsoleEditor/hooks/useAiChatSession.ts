@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { formatParams } from '@/utils/url';
 import connectToEventSource from '@/utils/eventSource';
+import { isAiStreamDone, parseAiStreamMessage } from '@/utils/aiStream';
 import { IBoundInfo } from '@/typings';
 import { chatErrorForKey, chatErrorToLogin } from '@/constants/chat';
 
@@ -79,6 +80,7 @@ export const useAiChatSession = ({ uid, isChat2DBAI, onNeedLogin, onKeyLimited, 
     }
 
     const params = formatParams({
+      uid,
       message: content,
       promptType,
       dataSourceId: boundInfo.dataSourceId,
@@ -92,7 +94,7 @@ export const useAiChatSession = ({ uid, isChat2DBAI, onNeedLogin, onKeyLimited, 
       setIsLoading(false);
       setIsAiDrawerLoading(false);
       try {
-        const isEOF = _message === '[DONE]';
+        const isEOF = isAiStreamDone(_message);
         if (isEOF) {
           closeEventSource.current?.();
           setIsStream(false);
@@ -129,7 +131,7 @@ export const useAiChatSession = ({ uid, isChat2DBAI, onNeedLogin, onKeyLimited, 
           return;
         }
 
-        const nextContent = JSON.parse(_message).content;
+        const nextContent = parseAiStreamMessage(_message).content || '';
         if (mode === 'editor') {
           onEditorChunk?.(nextContent);
         } else {
@@ -148,7 +150,6 @@ export const useAiChatSession = ({ uid, isChat2DBAI, onNeedLogin, onKeyLimited, 
 
     closeEventSource.current = connectToEventSource({
       url: `/api/ai/chat?${params}`,
-      uid,
       onOpen: () => {
         setIsStream(true);
       },

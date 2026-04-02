@@ -12,25 +12,36 @@ export interface IConnectionEnv {
   name: string;
   shortName: string;
   color: string;
+  canManage?: boolean;
+  scopeType?: string;
+  scopeId?: number;
+  projectId?: number;
 }
 
-export interface IConnectionGroupItem {
+export interface IConnectionProjectItem {
   id: number;
   name: string;
   canManage?: boolean;
+  description?: string;
 }
+
+export type IConnectionGroupItem = IConnectionProjectItem;
 
 // 连接列表的信息
 export interface IConnectionListItem {
   id: number;
   alias: string;
   environment: IConnectionEnv;
+  environmentId?: number;
   type: DatabaseTypeCode;
   supportDatabase: boolean;
   supportSchema: boolean;
   user: string;
+  projectId?: number;
+  projectName?: string;
   groupId?: number;
   groupName?: string;
+  accessScope?: 'PERSONAL' | 'PROJECT';
 }
 
 
@@ -47,8 +58,11 @@ export interface IConnectionDetails {
   ConsoleOpenedStatus: 'y' | 'n';
   extendInfo: IConnectionExtendInfoItem[];
   environmentId: number;
+  projectId?: number;
+  projectName?: string;
   groupId?: number;
   groupName?: string;
+  accessScope?: 'PERSONAL' | 'PROJECT';
   ssh: any;
   driverConfig: {
     jdbcDriver: string;
@@ -61,12 +75,16 @@ export interface IConnectionListItem {
   id: number;
   alias: string;
   environment: IConnectionEnv;
+  environmentId?: number;
   type: DatabaseTypeCode;
   supportDatabase: boolean;
   supportSchema: boolean;
   user: string;
+  projectId?: number;
+  projectName?: string;
   groupId?: number;
   groupName?: string;
+  accessScope?: 'PERSONAL' | 'PROJECT';
 }
 
 export type ICreateConnectionDetails = Omit<IConnectionDetails, 'id'>

@@ -163,6 +163,17 @@ public class GatewayClientService {
         return result;
     }
 
+    public ActionResult knowledgeVectorDelete(KnowledgeRequest request) {
+        ActionResult result = Forest.post(chat2dbProperties.getGateway().getBaseUrl() + "/api/client/milvus/knowledge/delete")
+                .connectTimeout(Duration.ofMillis(5000))
+                .readTimeout(Duration.ofMillis(10000))
+                .contentType("application/json")
+                .addBody(request)
+                .execute(new TypeReference<>() {
+                });
+        return result;
+    }
+
     /**
      * save table schema vector
      *

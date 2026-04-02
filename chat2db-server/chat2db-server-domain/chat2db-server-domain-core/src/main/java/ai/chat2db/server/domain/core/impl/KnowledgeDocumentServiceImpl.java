@@ -26,6 +26,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 @Service
@@ -70,6 +71,16 @@ public class KnowledgeDocumentServiceImpl implements KnowledgeDocumentService {
     }
 
     @Override
+    public List<KnowledgeDocument> queryByIds(List<Long> ids) {
+        if (CollectionUtils.isEmpty(ids)) {
+            return Collections.emptyList();
+        }
+        EasyLambdaQueryWrapper<KnowledgeDocumentDO> queryWrapper = new EasyLambdaQueryWrapper<>();
+        queryWrapper.in(KnowledgeDocumentDO::getId, ids);
+        return getMapper().selectList(queryWrapper).stream().map(this::toModel).toList();
+    }
+
+    @Override
     public PageResult<KnowledgeDocument> queryPage(KnowledgeDocumentPageQueryParam param) {
         EasyLambdaQueryWrapper<KnowledgeDocumentDO> queryWrapper = new EasyLambdaQueryWrapper<>();
         queryWrapper.eqWhenPresent(KnowledgeDocumentDO::getUserId, param.getUserId())
@@ -104,6 +115,7 @@ public class KnowledgeDocumentServiceImpl implements KnowledgeDocumentService {
         target.setName(source.getName());
         target.setFileName(source.getFileName());
         target.setFileType(source.getFileType());
+        target.setStoragePath(source.getStoragePath());
         target.setStatus(source.getStatus());
         target.setSentenceCount(source.getSentenceCount());
         target.setWordCount(source.getWordCount());
@@ -116,6 +128,7 @@ public class KnowledgeDocumentServiceImpl implements KnowledgeDocumentService {
         target.setName(source.getName());
         target.setFileName(source.getFileName());
         target.setFileType(source.getFileType());
+        target.setStoragePath(source.getStoragePath());
         target.setStatus(source.getStatus());
         target.setSentenceCount(source.getSentenceCount());
         target.setWordCount(source.getWordCount());
@@ -133,6 +146,7 @@ public class KnowledgeDocumentServiceImpl implements KnowledgeDocumentService {
         document.setName(documentDO.getName());
         document.setFileName(documentDO.getFileName());
         document.setFileType(documentDO.getFileType());
+        document.setStoragePath(documentDO.getStoragePath());
         document.setStatus(documentDO.getStatus());
         document.setSentenceCount(documentDO.getSentenceCount());
         document.setWordCount(documentDO.getWordCount());

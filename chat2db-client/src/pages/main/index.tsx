@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Dropdown, Tooltip } from 'antd';
+import { Dropdown, Tooltip } from 'antd';
 import classnames from 'classnames';
 
 import Iconfont from '@/components/Iconfont';
@@ -28,6 +28,7 @@ import Workspace from './workspace';
 import Dashboard from './dashboard';
 import Connection from './connection';
 import Team from './team';
+import Knowledge from './knowledge';
 import Setting from '@/blocks/Setting';
 
 import styles from './index.less';
@@ -57,6 +58,14 @@ const initNavConfig: INavItem[] = [
     isLoad: false,
     component: <Connection />,
     name: i18n('connection.title'),
+  },
+  {
+    key: 'knowledge',
+    icon: '\ue646',
+    iconFontSize: 20,
+    isLoad: false,
+    component: <Knowledge />,
+    name: i18n('setting.nav.knowledge'),
   },
 ];
 

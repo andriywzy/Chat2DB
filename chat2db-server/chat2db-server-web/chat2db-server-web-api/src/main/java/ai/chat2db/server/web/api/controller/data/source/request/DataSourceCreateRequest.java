@@ -120,4 +120,9 @@ public class DataSourceCreateRequest {
      */
     private Long groupId;
 
+    /**
+     * project id
+     */
+    private Long projectId;
+
 }

@@ -11,6 +11,8 @@ public class KnowledgeDocumentCreateParam {
 
     private String fileType;
 
+    private String storagePath;
+
     private String status;
 
     private Integer sentenceCount;

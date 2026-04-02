@@ -8,6 +8,8 @@ import ai.chat2db.server.tools.base.wrapper.result.ActionResult;
 import ai.chat2db.server.tools.base.wrapper.result.DataResult;
 import ai.chat2db.server.tools.base.wrapper.result.PageResult;
 
+import java.util.List;
+
 public interface KnowledgeDocumentService {
 
     DataResult<Long> create(KnowledgeDocumentCreateParam param);
@@ -15,6 +17,8 @@ public interface KnowledgeDocumentService {
     ActionResult update(KnowledgeDocumentUpdateParam param);
 
     DataResult<KnowledgeDocument> queryExistent(Long id);
+
+    List<KnowledgeDocument> queryByIds(List<Long> ids);
 
     PageResult<KnowledgeDocument> queryPage(KnowledgeDocumentPageQueryParam param);
 

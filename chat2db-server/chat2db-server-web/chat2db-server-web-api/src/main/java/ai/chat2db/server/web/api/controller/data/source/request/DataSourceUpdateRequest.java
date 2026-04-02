@@ -121,4 +121,9 @@ public class DataSourceUpdateRequest {
      * datasource group id
      */
     private Long groupId;
+
+    /**
+     * project id
+     */
+    private Long projectId;
 }

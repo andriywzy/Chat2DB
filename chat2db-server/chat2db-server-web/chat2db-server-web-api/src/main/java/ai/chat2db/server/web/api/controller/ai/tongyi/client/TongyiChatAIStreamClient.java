@@ -1,12 +1,15 @@
 package ai.chat2db.server.web.api.controller.ai.tongyi.client;
 
 import ai.chat2db.server.tools.common.exception.ParamBusinessException;
+import ai.chat2db.server.web.api.controller.ai.fastchat.embeddings.FastChatEmbedding;
+import ai.chat2db.server.web.api.controller.ai.fastchat.embeddings.FastChatEmbeddingResponse;
 import ai.chat2db.server.web.api.controller.ai.fastchat.interceptor.FastChatHeaderAuthorizationInterceptor;
 import ai.chat2db.server.web.api.controller.ai.fastchat.model.FastChatRole;
 import ai.chat2db.server.web.api.controller.ai.fastchat.model.FastChatMessage;
 import cn.hutool.http.ContentType;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.reactivex.Single;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.MediaType;
@@ -17,7 +20,11 @@ import okhttp3.sse.EventSource;
 import okhttp3.sse.EventSourceListener;
 import okhttp3.sse.EventSources;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
+import retrofit2.Retrofit;
+import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory;
+import retrofit2.converter.jackson.JacksonConverterFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -66,6 +73,8 @@ public class TongyiChatAIStreamClient {
     @Getter
     private OkHttpClient okHttpClient;
 
+    @Getter
+    private TongyiOpenAiApi tongyiOpenAiApi;
 
     /**
      * @param builder
@@ -79,6 +88,13 @@ public class TongyiChatAIStreamClient {
             builder.okHttpClient = this.okHttpClient();
         }
         okHttpClient = builder.okHttpClient;
+        this.tongyiOpenAiApi = new Retrofit.Builder()
+            .baseUrl(buildEmbeddingBaseUrl(apiHost))
+            .client(okHttpClient)
+            .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
+            .addConverterFactory(JacksonConverterFactory.create())
+            .build()
+            .create(TongyiOpenAiApi.class);
     }
 
     /**
@@ -219,6 +235,30 @@ public class TongyiChatAIStreamClient {
             messages.add(message);
         }
         return messages;
+    }
+
+    public FastChatEmbeddingResponse embeddings(String input) {
+        FastChatEmbedding embedding = FastChatEmbedding.builder().input(input).build();
+        embedding.setModel(StringUtils.defaultIfBlank(this.embeddingModel, "text-embedding-v4"));
+        return this.embeddings(embedding);
+    }
+
+    public FastChatEmbeddingResponse embeddings(FastChatEmbedding embedding) {
+        Single<FastChatEmbeddingResponse> embeddings = this.tongyiOpenAiApi.embeddings(embedding);
+        return embeddings.blockingGet();
+    }
+
+    private String buildEmbeddingBaseUrl(String host) {
+        if (StringUtils.isBlank(host)) {
+            return "https://dashscope.aliyuncs.com/compatible-mode/v1/";
+        }
+        String normalized = host.trim();
+        normalized = StringUtils.removeEnd(normalized, "/chat/completions");
+        normalized = StringUtils.removeEnd(normalized, "/embeddings");
+        if (!normalized.endsWith("/")) {
+            normalized = normalized + "/";
+        }
+        return normalized;
     }
 
 }

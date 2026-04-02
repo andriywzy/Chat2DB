@@ -18,6 +18,12 @@ import lombok.Data;
 public class ChatQueryRequest extends DataSourceBaseRequest {
 
     /**
+     * Conversation identifier.
+     * Supports query-param transport so AI endpoints do not need to rely on a custom request header.
+     */
+    private String uid;
+
+    /**
      * Enter message
      */
     private String message;

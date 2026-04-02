@@ -15,11 +15,30 @@
   min-height: 0;
 }
 
+.environmentBlock {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
 .groupRow {
   height: 32px;
   display: flex;
   align-items: center;
   padding: 0 10px;
+  border-bottom: 1px solid var(--color-border-secondary);
+  cursor: pointer;
+  user-select: none;
+  &:hover {
+    background: var(--color-hover-bg);
+  }
+}
+
+.environmentRow {
+  height: 30px;
+  display: flex;
+  align-items: center;
+  padding: 0 10px 0 24px;
   border-bottom: 1px solid var(--color-border-secondary);
   cursor: pointer;
   user-select: none;
@@ -52,6 +71,14 @@
 .groupIcon {
   margin: 0 8px 0 4px;
   color: var(--color-primary);
+}
+
+.environmentDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  margin: 0 10px 0 6px;
+  flex-shrink: 0;
 }
 
 .groupName {

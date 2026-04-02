@@ -139,6 +139,21 @@ public class DataSourceVO {
     private String groupName;
 
     /**
+     * project id
+     */
+    private Long projectId;
+
+    /**
+     * project name
+     */
+    private String projectName;
+
+    /**
+     * Effective access scope for display.
+     */
+    private String accessScope;
+
+    /**
      * Whether to support database
      */
     private boolean supportDatabase;

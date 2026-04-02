@@ -1,5 +1,5 @@
 import React, { useRef, useState, Fragment, useEffect } from 'react';
-import { Button, Dropdown, Modal } from 'antd';
+import { Button, Dropdown, Modal, Tag } from 'antd';
 import classnames from 'classnames';
 import i18n from '@/i18n';
 // import RefreshLoadingButton from '@/components/RefreshLoadingButton';
@@ -146,6 +146,10 @@ const ConnectionsPage = () => {
 
   const renderConnectionMenuList = () => {
     return connectionList?.map((t) => {
+      const projectName = t.projectName || t.groupName;
+      const environmentName = t.environment?.shortName || t.environment?.name;
+      const accessScopeLabel =
+        t.accessScope === 'PROJECT' ? i18n('connection.label.accessScope.project') : i18n('connection.label.accessScope.personal');
       return (
         <Dropdown
           key={t.id}
@@ -163,14 +167,25 @@ const ConnectionsPage = () => {
             }}
           >
             <div className={classnames(styles.menuItemsTitle)}>
-              <span className={styles.envTag} style={{ background: t.environment.color.toLocaleLowerCase() }} />
+              <span
+                className={styles.envTag}
+                style={{ background: (t.environment?.color || 'BLUE').toLocaleLowerCase() }}
+              />
               <span className={styles.databaseTypeIcon}>
                 {<Iconfont className={styles.menuItemIcon} code={databaseMap[t.type]?.icon} />}
               </span>
-              <span className={styles.name}>{t.alias}</span>
-              {/* <Tag color={t.environment.color.toLocaleLowerCase()}>
-              {t.environment.shortName}
-            </Tag> */}
+              <div className={styles.menuItemMeta}>
+                <span className={styles.name}>{t.alias}</span>
+                <div className={styles.tags}>
+                  <Tag className={styles.metaTag}>{accessScopeLabel}</Tag>
+                  {projectName ? <Tag className={styles.metaTag}>{projectName}</Tag> : null}
+                  {environmentName ? (
+                    <Tag color={(t.environment?.color || 'blue').toLocaleLowerCase()} className={styles.metaTag}>
+                      {environmentName}
+                    </Tag>
+                  ) : null}
+                </div>
+              </div>
             </div>
           </div>
         </Dropdown>

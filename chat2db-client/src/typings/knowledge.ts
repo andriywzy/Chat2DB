@@ -23,3 +23,17 @@ export interface IKnowledgeDocumentPageParams extends IPageParams {
 }
 
 export interface IKnowledgeDocumentPageResponse extends IPageResponse<IKnowledgeDocument> {}
+
+export interface IKnowledgeSearchSource {
+  id: number;
+  documentId?: number;
+  documentName?: string;
+  fileType?: string;
+  content: string;
+  wordCount?: number;
+  score?: number;
+}
+
+export interface IKnowledgeSearchContextResponse {
+  knowledgeList: IKnowledgeSearchSource[];
+}

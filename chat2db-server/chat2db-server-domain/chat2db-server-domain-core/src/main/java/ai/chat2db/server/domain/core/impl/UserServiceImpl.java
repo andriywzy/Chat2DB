@@ -15,9 +15,13 @@ import ai.chat2db.server.domain.core.converter.UserConverter;
 import ai.chat2db.server.domain.repository.Dbutils;
 import ai.chat2db.server.domain.repository.entity.DataSourceAccessDO;
 import ai.chat2db.server.domain.repository.entity.DbhubUserDO;
+import ai.chat2db.server.domain.repository.entity.ProjectAccessDO;
+import ai.chat2db.server.domain.repository.entity.ProjectAccessEnvironmentDO;
 import ai.chat2db.server.domain.repository.entity.TeamUserDO;
 import ai.chat2db.server.domain.repository.mapper.DataSourceAccessMapper;
 import ai.chat2db.server.domain.repository.mapper.DbhubUserMapper;
+import ai.chat2db.server.domain.repository.mapper.ProjectAccessEnvironmentMapper;
+import ai.chat2db.server.domain.repository.mapper.ProjectAccessMapper;
 import ai.chat2db.server.domain.repository.mapper.TeamUserCustomMapper;
 import ai.chat2db.server.domain.repository.mapper.TeamUserMapper;
 import ai.chat2db.server.tools.base.excption.BusinessException;
@@ -60,6 +64,14 @@ public class UserServiceImpl implements UserService {
     }
     private DataSourceAccessMapper getDataSourceAccessMapper() {
         return Dbutils.getMapper(DataSourceAccessMapper.class);
+    }
+
+    private ProjectAccessMapper getProjectAccessMapper() {
+        return Dbutils.getMapper(ProjectAccessMapper.class);
+    }
+
+    private ProjectAccessEnvironmentMapper getProjectAccessEnvironmentMapper() {
+        return Dbutils.getMapper(ProjectAccessEnvironmentMapper.class);
     }
 
     @Override
@@ -152,6 +164,18 @@ public class UserServiceImpl implements UserService {
             .eq(DataSourceAccessDO::getAccessObjectType, AccessObjectTypeEnum.USER.getCode())
         ;
         getDataSourceAccessMapper().delete(dataSourceAccessQueryWrapper);
+
+        LambdaQueryWrapper<ProjectAccessDO> projectAccessQueryWrapper = new LambdaQueryWrapper<>();
+        projectAccessQueryWrapper.eq(ProjectAccessDO::getAccessObjectId, id)
+            .eq(ProjectAccessDO::getAccessObjectType, AccessObjectTypeEnum.USER.getCode());
+        List<ProjectAccessDO> projectAccessList = getProjectAccessMapper().selectList(projectAccessQueryWrapper);
+        if (CollectionUtils.isNotEmpty(projectAccessList)) {
+            List<Long> projectAccessIds = EasyCollectionUtils.toList(projectAccessList, ProjectAccessDO::getId);
+            LambdaQueryWrapper<ProjectAccessEnvironmentDO> projectAccessEnvironmentQueryWrapper = new LambdaQueryWrapper<>();
+            projectAccessEnvironmentQueryWrapper.in(ProjectAccessEnvironmentDO::getProjectAccessId, projectAccessIds);
+            getProjectAccessEnvironmentMapper().delete(projectAccessEnvironmentQueryWrapper);
+            getProjectAccessMapper().delete(projectAccessQueryWrapper);
+        }
         return ActionResult.isSuccess();
     }
 

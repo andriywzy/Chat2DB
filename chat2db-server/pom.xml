@@ -28,6 +28,7 @@
     </properties>
 
     <modules>
+        <module>chat2db-gateway-start</module>
         <module>chat2db-server-domain</module>
         <module>chat2db-server-start</module>
         <module>chat2db-server-test</module>

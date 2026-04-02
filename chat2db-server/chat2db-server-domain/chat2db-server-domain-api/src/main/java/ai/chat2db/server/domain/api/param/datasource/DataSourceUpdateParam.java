@@ -119,4 +119,9 @@ public class DataSourceUpdateParam {
      */
     private Long groupId;
 
+    /**
+     * project id
+     */
+    private Long projectId;
+
 }

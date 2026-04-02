@@ -20,6 +20,21 @@ RUN rm -rf chat2db-server/chat2db-server-web-start/src/main/resources/static/fro
 
 FROM eclipse-temurin:17-jre AS runtime
 WORKDIR /app
+RUN if command -v apt-get >/dev/null 2>&1; then \
+        apt-get update && apt-get install -y --no-install-recommends tesseract-ocr && rm -rf /var/lib/apt/lists/*; \
+    elif command -v microdnf >/dev/null 2>&1; then \
+        microdnf install -y tesseract && microdnf clean all; \
+    elif command -v yum >/dev/null 2>&1; then \
+        yum install -y tesseract && yum clean all; \
+    elif command -v apk >/dev/null 2>&1; then \
+        apk add --no-cache tesseract-ocr; \
+    else \
+        echo "No supported package manager found for OCR installation" >&2; exit 1; \
+    fi
+RUN mkdir -p /opt/tessdata
+ADD https://github.com/tesseract-ocr/tessdata_fast/raw/main/eng.traineddata /opt/tessdata/eng.traineddata
+ADD https://github.com/tesseract-ocr/tessdata_fast/raw/main/chi_sim.traineddata /opt/tessdata/chi_sim.traineddata
+ENV CHAT2DB_OCR_TESSDATA_DIR=/opt/tessdata
 COPY --from=backend-builder /workspace/chat2db-server/chat2db-server-web-start/target/chat2db-server-web-start.jar /app/chat2db-server-web-start.jar
 EXPOSE 10824
 ENTRYPOINT ["java","-Dspring.profiles.active=release","-jar","chat2db-server-web-start.jar"]

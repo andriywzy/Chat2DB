@@ -1,127 +1,73 @@
 package ai.chat2db.server.domain.core.impl;
 
-import java.time.ZoneId;
-import java.util.Collections;
 import java.util.List;
 
 import ai.chat2db.server.domain.api.model.DataSourceGroup;
+import ai.chat2db.server.domain.api.model.Project;
 import ai.chat2db.server.domain.api.param.datasource.DataSourceGroupCreateParam;
 import ai.chat2db.server.domain.api.param.datasource.DataSourceGroupUpdateParam;
+import ai.chat2db.server.domain.api.param.project.ProjectCreateParam;
+import ai.chat2db.server.domain.api.param.project.ProjectUpdateParam;
 import ai.chat2db.server.domain.api.service.DataSourceGroupService;
-import ai.chat2db.server.domain.repository.Dbutils;
-import ai.chat2db.server.domain.repository.entity.DataSourceGroupDO;
-import ai.chat2db.server.domain.repository.entity.DataSourceGroupMappingDO;
-import ai.chat2db.server.domain.repository.mapper.DataSourceGroupMapper;
-import ai.chat2db.server.domain.repository.mapper.DataSourceGroupMappingMapper;
+import ai.chat2db.server.domain.api.service.ProjectService;
 import ai.chat2db.server.tools.base.wrapper.result.ActionResult;
 import ai.chat2db.server.tools.base.wrapper.result.DataResult;
 import ai.chat2db.server.tools.base.wrapper.result.ListResult;
-import ai.chat2db.server.tools.common.exception.DataNotFoundException;
-import ai.chat2db.server.tools.common.util.ContextUtils;
-import ai.chat2db.server.domain.core.util.PermissionUtils;
-import cn.hutool.core.date.DateUtil;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import org.apache.commons.collections4.CollectionUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
 public class DataSourceGroupServiceImpl implements DataSourceGroupService {
 
-    private DataSourceGroupMapper getMapper() {
-        return Dbutils.getMapper(DataSourceGroupMapper.class);
-    }
-
-    private DataSourceGroupMappingMapper getGroupMappingMapper() {
-        return Dbutils.getMapper(DataSourceGroupMappingMapper.class);
-    }
+    @Autowired
+    private ProjectService projectService;
 
     @Override
     public DataResult<Long> create(DataSourceGroupCreateParam param) {
-        DataSourceGroupDO data = new DataSourceGroupDO();
-        data.setName(param.getName());
-        data.setUserId(ContextUtils.getUserId());
-        data.setGmtCreate(DateUtil.date());
-        data.setGmtModified(DateUtil.date());
-        getMapper().insert(data);
-        return DataResult.of(data.getId());
+        ProjectCreateParam projectCreateParam = new ProjectCreateParam();
+        projectCreateParam.setName(param.getName());
+        return projectService.create(projectCreateParam);
     }
 
     @Override
     public DataResult<Long> update(DataSourceGroupUpdateParam param) {
-        LambdaQueryWrapper<DataSourceGroupDO> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(DataSourceGroupDO::getId, param.getId());
-        DataSourceGroupDO data = getMapper().selectOne(queryWrapper);
-        if (data == null) {
-            throw new DataNotFoundException();
-        }
-        PermissionUtils.checkOperationPermission(data.getUserId());
-        data.setName(param.getName());
-        data.setGmtModified(DateUtil.date());
-        getMapper().updateById(data);
-        return DataResult.of(data.getId());
+        ProjectUpdateParam projectUpdateParam = new ProjectUpdateParam();
+        projectUpdateParam.setId(param.getId());
+        projectUpdateParam.setName(param.getName());
+        return projectService.update(projectUpdateParam);
     }
 
     @Override
     public ActionResult delete(Long id) {
-        LambdaQueryWrapper<DataSourceGroupDO> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(DataSourceGroupDO::getId, id);
-        DataSourceGroupDO data = getMapper().selectOne(queryWrapper);
-        if (data == null) {
-            throw new DataNotFoundException();
-        }
-        PermissionUtils.checkOperationPermission(data.getUserId());
-
-        LambdaQueryWrapper<DataSourceGroupMappingDO> mappingQueryWrapper = new LambdaQueryWrapper<>();
-        mappingQueryWrapper.eq(DataSourceGroupMappingDO::getGroupId, id);
-        getGroupMappingMapper().delete(mappingQueryWrapper);
-
-        getMapper().deleteById(id);
-        return ActionResult.isSuccess();
+        return projectService.delete(id);
     }
 
     @Override
     public ListResult<DataSourceGroup> queryList() {
-        LambdaQueryWrapper<DataSourceGroupDO> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.orderByAsc(DataSourceGroupDO::getGmtCreate, DataSourceGroupDO::getId);
-        return ListResult.of(toModelList(getMapper().selectList(queryWrapper)));
+        return ListResult.of(toGroupList(projectService.queryList().getData()));
     }
 
     @Override
     public DataResult<DataSourceGroup> query(Long id) {
-        LambdaQueryWrapper<DataSourceGroupDO> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(DataSourceGroupDO::getId, id);
-        DataSourceGroupDO data = getMapper().selectOne(queryWrapper);
-        if (data == null) {
-            throw new DataNotFoundException();
-        }
-        return DataResult.of(toModel(data));
+        return DataResult.of(toGroup(projectService.query(id).getData()));
     }
 
     @Override
     public List<DataSourceGroup> queryList(List<Long> ids) {
-        if (CollectionUtils.isEmpty(ids)) {
-            return Collections.emptyList();
-        }
-        LambdaQueryWrapper<DataSourceGroupDO> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.in(DataSourceGroupDO::getId, ids);
-        return toModelList(getMapper().selectList(queryWrapper));
+        return toGroupList(projectService.queryList(ids));
     }
 
-    private List<DataSourceGroup> toModelList(List<DataSourceGroupDO> list) {
-        return list.stream().map(this::toModel).toList();
+    private List<DataSourceGroup> toGroupList(List<Project> list) {
+        return list.stream().map(this::toGroup).toList();
     }
 
-    private DataSourceGroup toModel(DataSourceGroupDO data) {
+    private DataSourceGroup toGroup(Project data) {
         DataSourceGroup result = new DataSourceGroup();
         result.setId(data.getId());
         result.setUserId(data.getUserId());
         result.setName(data.getName());
-        if (data.getGmtCreate() != null) {
-            result.setGmtCreate(data.getGmtCreate().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime());
-        }
-        if (data.getGmtModified() != null) {
-            result.setGmtModified(data.getGmtModified().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime());
-        }
+        result.setGmtCreate(data.getGmtCreate());
+        result.setGmtModified(data.getGmtModified());
         return result;
     }
 }

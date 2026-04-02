@@ -153,6 +153,23 @@ public class DataSource {
      */
     private String groupName;
 
+    /**
+     * Current project's id
+     */
+    private Long projectId;
+
+    /**
+     * Current project's name
+     */
+    private String projectName;
+
+    /**
+     * Effective access scope for display.
+     * PERSONAL: only owner can access
+     * PROJECT: shared through project permissions
+     */
+    private String accessScope;
+
     private boolean supportDatabase;
 
     private boolean supportSchema;

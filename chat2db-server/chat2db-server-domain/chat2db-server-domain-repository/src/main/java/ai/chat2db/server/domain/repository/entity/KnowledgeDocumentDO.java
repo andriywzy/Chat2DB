@@ -31,6 +31,8 @@ public class KnowledgeDocumentDO implements Serializable {
 
     private String fileType;
 
+    private String storagePath;
+
     private String status;
 
     private Integer sentenceCount;

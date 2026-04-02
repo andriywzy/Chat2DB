@@ -13,15 +13,25 @@ public class Knowledge {
 
     private Long id;
 
+    private Long documentId;
+
+    private String documentName;
+
+    private String fileType;
+
     private String content;
 
     private String contentVector;
 
     private Integer wordCount;
 
-    public Knowledge(Long id, String content, Integer wordCount) {
+    private Float score;
+
+    public Knowledge(Long id, Long documentId, String content, Integer wordCount, Float score) {
         this.id = id;
+        this.documentId = documentId;
         this.content = content;
         this.wordCount = wordCount;
+        this.score = score;
     }
 }

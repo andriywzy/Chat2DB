@@ -123,4 +123,9 @@ public class DataSourceCreateParam {
      * datasource group id
      */
     private Long groupId;
+
+    /**
+     * project id
+     */
+    private Long projectId;
 }

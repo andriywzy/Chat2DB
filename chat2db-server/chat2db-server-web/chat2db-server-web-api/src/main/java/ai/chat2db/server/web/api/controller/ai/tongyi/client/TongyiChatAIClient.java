@@ -60,6 +60,7 @@ public class TongyiChatAIClient {
         String apiKey = "";
         String apiHost = "";
         String model = "";
+        String embeddingModel = "";
         ConfigService configService = ApplicationContextUtil.getBean(ConfigService.class);
         Config apiHostConfig = configService.find(TONGYI_HOST).getData();
         if (apiHostConfig != null && StringUtils.isNotBlank(apiHostConfig.getContent())) {
@@ -73,7 +74,15 @@ public class TongyiChatAIClient {
         if (deployConfig != null && StringUtils.isNotBlank(deployConfig.getContent())) {
             model = deployConfig.getContent();
         }
-        TONGYI_AI_CLIENT = TongyiChatAIStreamClient.builder().apiKey(apiKey).apiHost(apiHost).model(model)
+        Config embeddingDeployConfig = configService.find(TONGYI_EMBEDDING_MODEL).getData();
+        if (embeddingDeployConfig != null && StringUtils.isNotBlank(embeddingDeployConfig.getContent())) {
+            embeddingModel = embeddingDeployConfig.getContent();
+        }
+        TONGYI_AI_CLIENT = TongyiChatAIStreamClient.builder()
+            .apiKey(apiKey)
+            .apiHost(apiHost)
+            .model(model)
+            .embeddingModel(embeddingModel)
             .build();
     }
 

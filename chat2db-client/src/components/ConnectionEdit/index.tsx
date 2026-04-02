@@ -54,16 +54,24 @@ const ConnectionEdit = forwardRef((props: IProps, ref: ForwardedRef<ICreateConne
   const { connectionEnvList } = useConnectionStore((state) => {
     return {
       connectionEnvList: state.connectionEnvList,
-      groupList: state.groupList,
+      projectList: state.projectList,
     };
   });
-  const groupList = useConnectionStore((state) => state.groupList);
+  const projectList = useConnectionStore((state) => state.projectList);
 
   const [envList, setEnvList] = useState<{ value: number; label: string }[]>([]);
-  const [groupOptions, setGroupOptions] = useState<{ value: number; label: string }[]>([]);
+  const [projectOptions, setProjectOptions] = useState<{ value: number; label: string }[]>([]);
+  const selectedProjectId = Form.useWatch('projectId', baseInfoForm);
 
   useEffect(() => {
-    const _envList = connectionEnvList?.map((t) => {
+    const currentProjectId = selectedProjectId ?? backfillData?.projectId ?? backfillData?.groupId ?? -1;
+    const currentEnvironmentId = backfillData?.environmentId;
+    const _envList = connectionEnvList?.filter((t) => {
+      if (currentProjectId === -1) {
+        return !t.projectId || t.id === currentEnvironmentId;
+      }
+      return t.projectId === currentProjectId || t.id === currentEnvironmentId;
+    }).map((t) => {
       return {
         value: t.id,
         label: t.name,
@@ -74,21 +82,21 @@ const ConnectionEdit = forwardRef((props: IProps, ref: ForwardedRef<ICreateConne
     if(_envList){
       setEnvList(_envList);
     }
-  }, [connectionEnvList]);
+  }, [backfillData?.environmentId, backfillData?.groupId, backfillData?.projectId, connectionEnvList, selectedProjectId]);
 
   useEffect(() => {
-    const nextGroupOptions = [
+    const nextProjectOptions = [
       {
         value: -1,
-        label: i18n('workspace.database.ungrouped'),
+        label: i18n('workspace.database.unassignedProject'),
       },
-      ...((groupList || []).map((item) => ({
+      ...((projectList || []).map((item) => ({
         value: item.id,
         label: item.name,
       })) || []),
     ];
-    setGroupOptions(nextGroupOptions);
-  }, [groupList]);
+    setProjectOptions(nextProjectOptions);
+  }, [projectList]);
 
   const dataSourceFormConfigPropsMemo = useMemo<IConnectionConfig>(() => {
     const deepCloneDataSourceFormConfigs = deepClone(dataSourceFormConfigs);
@@ -101,26 +109,28 @@ const ConnectionEdit = forwardRef((props: IProps, ref: ForwardedRef<ICreateConne
         t.defaultValue = envList[0].value;
       }
     });
-    const groupItemIndex = data.baseInfo.items.findIndex((item: IFormItem) => item.name === 'groupId');
-    const groupItem: IFormItem = {
-      defaultValue: backfillData?.groupId ?? -1,
+    const projectItemIndex = data.baseInfo.items.findIndex(
+      (item: IFormItem) => item.name === 'projectId' || item.name === 'groupId',
+    );
+    const projectItem: IFormItem = {
+      defaultValue: backfillData?.projectId ?? backfillData?.groupId ?? -1,
       inputType: InputType.SELECT,
-      labelNameCN: i18n('connection.label.group'),
-      labelNameEN: i18n('connection.label.group'),
-      name: 'groupId',
+      labelNameCN: i18n('connection.label.project'),
+      labelNameEN: i18n('connection.label.project'),
+      name: 'projectId',
       required: false,
-      selects: groupOptions,
+      selects: projectOptions,
       styles: {
         width: '50%',
       },
     };
-    if (groupItemIndex === -1) {
-      data.baseInfo.items.splice(2, 0, groupItem);
+    if (projectItemIndex === -1) {
+      data.baseInfo.items.splice(2, 0, projectItem);
     } else {
-      data.baseInfo.items[groupItemIndex] = groupItem;
+      data.baseInfo.items[projectItemIndex] = projectItem;
     }
     return data;
-  }, [backfillData, envList, groupOptions]);
+  }, [backfillData, envList, projectOptions]);
 
   useEffect(() => {
     setBackfillData(props.connectionData);
@@ -202,8 +212,8 @@ const ConnectionEdit = forwardRef((props: IProps, ref: ForwardedRef<ICreateConne
       data.id = backfillData.id;
     }
 
-    if (data.groupId === -1) {
-      delete data.groupId;
+    if (data.projectId === -1) {
+      delete data.projectId;
     }
 
     return data;
