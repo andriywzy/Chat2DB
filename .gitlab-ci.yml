@@ -3,6 +3,8 @@ stages:
   - deploy
 
 variables:
+  GIT_STRATEGY: clone
+  GIT_DEPTH: 0
   APP_NAME: "chat2db"
   APP_PORT: "10824"
   IMAGE_NAME: "chat2db-dev"
