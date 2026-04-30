@@ -1,0 +1,226 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Dropdown, Tooltip } from 'antd';
+import classnames from 'classnames';
+
+import Iconfont from '@/components/Iconfont';
+import BrandLogo from '@/components/BrandLogo';
+
+import i18n from '@/i18n';
+import { userLogout } from '@/service/user';
+import { INavItem } from '@/typings/main';
+import { IRole } from '@/typings/user';
+
+// ----- hooks -----
+import getConnectionEnvList from './functions/getConnection';
+
+// ----- store -----
+import { useMainStore, setMainPageActiveTab } from '@/pages/main/store/main';
+import { getConnectionList } from '@/pages/main/store/connection';
+import { useUserStore, setCurUser } from '@/store/user';
+import { setAppTitleBarRightComponent } from '@/store/common/appTitleBarConfig';
+
+// ----- component -----
+import CustomLayout from '@/components/CustomLayout';
+
+// ----- block -----
+import Workspace from './workspace';
+import Dashboard from './dashboard';
+import Connection from './connection';
+import Team from './team';
+import Knowledge from './knowledge';
+import Setting from '@/blocks/Setting';
+
+import styles from './index.less';
+import { useUpdateEffect } from '@/hooks';
+
+const initNavConfig: INavItem[] = [
+  {
+    key: 'workspace',
+    icon: '\ue616',
+    iconFontSize: 16,
+    isLoad: false,
+    component: <Workspace />,
+    name: i18n('workspace.title'),
+  },
+  {
+    key: 'dashboard',
+    icon: '\ue629',
+    iconFontSize: 24,
+    isLoad: false,
+    component: <Dashboard />,
+    name: i18n('dashboard.title'),
+  },
+  {
+    key: 'connections',
+    icon: '\ue622',
+    iconFontSize: 20,
+    isLoad: false,
+    component: <Connection />,
+    name: i18n('connection.title'),
+  },
+  {
+    key: 'knowledge',
+    icon: '\ue646',
+    iconFontSize: 20,
+    isLoad: false,
+    component: <Knowledge />,
+    name: i18n('setting.nav.knowledge'),
+  },
+];
+
+const createTeamNavItem = (): INavItem => {
+  return {
+    key: 'team',
+    icon: '\ue64b',
+    iconFontSize: 24,
+    isLoad: false,
+    component: <Team />,
+    name: i18n('team.title'),
+  };
+};
+
+function MainPage() {
+  const navigate = useNavigate();
+  const { userInfo } = useUserStore((state) => {
+    return {
+      userInfo: state.curUser,
+    };
+  });
+  const mainPageActiveTab = useMainStore((state) => state.mainPageActiveTab);
+  const [activeNavKey, setActiveNavKey] = useState<string>(
+    __ENV__ === 'desktop' ? mainPageActiveTab : window.location.pathname.split('/')[1] || mainPageActiveTab,
+  );
+  const [loadedNavKeys, setLoadedNavKeys] = useState<string[]>([activeNavKey]);
+
+  const isMac = useMemo(() => {
+    return window.electronApi?.getPlatform().isMac;
+  }, []);
+
+  const navConfig = useMemo(() => {
+    const nextNavConfig = [...initNavConfig];
+    if (userInfo?.admin) {
+      nextNavConfig.splice(3, 0, createTeamNavItem());
+    }
+    return nextNavConfig.map((item) => {
+      return {
+        ...item,
+        isLoad: loadedNavKeys.includes(String(item.key)),
+      };
+    });
+  }, [loadedNavKeys, userInfo?.admin]);
+
+  // 当页面在workspace时，显示自定义布局
+  useEffect(() => {
+    if (mainPageActiveTab === 'workspace') {
+      setAppTitleBarRightComponent(<CustomLayout />);
+    } else {
+      setAppTitleBarRightComponent(false);
+    }
+    return () => {
+      setAppTitleBarRightComponent(false);
+    };
+  }, [mainPageActiveTab]);
+
+  useEffect(() => {
+    getConnectionList();
+    getConnectionEnvList();
+  }, []);
+
+  useUpdateEffect(() => {
+    switchingNav(mainPageActiveTab);
+  }, [mainPageActiveTab]);
+
+  // 切换tab
+  useEffect(() => {
+    setLoadedNavKeys((prevLoadedNavKeys) => {
+      if (prevLoadedNavKeys.includes(activeNavKey)) {
+        return prevLoadedNavKeys;
+      }
+      return [...prevLoadedNavKeys, activeNavKey];
+    });
+    if (__ENV__ !== 'desktop') {
+      const href = window.location.origin + '/' + activeNavKey;
+      window.history.pushState({}, '', href);
+    }
+  }, [activeNavKey]);
+
+  const switchingNav = (key: string) => {
+    setActiveNavKey(key);
+    setMainPageActiveTab(key);
+  };
+
+  const handleLogout = () => {
+    userLogout().then(() => {
+      setCurUser(undefined);
+      navigate('/login');
+    });
+  };
+
+  const renderUser = () => {
+    return (
+      <Dropdown
+        menu={{
+          items: [
+            {
+              key: '1',
+              label: (
+                <div className={styles.userDropdown} onClick={handleLogout}>
+                  <Iconfont code="&#xe6b2;" />
+                  {i18n('login.text.logout')}
+                </div>
+              ),
+            },
+          ],
+        }}
+        placement="bottomRight"
+        trigger={['click']}
+      >
+        <div className={styles.userBox}>
+          <Iconfont code="&#xe64c;" className={styles.questionIcon} />
+        </div>
+      </Dropdown>
+    );
+  };
+
+  return (
+    <div className={styles.page}>
+      <div className={styles.layoutLeft}>
+        {isMac === void 0 && <BrandLogo size={38} className={styles.brandLogo} />}
+        <ul className={styles.navList}>
+          {navConfig.map((item) => {
+            return (
+              <Tooltip key={item.key} placement="right" title={item.name}>
+                <li
+                  className={classnames({
+                    [styles.activeNav]: item.key == activeNavKey,
+                  })}
+                  onClick={() => switchingNav(item.key)}
+                >
+                  <Iconfont size={item.iconFontSize} className={styles.icon} code={item.icon} />
+                </li>
+              </Tooltip>
+            );
+          })}
+        </ul>
+        <div className={styles.footer}>
+          <Tooltip placement="right" title="个人中心">
+            {userInfo?.roleCode !== IRole.DESKTOP ? renderUser() : null}
+          </Tooltip>
+          <Setting className={styles.setIcon} />
+        </div>
+      </div>
+      <div className={styles.layoutRight}>
+        {navConfig.map((item) => {
+          return (
+            <div key={item.key} className={styles.componentBox} hidden={activeNavKey !== item.key}>
+              {item.isLoad ? item.component : null}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+export default MainPage;

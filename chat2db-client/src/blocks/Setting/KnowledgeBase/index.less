@@ -1,0 +1,171 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100%;
+}
+
+.toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.uploadBox {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.supportedFormats {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-text-secondary, #8c8c8c);
+}
+
+.statusTag {
+  min-width: 84px;
+  text-align: center;
+}
+
+.preview {
+  max-height: 320px;
+  overflow: auto;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--color-bg-container, #f7f7f7);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.tips {
+  margin-bottom: 4px;
+}
+
+.searchPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--color-border-secondary, #f0f0f0);
+  border-radius: 10px;
+  background: var(--color-bg-container, #fff);
+}
+
+.searchHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.scopeRow {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.scopeLabel {
+  min-width: 84px;
+  padding-top: 6px;
+  font-size: 13px;
+  color: var(--color-text-secondary, #8c8c8c);
+}
+
+.scopeControls {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  flex-wrap: wrap;
+}
+
+.searchTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text, #1f1f1f);
+}
+
+.searchDescription {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-text-secondary, #8c8c8c);
+}
+
+.searchActions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.answerBox {
+  min-height: 96px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--color-fill-quaternary, #fafafa);
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.6;
+}
+
+.answerPlaceholder {
+  color: var(--color-text-tertiary, #bfbfbf);
+}
+
+.sourcesSection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sourcesTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text, #1f1f1f);
+}
+
+.sourceList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sourceCard {
+  padding: 12px;
+  border: 1px solid var(--color-border-secondary, #f0f0f0);
+  border-radius: 8px;
+  background: var(--color-fill-tertiary, #fcfcfc);
+}
+
+.sourceHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.sourceName {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text, #1f1f1f);
+}
+
+.sourceScore {
+  font-size: 12px;
+  color: var(--color-text-secondary, #8c8c8c);
+}
+
+.sourceSnippet {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.6;
+  color: var(--color-text-secondary, #595959);
+}
+
+.sourcesEmpty {
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--color-fill-quaternary, #fafafa);
+  color: var(--color-text-tertiary, #bfbfbf);
+}

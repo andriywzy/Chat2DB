@@ -1,0 +1,73 @@
+.operationLine {
+  flex-shrink: 0;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--color-border-secondary);
+  .operationLineLeft {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+}
+
+.iconButton {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  &:hover {
+    color: var(--color-text);
+    background-color: var(--color-hover-bg);
+  }
+}
+
+.searchBox {
+  width: 170px;
+  :global {
+    .ant-input-affix-wrapper {
+      border-radius: 16px;
+      border-color: var(--color-border-secondary);
+      background: var(--color-bg-tertiary);
+    }
+  }
+}
+
+.searchShortcut {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+}
+
+.createMenuOverlay {
+  :global {
+    .ant-dropdown-menu {
+      min-width: 190px;
+    }
+    .ant-dropdown-menu-item {
+      padding: 8px 10px !important;
+    }
+  }
+}
+
+.menuItemLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.menuArrow {
+  margin-left: auto;
+  color: var(--color-text-tertiary);
+}
+
+.searchBoxLegacy {
+  flex-shrink: 0;
+  padding: 4px;
+  border-top: 1px solid var(--color-border-secondary);
+}
