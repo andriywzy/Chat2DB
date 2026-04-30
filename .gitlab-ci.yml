@@ -105,7 +105,7 @@ build_image:
         -e ELECTRON_CACHE="/root/.cache/electron" \
         -e electron_config_cache="/root/.cache/electron" \
         "${NODE_BASE_IMAGE}" \
-        sh -lc "rm -rf \"${CONTAINER_FRONTEND_WORK_DIR}\" && mkdir -p \"${CONTAINER_FRONTEND_WORK_DIR}\" && cp -R /src/chat2db-client/. \"${CONTAINER_FRONTEND_WORK_DIR}/\" && cd \"${CONTAINER_FRONTEND_WORK_DIR}\" && yarn install --frozen-lockfile --verbose && yarn run build:web:prod --app_version=${CI_COMMIT_SHORT_SHA} --app_port=${APP_PORT}"
+        sh -lc "rm -rf \"${CONTAINER_FRONTEND_WORK_DIR}\" && mkdir -p \"${CONTAINER_FRONTEND_WORK_DIR}\" && cp -R /src/chat2db-client/. \"${CONTAINER_FRONTEND_WORK_DIR}/\" && cd \"${CONTAINER_FRONTEND_WORK_DIR}\" && yarn install --frozen-lockfile  && yarn run build:web:prod --app_version=${CI_COMMIT_SHORT_SHA} --app_port=${APP_PORT}"
 
       docker run --rm \
         -v "${CI_PROJECT_DIR}:/src" \
