@@ -21,6 +21,8 @@ variables:
   MAVEN_BASE_IMAGE: "maven:3.9-eclipse-temurin-17"
   RUNTIME_BASE_IMAGE: "eclipse-temurin:17-jre"
   RUNTIME_BUILD_BASE_IMAGE: "chat2db-runtime-base:local"
+  GIT_STRATEGY: clone
+  GIT_DEPTH: 0
 
 build_image:
   stage: build
