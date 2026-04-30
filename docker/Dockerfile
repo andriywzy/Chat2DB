@@ -3,7 +3,8 @@ WORKDIR /workspace/chat2db-client
 ARG APP_VERSION=local
 ARG APP_PORT=10824
 COPY chat2db-client/package.json chat2db-client/yarn.lock ./
-RUN yarn install --frozen-lockfile
+RUN --mount=type=cache,id=chat2db-yarn-cache,target=/usr/local/share/.cache/yarn \
+    yarn install --frozen-lockfile
 COPY chat2db-client ./
 RUN yarn run build:web:prod --app_version=${APP_VERSION} --app_port=${APP_PORT}
 
@@ -12,7 +13,8 @@ WORKDIR /workspace
 ARG APP_VERSION=local
 COPY chat2db-server ./chat2db-server
 COPY --from=frontend-builder /workspace/chat2db-client/dist /tmp/chat2db-web-dist
-RUN rm -rf chat2db-server/chat2db-server-web-start/src/main/resources/static/front/* \
+RUN --mount=type=cache,id=chat2db-m2-cache,target=/root/.m2 \
+    rm -rf chat2db-server/chat2db-server-web-start/src/main/resources/static/front/* \
     && mkdir -p chat2db-server/chat2db-server-web-start/src/main/resources/static/front \
     && cp -R /tmp/chat2db-web-dist/. chat2db-server/chat2db-server-web-start/src/main/resources/static/front/ \
     && cp /tmp/chat2db-web-dist/index.html chat2db-server/chat2db-server-web-start/src/main/resources/thymeleaf/index.html \

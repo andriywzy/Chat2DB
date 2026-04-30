@@ -7,6 +7,10 @@ variables:
   APP_PORT: "10824"
   IMAGE_NAME: "chat2db-dev"
   DATA_DIR: "/opt/chat2db/data"
+  BUILD_CACHE_DIR: "/opt/chat2db/build-cache"
+  BUILDX_CACHE_DIR: "/opt/chat2db/build-cache/buildx"
+  BUILDX_CACHE_TMP_DIR: "/opt/chat2db/build-cache/buildx-tmp"
+  DOCKER_BUILDKIT: "1"
 
 build_image:
   stage: build
@@ -16,8 +20,32 @@ build_image:
   only:
     - dev
   script:
-    - docker build -f docker/Dockerfile -t "${IMAGE_NAME}:${CI_COMMIT_SHA}" --build-arg APP_VERSION="${CI_COMMIT_SHORT_SHA}" --build-arg APP_PORT="${APP_PORT}" .
-    - docker tag "${IMAGE_NAME}:${CI_COMMIT_SHA}" "${IMAGE_NAME}:latest"
+    - |
+      set -e
+      mkdir -p "${DATA_DIR}" "${BUILD_CACHE_DIR}"
+      docker buildx inspect chat2db-dev-builder >/dev/null 2>&1 || docker buildx create --name chat2db-dev-builder --use
+      docker buildx use chat2db-dev-builder
+      docker buildx inspect --bootstrap
+      CACHE_FROM_ARGS=""
+      if [ -d "${BUILDX_CACHE_DIR}" ] && [ "$(ls -A "${BUILDX_CACHE_DIR}" 2>/dev/null)" ]; then
+        CACHE_FROM_ARGS="--cache-from=type=local,src=${BUILDX_CACHE_DIR}"
+      fi
+      docker buildx build \
+        --load \
+        --file docker/Dockerfile \
+        --tag "${IMAGE_NAME}:${CI_COMMIT_SHA}" \
+        --tag "${IMAGE_NAME}:latest" \
+        --build-arg APP_VERSION="${CI_COMMIT_SHORT_SHA}" \
+        --build-arg APP_PORT="${APP_PORT}" \
+        ${CACHE_FROM_ARGS} \
+        --cache-to=type=local,dest="${BUILDX_CACHE_TMP_DIR}",mode=max \
+        .
+      rm -rf "${BUILD_CACHE_DIR}/buildx-old"
+      if [ -d "${BUILDX_CACHE_DIR}" ]; then
+        mv "${BUILDX_CACHE_DIR}" "${BUILD_CACHE_DIR}/buildx-old"
+      fi
+      mv "${BUILDX_CACHE_TMP_DIR}" "${BUILDX_CACHE_DIR}"
+      rm -rf "${BUILD_CACHE_DIR}/buildx-old"
 
 deploy_chat2db:
   stage: deploy
