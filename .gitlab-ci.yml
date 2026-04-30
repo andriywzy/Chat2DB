@@ -26,7 +26,7 @@ deploy_chat2db:
     - chat2db
     - dev
   only:
-    - main
+    - dev
   needs:
     - build_image
   script:
