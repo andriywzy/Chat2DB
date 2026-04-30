@@ -8,9 +8,19 @@ variables:
   IMAGE_NAME: "chat2db-dev"
   DATA_DIR: "/opt/chat2db/data"
   BUILD_CACHE_DIR: "/opt/chat2db/build-cache"
-  BUILDX_CACHE_DIR: "/opt/chat2db/build-cache/buildx"
-  BUILDX_CACHE_TMP_DIR: "/opt/chat2db/build-cache/buildx-tmp"
-  DOCKER_BUILDKIT: "1"
+  IMAGE_CACHE_DIR: "/opt/chat2db/build-cache/images"
+  YARN_CACHE_DIR: "/opt/chat2db/build-cache/yarn"
+  MAVEN_CACHE_DIR: "/opt/chat2db/build-cache/m2"
+  TESSDATA_CACHE_DIR: "/opt/chat2db/build-cache/tessdata"
+  APT_CACHE_DIR: "/opt/chat2db/build-cache/apt/cache"
+  APT_LISTS_DIR: "/opt/chat2db/build-cache/apt/lists"
+  FRONTEND_WORK_DIR: "/opt/chat2db/build-cache/frontend-src"
+  BACKEND_WORK_DIR: "/opt/chat2db/build-cache/backend-src"
+  RUNTIME_CONTEXT_DIR: "/opt/chat2db/build-cache/runtime-context"
+  NODE_BASE_IMAGE: "node:16-bullseye"
+  MAVEN_BASE_IMAGE: "maven:3.9-eclipse-temurin-17"
+  RUNTIME_BASE_IMAGE: "eclipse-temurin:17-jre"
+  RUNTIME_BUILD_BASE_IMAGE: "chat2db-runtime-base:local"
 
 build_image:
   stage: build
@@ -21,31 +31,92 @@ build_image:
     - dev
   script:
     - |
-      set -e
-      mkdir -p "${DATA_DIR}" "${BUILD_CACHE_DIR}"
-      docker buildx inspect chat2db-dev-builder >/dev/null 2>&1 || docker buildx create --name chat2db-dev-builder --use
-      docker buildx use chat2db-dev-builder
-      docker buildx inspect --bootstrap
-      CACHE_FROM_ARGS=""
-      if [ -d "${BUILDX_CACHE_DIR}" ] && [ "$(ls -A "${BUILDX_CACHE_DIR}" 2>/dev/null)" ]; then
-        CACHE_FROM_ARGS="--cache-from=type=local,src=${BUILDX_CACHE_DIR}"
+      set -euo pipefail
+
+      sanitize_image_name() {
+        echo "$1" | tr '/:@' '___'
+      }
+
+      CONTAINER_FRONTEND_WORK_DIR="/cache/frontend-src"
+      CONTAINER_BACKEND_WORK_DIR="/cache/backend-src"
+      CONTAINER_RUNTIME_CONTEXT_DIR="/cache/runtime-context"
+
+      ensure_image() {
+        IMAGE_REF="$1"
+        ARCHIVE_PATH="${IMAGE_CACHE_DIR}/$(sanitize_image_name "${IMAGE_REF}").tar"
+        if docker image inspect "${IMAGE_REF}" >/dev/null 2>&1; then
+          if [ ! -f "${ARCHIVE_PATH}" ]; then
+            docker save -o "${ARCHIVE_PATH}" "${IMAGE_REF}"
+          fi
+          return 0
+        fi
+        if [ -f "${ARCHIVE_PATH}" ]; then
+          docker load -i "${ARCHIVE_PATH}"
+          return 0
+        fi
+        docker pull "${IMAGE_REF}"
+        docker save -o "${ARCHIVE_PATH}" "${IMAGE_REF}"
+      }
+
+      mkdir -p \
+        "${DATA_DIR}" \
+        "${IMAGE_CACHE_DIR}" \
+        "${YARN_CACHE_DIR}" \
+        "${MAVEN_CACHE_DIR}" \
+        "${TESSDATA_CACHE_DIR}" \
+        "${APT_CACHE_DIR}" \
+        "${APT_LISTS_DIR}" \
+        "${FRONTEND_WORK_DIR}" \
+        "${BACKEND_WORK_DIR}" \
+        "${RUNTIME_CONTEXT_DIR}/tessdata"
+
+      ensure_image "${NODE_BASE_IMAGE}"
+      ensure_image "${MAVEN_BASE_IMAGE}"
+      ensure_image "${RUNTIME_BASE_IMAGE}"
+
+      if [ ! -f "${TESSDATA_CACHE_DIR}/eng.traineddata" ]; then
+        curl -fsSL "https://github.com/tesseract-ocr/tessdata_fast/raw/main/eng.traineddata" -o "${TESSDATA_CACHE_DIR}/eng.traineddata"
       fi
-      docker buildx build \
-        --load \
-        --file docker/Dockerfile \
-        --tag "${IMAGE_NAME}:${CI_COMMIT_SHA}" \
-        --tag "${IMAGE_NAME}:latest" \
-        --build-arg APP_VERSION="${CI_COMMIT_SHORT_SHA}" \
+      if [ ! -f "${TESSDATA_CACHE_DIR}/chi_sim.traineddata" ]; then
+        curl -fsSL "https://github.com/tesseract-ocr/tessdata_fast/raw/main/chi_sim.traineddata" -o "${TESSDATA_CACHE_DIR}/chi_sim.traineddata"
+      fi
+
+      if ! docker image inspect "${RUNTIME_BUILD_BASE_IMAGE}" >/dev/null 2>&1; then
+        docker rm -f chat2db-runtime-base-builder >/dev/null 2>&1 || true
+        docker run -d --name chat2db-runtime-base-builder \
+          -v "${APT_CACHE_DIR}:/var/cache/apt" \
+          -v "${APT_LISTS_DIR}:/var/lib/apt/lists" \
+          "${RUNTIME_BASE_IMAGE}" \
+          tail -f /dev/null
+        docker exec chat2db-runtime-base-builder sh -lc "apt-get update && apt-get install -y --no-install-recommends tesseract-ocr"
+        docker commit chat2db-runtime-base-builder "${RUNTIME_BUILD_BASE_IMAGE}"
+        docker rm -f chat2db-runtime-base-builder
+      fi
+
+      docker run --rm \
+        -v "${CI_PROJECT_DIR}:/src" \
+        -v "${BUILD_CACHE_DIR}:/cache" \
+        -v "${YARN_CACHE_DIR}:/usr/local/share/.cache/yarn" \
+        "${NODE_BASE_IMAGE}" \
+        sh -lc "rm -rf \"${CONTAINER_FRONTEND_WORK_DIR}\" && mkdir -p \"${CONTAINER_FRONTEND_WORK_DIR}\" && cp -R /src/chat2db-client/. \"${CONTAINER_FRONTEND_WORK_DIR}/\" && cd \"${CONTAINER_FRONTEND_WORK_DIR}\" && yarn install --frozen-lockfile && yarn run build:web:prod --app_version=${CI_COMMIT_SHORT_SHA} --app_port=${APP_PORT}"
+
+      docker run --rm \
+        -v "${CI_PROJECT_DIR}:/src" \
+        -v "${BUILD_CACHE_DIR}:/cache" \
+        -v "${MAVEN_CACHE_DIR}:/root/.m2" \
+        "${MAVEN_BASE_IMAGE}" \
+        sh -lc "rm -rf \"${CONTAINER_BACKEND_WORK_DIR}\" && mkdir -p \"${CONTAINER_BACKEND_WORK_DIR}\" && cp -R /src/chat2db-server/. \"${CONTAINER_BACKEND_WORK_DIR}/\" && rm -rf \"${CONTAINER_BACKEND_WORK_DIR}/chat2db-server-web-start/src/main/resources/static/front\"/* && mkdir -p \"${CONTAINER_BACKEND_WORK_DIR}/chat2db-server-web-start/src/main/resources/static/front\" && cp -R \"${CONTAINER_FRONTEND_WORK_DIR}/dist/.\" \"${CONTAINER_BACKEND_WORK_DIR}/chat2db-server-web-start/src/main/resources/static/front/\" && cp \"${CONTAINER_FRONTEND_WORK_DIR}/dist/index.html\" \"${CONTAINER_BACKEND_WORK_DIR}/chat2db-server-web-start/src/main/resources/thymeleaf/index.html\" && mvn -pl chat2db-server-web-start -am -DskipTests package -f \"${CONTAINER_BACKEND_WORK_DIR}/pom.xml\" && cp \"${CONTAINER_BACKEND_WORK_DIR}/chat2db-server-web-start/target/chat2db-server-web-start.jar\" \"${CONTAINER_RUNTIME_CONTEXT_DIR}/chat2db-server-web-start.jar\""
+
+      cp "${TESSDATA_CACHE_DIR}/eng.traineddata" "${RUNTIME_CONTEXT_DIR}/tessdata/eng.traineddata"
+      cp "${TESSDATA_CACHE_DIR}/chi_sim.traineddata" "${RUNTIME_CONTEXT_DIR}/tessdata/chi_sim.traineddata"
+
+      docker build \
+        -f "${CI_PROJECT_DIR}/docker/Dockerfile" \
+        -t "${IMAGE_NAME}:${CI_COMMIT_SHA}" \
+        -t "${IMAGE_NAME}:latest" \
         --build-arg APP_PORT="${APP_PORT}" \
-        ${CACHE_FROM_ARGS} \
-        --cache-to=type=local,dest="${BUILDX_CACHE_TMP_DIR}",mode=max \
-        .
-      rm -rf "${BUILD_CACHE_DIR}/buildx-old"
-      if [ -d "${BUILDX_CACHE_DIR}" ]; then
-        mv "${BUILDX_CACHE_DIR}" "${BUILD_CACHE_DIR}/buildx-old"
-      fi
-      mv "${BUILDX_CACHE_TMP_DIR}" "${BUILDX_CACHE_DIR}"
-      rm -rf "${BUILD_CACHE_DIR}/buildx-old"
+        --build-arg RUNTIME_BASE_IMAGE="${RUNTIME_BUILD_BASE_IMAGE}" \
+        "${RUNTIME_CONTEXT_DIR}"
 
 deploy_chat2db:
   stage: deploy
@@ -57,6 +128,7 @@ deploy_chat2db:
   needs:
     - build_image
   script:
+    - mkdir -p "${DATA_DIR}"
     - docker rm -f "${APP_NAME}" || true
     - docker run -d --name "${APP_NAME}" --restart unless-stopped -p "${APP_PORT}:10824" -v "${DATA_DIR}:/root/.chat2db" "${IMAGE_NAME}:latest"
     - docker ps --filter "name=${APP_NAME}"
