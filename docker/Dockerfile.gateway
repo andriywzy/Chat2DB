@@ -1,0 +1,10 @@
+FROM maven:3.9-eclipse-temurin-17 AS builder
+WORKDIR /workspace
+COPY chat2db-server ./chat2db-server
+RUN mvn -pl chat2db-gateway-start -am -DskipTests package -f chat2db-server/pom.xml
+
+FROM eclipse-temurin:17-jre AS runtime
+WORKDIR /app
+COPY --from=builder /workspace/chat2db-server/chat2db-gateway-start/target/chat2db-gateway-start.jar /app/chat2db-gateway-start.jar
+EXPOSE 18080
+ENTRYPOINT ["java","-jar","chat2db-gateway-start.jar"]

@@ -1,0 +1,20 @@
+spring:
+  flyway:
+    enabled: false
+  sql:
+    init:
+      mode: never
+
+server:
+  port: 18080
+
+gateway:
+  upstream-base-url: http://test.sqlgpt.cn/gateway
+
+milvus:
+  host: milvus
+  port: 19530
+  knowledge-collection: chat2db_knowledge
+  schema-collection: chat2db_schema
+  metric-type: COSINE
+  top-k: 5

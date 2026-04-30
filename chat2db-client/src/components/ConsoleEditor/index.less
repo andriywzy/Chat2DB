@@ -1,0 +1,118 @@
+.console {
+  position: relative;
+  height: 100%;
+
+  :global {
+    .ant-spin-nested-loading {
+      height: 100%;
+    }
+
+    .ant-spin-container {
+      height: calc(100% - 40px);
+    }
+  }
+}
+
+.consoleEditor {
+  height: 100%;
+}
+
+.consoleEditorWithChat {
+  height: calc(100% - 42px);
+}
+
+.consoleEditorWithChatAndToolbar {
+  height: calc(100% - 92px);
+}
+
+.consoleEditorWithChatAndScope {
+  height: calc(100% - 110px);
+}
+
+.consoleEditorWithToolbar {
+  height: calc(100% - 50px);
+}
+
+.schemaScopeBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 12px 10px;
+  border-bottom: 1px solid var(--color-border-secondary, #f0f0f0);
+  background: var(--color-bg-layout, #fafafa);
+}
+
+.schemaScopeHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.schemaScopeHeaderInfo {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.schemaScopeTitle {
+  color: var(--color-text-secondary, #666);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.schemaScopeWarning {
+  color: #d46b08;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.schemaScopeTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.schemaScopeTag {
+  margin-inline-end: 0 !important;
+}
+
+.scriptActionGroup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.scriptFileInput {
+  display: none;
+}
+
+.scriptActionButton {
+  min-width: 76px;
+  height: 28px;
+  border-radius: 6px;
+  color: var(--color-text, #333);
+  border-color: var(--color-border, #d9d9d9);
+  background: var(--color-bg-base, #fff);
+
+  &:hover {
+    color: var(--color-primary, #615ced);
+    border-color: var(--color-primary, #615ced);
+  }
+}
+
+.aiBlock {
+  font-size: 14px;
+  line-height: 20px;
+}
+
+:global {
+  .monaco-editor .sqlScriptInvalidStatement {
+    color: #cf1322 !important;
+    font-weight: 500;
+    text-decoration: underline wavy rgba(207, 19, 34, 0.65);
+    text-underline-offset: 2px;
+  }
+}

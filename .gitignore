@@ -1,0 +1,44 @@
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+.out
+
+### Visual Studio Code ###
+package-lock.json
+
+### Maven ###
+**/target/
+
+### Mac
+.DS_Store
+/chat2db-server/ali-dbhub-server-start/src/main/resources/static/front/*
+/chat2db-server/ali-dbhub-server-start/src/main/resources/thymeleaf
+
+### docker 数据不用上传
+/docker/redis/data/*
+/docker/test/reds/*
+/docker/test/mongodb/*
+/chat2db-server/ali-dbhub-server-domain/ali-dbhub-server-domain-support/src/main/resources/lib/*
+/chat2db-server/ali-dbhub-server-domain/ali-dbhub-server-domain-support/lib/*
+/lib
+/out/*
+
+### Local build caches
+/.m2repo/
+/.jdk/
+
+### Local packaged artifacts
+/chat2db-server-web-start.jar
+/identifier.sqlite
+/chat2db-server/identifier.sqlite
+*.log
