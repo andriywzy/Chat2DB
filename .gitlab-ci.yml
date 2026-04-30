@@ -12,7 +12,7 @@ build_image:
   stage: build
   tags:
     - chat2db
-    - deploy
+    - dev
   only:
     - dev
   script:
@@ -24,7 +24,7 @@ deploy_chat2db:
   stage: deploy
   tags:
     - chat2db
-    - deploy
+    - dev
   only:
     - main
   needs:
