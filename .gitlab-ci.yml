@@ -7,17 +7,10 @@ variables:
   APP_PORT: "10824"
   IMAGE_NAME: "chat2db-dev"
   DATA_DIR: "/opt/chat2db/data"
-  BUILD_CACHE_DIR: "/opt/chat2db/build-cache"
-  BUILDX_CACHE_DIR: "/opt/chat2db/build-cache/buildx"
-  BUILDX_CACHE_TMP_DIR: "/opt/chat2db/build-cache/buildx-tmp"
-  BUILDKITD_CONFIG_FILE: "/opt/chat2db/build-cache/buildkitd.toml"
   DOCKER_BUILDKIT: "1"
   NODE_BASE_IMAGE: "node:16-bullseye"
   MAVEN_BASE_IMAGE: "maven:3.9-eclipse-temurin-17"
   RUNTIME_BASE_IMAGE: "eclipse-temurin:17-jre"
-  DOCKER_IO_MIRROR: "registry.linkease.net:5443"
-  GIT_STRATEGY: clone
-  GIT_DEPTH: 0
 build_image:
   stage: build
   tags:
@@ -26,45 +19,8 @@ build_image:
   only:
     - dev
   script:
-    - |
-      set -e
-      mkdir -p "${DATA_DIR}" "${BUILD_CACHE_DIR}"
-      cat > "${BUILDKITD_CONFIG_FILE}" <<EOF
-      debug = true
-      [registry."docker.io"]
-        mirrors = ["${DOCKER_IO_MIRROR}"]
-      EOF
-      docker buildx rm chat2db-dev-builder >/dev/null 2>&1 || true
-      docker buildx create \
-        --name chat2db-dev-builder \
-        --driver docker-container \
-        --buildkitd-config "${BUILDKITD_CONFIG_FILE}" \
-        --use
-      docker buildx use chat2db-dev-builder
-      docker buildx inspect --bootstrap
-      CACHE_FROM_ARGS=""
-      if [ -d "${BUILDX_CACHE_DIR}" ] && [ "$(ls -A "${BUILDX_CACHE_DIR}" 2>/dev/null)" ]; then
-        CACHE_FROM_ARGS="--cache-from=type=local,src=${BUILDX_CACHE_DIR}"
-      fi
-      docker buildx build \
-        --load \
-        --file docker/Dockerfile \
-        --tag "${IMAGE_NAME}:${CI_COMMIT_SHA}" \
-        --tag "${IMAGE_NAME}:latest" \
-        --build-arg APP_VERSION="${CI_COMMIT_SHORT_SHA}" \
-        --build-arg APP_PORT="${APP_PORT}" \
-        --build-arg NODE_BASE_IMAGE="${NODE_BASE_IMAGE}" \
-        --build-arg MAVEN_BASE_IMAGE="${MAVEN_BASE_IMAGE}" \
-        --build-arg RUNTIME_BASE_IMAGE="${RUNTIME_BASE_IMAGE}" \
-        ${CACHE_FROM_ARGS} \
-        --cache-to=type=local,dest="${BUILDX_CACHE_TMP_DIR}",mode=max \
-        .
-      rm -rf "${BUILD_CACHE_DIR}/buildx-old"
-      if [ -d "${BUILDX_CACHE_DIR}" ]; then
-        mv "${BUILDX_CACHE_DIR}" "${BUILD_CACHE_DIR}/buildx-old"
-      fi
-      mv "${BUILDX_CACHE_TMP_DIR}" "${BUILDX_CACHE_DIR}"
-      rm -rf "${BUILD_CACHE_DIR}/buildx-old"
+    - mkdir -p "${DATA_DIR}"
+    - docker build -f docker/Dockerfile -t "${IMAGE_NAME}:${CI_COMMIT_SHA}" -t "${IMAGE_NAME}:latest" --build-arg APP_VERSION="${CI_COMMIT_SHORT_SHA}" --build-arg APP_PORT="${APP_PORT}" --build-arg NODE_BASE_IMAGE="${NODE_BASE_IMAGE}" --build-arg MAVEN_BASE_IMAGE="${MAVEN_BASE_IMAGE}" --build-arg RUNTIME_BASE_IMAGE="${RUNTIME_BASE_IMAGE}" .
 
 deploy_chat2db:
   stage: deploy
