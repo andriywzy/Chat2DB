@@ -3,10 +3,17 @@ import { i18n, isEn } from '@/i18n';
 import styles from './index.less';
 import classnames from 'classnames';
 import connectionService from '@/service/connection';
+<<<<<<< HEAD
 import { ConnectionEnvType, databaseMap } from '@/constants';
 import { dataSourceFormConfigs } from './config/dataSource';
 import { IConnectionConfig, IFormItem, ISelect } from './config/types';
 import { InputType } from './config/enum';
+=======
+import { ConnectionEnvType, databaseMap, DatabaseTypeCode } from '@/constants';
+import { dataSourceFormConfigs } from './config/dataSource';
+import { IConnectionConfig, IFormItem, ISelect } from './config/types';
+import { AuthenticationType, InputType } from './config/enum';
+>>>>>>> codex/tmp
 import { IConnectionDetails } from '@/typings';
 import { deepClone } from '@/utils';
 import { Select, Form, Input, message, Table, Button, Collapse, Popconfirm } from 'antd';
@@ -197,7 +204,11 @@ const ConnectionEdit = forwardRef((props: IProps, ref: ForwardedRef<ICreateConne
       }
     });
 
+<<<<<<< HEAD
     const data = {
+=======
+    const data: any = {
+>>>>>>> codex/tmp
       ssh,
       driverConfig: driveData,
       ...baseInfo,
@@ -214,7 +225,42 @@ const ConnectionEdit = forwardRef((props: IProps, ref: ForwardedRef<ICreateConne
       delete data.projectId;
     }
 
+<<<<<<< HEAD
     return data;
+=======
+    return normalizeConnectionPayload(data);
+  }
+
+  function normalizeConnectionPayload(data: IConnectionDetails) {
+    if (data.type !== DatabaseTypeCode.REDIS) {
+      return data;
+    }
+
+    const normalizedUser = typeof data.user === 'string' ? data.user.trim() : data.user;
+    const normalizedPassword = typeof data.password === 'string' ? data.password : data.password;
+
+    if (data.authenticationType === AuthenticationType.NONE) {
+      return {
+        ...data,
+        user: '',
+        password: '',
+      };
+    }
+
+    if (data.authenticationType === AuthenticationType.PASSWORD) {
+      return {
+        ...data,
+        user: '',
+        password: normalizedPassword,
+      };
+    }
+
+    return {
+      ...data,
+      user: normalizedUser || '',
+      password: normalizedPassword,
+    };
+>>>>>>> codex/tmp
   }
 
   // 测试、保存、修改连接
