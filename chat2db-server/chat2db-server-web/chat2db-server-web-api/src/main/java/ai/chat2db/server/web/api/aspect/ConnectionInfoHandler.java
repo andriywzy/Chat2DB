@@ -6,6 +6,7 @@ import ai.chat2db.server.domain.api.service.DataSourceService;
 import ai.chat2db.server.tools.base.wrapper.result.DataResult;
 import ai.chat2db.server.tools.common.exception.ParamBusinessException;
 import ai.chat2db.server.tools.common.util.ContextUtils;
+import ai.chat2db.server.web.api.controller.ai.ChatController;
 import ai.chat2db.server.web.api.controller.data.source.request.DataSourceBaseRequest;
 import ai.chat2db.server.web.api.controller.data.source.request.DataSourceBaseRequestInfo;
 import ai.chat2db.server.web.api.controller.data.source.request.DataSourceConsoleRequestInfo;
@@ -44,16 +45,25 @@ public class ConnectionInfoHandler {
                     Object param = params[i];
                     if (param instanceof DataSourceBaseRequest) {
                         Long dataSourceId = ((DataSourceBaseRequest) param).getDataSourceId();
+                        if (shouldSkipAiConnectionContext(proceedingJoinPoint, dataSourceId)) {
+                            continue;
+                        }
                         String schemaName = ((DataSourceBaseRequest) param).getSchemaName();
                         String database = ((DataSourceBaseRequest) param).getDatabaseName();
                         Chat2DBContext.putContext(toInfo(dataSourceId, database, null, schemaName));
                     } else if (param instanceof DataSourceConsoleRequestInfo) {
                         Long dataSourceId = ((DataSourceConsoleRequestInfo) param).getDataSourceId();
+                        if (shouldSkipAiConnectionContext(proceedingJoinPoint, dataSourceId)) {
+                            continue;
+                        }
                         Long consoleId = ((DataSourceConsoleRequestInfo) param).getConsoleId();
                         String database = ((DataSourceConsoleRequestInfo) param).getDatabaseName();
                         Chat2DBContext.putContext(toInfo(dataSourceId, database, consoleId, null));
                     } else if (param instanceof DataSourceBaseRequestInfo) {
                         Long dataSourceId = ((DataSourceBaseRequestInfo) param).getDataSourceId();
+                        if (shouldSkipAiConnectionContext(proceedingJoinPoint, dataSourceId)) {
+                            continue;
+                        }
                         String database = ((DataSourceBaseRequestInfo) param).getDatabaseName();
                         Chat2DBContext.putContext(toInfo(dataSourceId, database));
                     }
@@ -94,6 +104,13 @@ public class ConnectionInfoHandler {
         connectInfo.setUrl(dataSource.getUrl());
         connectInfo.setPort(StringUtils.isNotBlank(dataSource.getPort()) ? Integer.parseInt(dataSource.getPort()) : null);
         connectInfo.setHost(dataSource.getHost());
+        if ("REDIS".equalsIgnoreCase(dataSource.getType())
+                && StringUtils.isNotBlank(dataSource.getHost())
+                && StringUtils.isNotBlank(dataSource.getPort())) {
+            String dbName = StringUtils.isNotBlank(database) ? database.trim() : "0";
+            connectInfo.setUrl(String.format("jdbc:redis://%s:%s/%s",
+                    dataSource.getHost().trim(), dataSource.getPort().trim(), dbName));
+        }
         connectInfo.setLoginUser(ContextUtils.getLoginUser().getId() + "");
         DriverConfig driverConfig = dataSource.getDriverConfig();
         if (driverConfig != null && driverConfig.notEmpty()) {
@@ -104,6 +121,14 @@ public class ConnectionInfoHandler {
 
     public ConnectInfo toInfo(Long dataSourceId, String database) {
         return toInfo(dataSourceId, database, null, null);
+    }
+
+    private boolean shouldSkipAiConnectionContext(ProceedingJoinPoint proceedingJoinPoint, Long dataSourceId) {
+        if (dataSourceId != null) {
+            return false;
+        }
+        Object target = proceedingJoinPoint.getTarget();
+        return target instanceof ChatController;
     }
 
 }

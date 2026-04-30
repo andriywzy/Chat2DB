@@ -9,7 +9,7 @@ import { IConnectionConfig, IFormItem, ISelect } from './config/types';
 import { InputType } from './config/enum';
 import { IConnectionDetails } from '@/typings';
 import { deepClone } from '@/utils';
-import { Select, Form, Input, message, Table, Button, Collapse } from 'antd';
+import { Select, Form, Input, message, Table, Button, Collapse, Popconfirm } from 'antd';
 import Iconfont from '@/components/Iconfont';
 import LoadingGracile from '@/components/Loading/LoadingGracile';
 import Driver from './components/Driver';
@@ -31,6 +31,7 @@ interface IProps {
   closeCreateConnection: () => void;
   connectionData: IConnectionDetails;
   submit?: (data: IConnectionDetails) => Promise<any>;
+  onDelete?: (id: number) => Promise<void> | void;
 }
 
 export interface ICreateConnectionFunction {
@@ -38,7 +39,7 @@ export interface ICreateConnectionFunction {
 }
 
 const ConnectionEdit = forwardRef((props: IProps, ref: ForwardedRef<ICreateConnectionFunction>) => {
-  const { closeCreateConnection, connectionData, submit } = props;
+  const { closeCreateConnection, connectionData, submit, onDelete } = props;
   const [baseInfoForm] = Form.useForm();
   const [sshForm] = Form.useForm();
   const [driveData, setDriveData] = useState<any>({});
@@ -47,18 +48,30 @@ const ConnectionEdit = forwardRef((props: IProps, ref: ForwardedRef<ICreateConne
     confirmButton: false,
     testButton: false,
     sshTestLoading: false,
+    deleteButton: false,
   });
 
   const { connectionEnvList } = useConnectionStore((state) => {
     return {
       connectionEnvList: state.connectionEnvList,
+      projectList: state.projectList,
     };
   });
+  const projectList = useConnectionStore((state) => state.projectList);
 
   const [envList, setEnvList] = useState<{ value: number; label: string }[]>([]);
+  const [projectOptions, setProjectOptions] = useState<{ value: number; label: string }[]>([]);
+  const selectedProjectId = Form.useWatch('projectId', baseInfoForm);
 
   useEffect(() => {
-    const _envList = connectionEnvList?.map((t) => {
+    const currentProjectId = selectedProjectId ?? backfillData?.projectId ?? -1;
+    const currentEnvironmentId = backfillData?.environmentId;
+    const _envList = connectionEnvList?.filter((t) => {
+      if (currentProjectId === -1) {
+        return !t.projectId || t.id === currentEnvironmentId;
+      }
+      return t.projectId === currentProjectId || t.id === currentEnvironmentId;
+    }).map((t) => {
       return {
         value: t.id,
         label: t.name,
@@ -69,7 +82,21 @@ const ConnectionEdit = forwardRef((props: IProps, ref: ForwardedRef<ICreateConne
     if(_envList){
       setEnvList(_envList);
     }
-  }, [connectionEnvList]);
+  }, [backfillData?.environmentId, backfillData?.projectId, connectionEnvList, selectedProjectId]);
+
+  useEffect(() => {
+    const nextProjectOptions = [
+      {
+        value: -1,
+        label: i18n('workspace.database.unassignedProject'),
+      },
+      ...((projectList || []).map((item) => ({
+        value: item.id,
+        label: item.name,
+      })) || []),
+    ];
+    setProjectOptions(nextProjectOptions);
+  }, [projectList]);
 
   const dataSourceFormConfigPropsMemo = useMemo<IConnectionConfig>(() => {
     const deepCloneDataSourceFormConfigs = deepClone(dataSourceFormConfigs);
@@ -82,8 +109,26 @@ const ConnectionEdit = forwardRef((props: IProps, ref: ForwardedRef<ICreateConne
         t.defaultValue = envList[0].value;
       }
     });
+    const projectItemIndex = data.baseInfo.items.findIndex((item: IFormItem) => item.name === 'projectId');
+    const projectItem: IFormItem = {
+      defaultValue: backfillData?.projectId ?? -1,
+      inputType: InputType.SELECT,
+      labelNameCN: i18n('connection.label.project'),
+      labelNameEN: i18n('connection.label.project'),
+      name: 'projectId',
+      required: false,
+      selects: projectOptions,
+      styles: {
+        width: '50%',
+      },
+    };
+    if (projectItemIndex === -1) {
+      data.baseInfo.items.splice(2, 0, projectItem);
+    } else {
+      data.baseInfo.items[projectItemIndex] = projectItem;
+    }
     return data;
-  }, [backfillData, envList]);
+  }, [backfillData, envList, projectOptions]);
 
   useEffect(() => {
     setBackfillData(props.connectionData);
@@ -165,6 +210,10 @@ const ConnectionEdit = forwardRef((props: IProps, ref: ForwardedRef<ICreateConne
       data.id = backfillData.id;
     }
 
+    if (data.projectId === -1) {
+      delete data.projectId;
+    }
+
     return data;
   }
 
@@ -236,6 +285,24 @@ const ConnectionEdit = forwardRef((props: IProps, ref: ForwardedRef<ICreateConne
     closeCreateConnection();
   }
 
+  async function handleDeleteConnection() {
+    if (!backfillData.id || !onDelete) {
+      return;
+    }
+    setLoading((prev) => ({
+      ...prev,
+      deleteButton: true,
+    }));
+    try {
+      await onDelete(backfillData.id);
+    } finally {
+      setLoading((prev) => ({
+        ...prev,
+        deleteButton: false,
+      }));
+    }
+  }
+
   function testSSH() {
     const p = sshForm.getFieldsValue();
     setLoading({
@@ -284,6 +351,18 @@ const ConnectionEdit = forwardRef((props: IProps, ref: ForwardedRef<ICreateConne
           }
         </div>
         <div className={styles.rightButton}>
+          {backfillData.id && onDelete && (
+            <Popconfirm
+              title={i18n('common.tips.delete.confirm')}
+              onConfirm={handleDeleteConnection}
+              okText={i18n('common.button.affirm')}
+              cancelText={i18n('common.button.cancel')}
+            >
+              <Button danger loading={loadings.deleteButton} className={styles.delete}>
+                {i18n('common.button.delete')}
+              </Button>
+            </Popconfirm>
+          )}
           <Button onClick={onCancel} className={styles.cancel}>
             {i18n('common.button.cancel')}
           </Button>
@@ -562,8 +641,8 @@ function RenderForm(props: IRenderFormProps) {
         </div>
         {t.selects?.map((item) => {
           if (t.defaultValue === item.value) {
-            return item.items?.map((t) => {
-              return renderFormItem(t);
+            return item.items?.map((childItem) => {
+              return renderFormItem(childItem);
             });
           }
         })}

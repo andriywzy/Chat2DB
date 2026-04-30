@@ -112,13 +112,6 @@ public class DataSourceVO {
     private SimpleEnvironmentVO environment;
 
     /**
-     * Connection Type
-     *
-     * @see ai.chat2db.server.domain.api.enums.DataSourceKindEnum
-     */
-    private String kind;
-
-    /**
      * service name
      */
     private String serviceName;
@@ -127,6 +120,21 @@ public class DataSourceVO {
      * Service type
      */
     private String serviceType;
+
+    /**
+     * project id
+     */
+    private Long projectId;
+
+    /**
+     * project name
+     */
+    private String projectName;
+
+    /**
+     * Effective access scope for display.
+     */
+    private String accessScope;
 
     /**
      * Whether to support database

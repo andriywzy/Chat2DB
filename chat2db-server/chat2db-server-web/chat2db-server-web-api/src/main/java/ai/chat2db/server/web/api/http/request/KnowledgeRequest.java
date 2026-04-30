@@ -14,6 +14,12 @@ import java.util.List;
 @AllArgsConstructor
 public class KnowledgeRequest {
 
+    private Long documentId;
+
+    private List<Long> documentIds;
+
+    private Long userId;
+
     private List<List<BigDecimal>> contentVector;
 
     private List<String> sentenceList;

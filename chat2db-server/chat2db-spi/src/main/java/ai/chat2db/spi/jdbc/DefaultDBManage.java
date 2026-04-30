@@ -53,6 +53,11 @@ public class DefaultDBManage implements DBManage {
     public Connection getConnection(ConnectInfo connectInfo) {
         Connection connection = connectInfo.getConnection();
         SSHInfo ssh = connectInfo.getSsh();
+        if (ssh == null) {
+            ssh = new SSHInfo();
+            ssh.setUse(false);
+            connectInfo.setSsh(ssh);
+        }
         String url = connectInfo.getUrl();
         String host = connectInfo.getHost();
         String port = connectInfo.getPort() + "";

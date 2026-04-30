@@ -39,7 +39,7 @@
     cursor: pointer;
     padding: 8px;
     margin-bottom: 4px;
-    height: 20px;
+    min-height: 36px;
     border-radius: 8px;
     user-select: none;
 
@@ -51,6 +51,24 @@
 
       .name {
         .f-single-line();
+        display: block;
+      }
+
+      .menuItemMeta {
+        min-width: 0;
+        flex: 1;
+      }
+
+      .tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin-top: 4px;
+      }
+
+      .metaTag {
+        margin-inline-end: 0;
+        max-width: 100%;
       }
 
       .envTag {

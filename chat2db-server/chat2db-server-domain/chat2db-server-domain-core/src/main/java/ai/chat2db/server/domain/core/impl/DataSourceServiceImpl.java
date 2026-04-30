@@ -1,10 +1,13 @@
 package ai.chat2db.server.domain.core.impl;
 
 import java.sql.Connection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
-import ai.chat2db.server.domain.api.enums.DataSourceKindEnum;
 import ai.chat2db.server.domain.api.model.DataSource;
+import ai.chat2db.server.domain.api.model.Environment;
+import ai.chat2db.server.domain.api.model.Project;
 import ai.chat2db.server.domain.api.param.datasource.DataSourceCloseParam;
 import ai.chat2db.server.domain.api.param.datasource.DataSourceCreateParam;
 import ai.chat2db.server.domain.api.param.datasource.DataSourcePageQueryParam;
@@ -15,15 +18,18 @@ import ai.chat2db.server.domain.api.param.datasource.DataSourceUpdateParam;
 import ai.chat2db.server.domain.api.param.datasource.DatabaseQueryAllParam;
 import ai.chat2db.server.domain.api.service.DataSourceService;
 import ai.chat2db.server.domain.api.service.DatabaseService;
+import ai.chat2db.server.domain.api.service.ProjectService;
 import ai.chat2db.server.domain.core.converter.DataSourceConverter;
 import ai.chat2db.server.domain.core.converter.EnvironmentConverter;
 import ai.chat2db.server.domain.core.util.PermissionUtils;
 import ai.chat2db.server.domain.repository.Dbutils;
 import ai.chat2db.server.domain.repository.entity.DataSourceAccessDO;
 import ai.chat2db.server.domain.repository.entity.DataSourceDO;
+import ai.chat2db.server.domain.repository.entity.ProjectAccessDO;
 import ai.chat2db.server.domain.repository.mapper.DataSourceAccessMapper;
 import ai.chat2db.server.domain.repository.mapper.DataSourceCustomMapper;
 import ai.chat2db.server.domain.repository.mapper.DataSourceMapper;
+import ai.chat2db.server.domain.repository.mapper.ProjectAccessMapper;
 import ai.chat2db.server.tools.base.wrapper.result.ActionResult;
 import ai.chat2db.server.tools.base.wrapper.result.DataResult;
 import ai.chat2db.server.tools.base.wrapper.result.ListResult;
@@ -34,7 +40,6 @@ import ai.chat2db.server.tools.common.exception.PermissionDeniedBusinessExceptio
 import ai.chat2db.server.tools.common.model.LoginUser;
 import ai.chat2db.server.tools.common.util.ContextUtils;
 import ai.chat2db.server.tools.common.util.EasyCollectionUtils;
-import ai.chat2db.server.tools.common.util.EasyEnumUtils;
 import ai.chat2db.server.tools.common.util.EasySqlUtils;
 import ai.chat2db.spi.config.DBConfig;
 import ai.chat2db.spi.config.DriverConfig;
@@ -66,8 +71,6 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @Service
 public class DataSourceServiceImpl implements DataSourceService {
-
-
     private DataSourceMapper getMapper() {
         return Dbutils.getMapper(DataSourceMapper.class);
     }
@@ -77,6 +80,9 @@ public class DataSourceServiceImpl implements DataSourceService {
 
     @Autowired
     private DatabaseService databaseService;
+
+    @Autowired
+    private ProjectService projectService;
 
 
     private DataSourceCustomMapper getCustomMapper() {
@@ -88,15 +94,12 @@ public class DataSourceServiceImpl implements DataSourceService {
         return Dbutils.getMapper(DataSourceAccessMapper.class);
     }
 
+    private ProjectAccessMapper getProjectAccessMapper() {
+        return Dbutils.getMapper(ProjectAccessMapper.class);
+    }
+
     @Override
     public DataResult<Long> createWithPermission(DataSourceCreateParam param) {
-        DataSourceKindEnum dataSourceKind = EasyEnumUtils.getEnum(DataSourceKindEnum.class, param.getKind());
-        if (dataSourceKind == null) {
-            throw new ParamBusinessException("kind");
-        }
-        if (dataSourceKind == DataSourceKindEnum.SHARED && !ContextUtils.getLoginUser().getAdmin()) {
-            throw new PermissionDeniedBusinessException();
-        }
         JdbcUtils.removePropertySameAsDefault(param.getDriverConfig());
         DataSourceDO dataSourceDO = dataSourceConverter.param2do(param);
         dataSourceDO.setGmtCreate(DateUtil.date());
@@ -104,6 +107,7 @@ public class DataSourceServiceImpl implements DataSourceService {
         dataSourceDO.setUserId(ContextUtils.getUserId());
         //dataSourceDO.setExtendInfo(null);
 
+        dataSourceDO.setProjectId(resolveProjectId(param.getProjectId()));
         getMapper().insert(dataSourceDO);
         preWarmingData(dataSourceDO.getId());
         return DataResult.of(dataSourceDO.getId());
@@ -139,6 +143,7 @@ public class DataSourceServiceImpl implements DataSourceService {
         JdbcUtils.removePropertySameAsDefault(param.getDriverConfig());
         DataSourceDO dataSourceDO = dataSourceConverter.param2do(param);
         dataSourceDO.setGmtModified(DateUtil.date());
+        dataSourceDO.setProjectId(resolveProjectId(param.getProjectId()));
         getMapper().updateById(dataSourceDO);
         return DataResult.of(dataSourceDO.getId());
     }
@@ -170,6 +175,7 @@ public class DataSourceServiceImpl implements DataSourceService {
         if (dataResult.getData() == null) {
             throw new DataNotFoundException();
         }
+        checkReadPermission(id);
 
         fillData(Lists.newArrayList(dataResult.getData()), selector);
 
@@ -188,6 +194,7 @@ public class DataSourceServiceImpl implements DataSourceService {
         dataSourceDO.setGmtCreate(DateUtil.date());
         dataSourceDO.setGmtModified(DateUtil.date());
         getMapper().insert(dataSourceDO);
+        cloneProjectRelation(id, dataSourceDO.getId());
         return DataResult.of(dataSourceDO.getId());
     }
 
@@ -216,7 +223,7 @@ public class DataSourceServiceImpl implements DataSourceService {
 
         IPage<DataSourceDO> iPage = getCustomMapper().selectPageWithPermission(
                 new Page<>(param.getPageNo(), param.getPageSize()),
-                BooleanUtils.isTrue(loginUser.getAdmin()), loginUser.getId(), param.getSearchKey(), param.getKind(),
+                BooleanUtils.isTrue(loginUser.getAdmin()), loginUser.getId(), param.getSearchKey(),
                 EasySqlUtils.orderBy(param.getOrderByList()));
 
         List<DataSource> dataSources = dataSourceConverter.do2dto(iPage.getRecords());
@@ -279,13 +286,27 @@ public class DataSourceServiceImpl implements DataSourceService {
     }
 
     private void fillData(List<DataSource> list, DataSourceSelector selector) {
-        if (CollectionUtils.isEmpty(list) || selector == null) {
+        if (CollectionUtils.isEmpty(list)) {
+            return;
+        }
+
+        fillProject(list);
+
+        if (selector == null) {
             return;
         }
 
         fillEnvironment(list, selector);
 
         fillSupportDatabase(list);
+    }
+
+    private void checkReadPermission(Long dataSourceId) {
+        LoginUser loginUser = ContextUtils.getLoginUser();
+        Integer count = getCustomMapper().countReadable(BooleanUtils.isTrue(loginUser.getAdmin()), loginUser.getId(), dataSourceId);
+        if (count == null || count <= 0) {
+            throw new PermissionDeniedBusinessException();
+        }
     }
 
     private void fillSupportDatabase(List<DataSource> list) {
@@ -310,7 +331,103 @@ public class DataSourceServiceImpl implements DataSourceService {
         if (BooleanUtils.isNotTrue(selector.getEnvironment())) {
             return;
         }
-        environmentConverter.fillDetail(EasyCollectionUtils.toList(list, DataSource::getEnvironment));
+        List<Long> environmentIds = EasyCollectionUtils.toList(list, DataSource::getEnvironmentId).stream()
+            .filter(id -> id != null)
+            .distinct()
+            .toList();
+        if (CollectionUtils.isEmpty(environmentIds)) {
+            return;
+        }
+        Map<Long, Environment> environmentMap = new HashMap<>();
+        environmentConverter
+            .do2dto(
+                Dbutils.getMapper(ai.chat2db.server.domain.repository.mapper.EnvironmentMapper.class)
+                    .selectBatchIds(environmentIds)
+            )
+            .forEach(environment -> environmentMap.put(environment.getId(), environment));
+
+        for (DataSource dataSource : list) {
+            Long environmentId = dataSource.getEnvironmentId();
+            if (environmentId == null) {
+                continue;
+            }
+            Environment environment = dataSource.getEnvironment();
+            if (environment == null) {
+                environment = new Environment();
+                environment.setId(environmentId);
+                dataSource.setEnvironment(environment);
+            }
+            Environment detail = environmentMap.get(environmentId);
+            if (detail != null) {
+                environmentConverter.add(environment, detail);
+            }
+            if (StringUtils.isBlank(environment.getName())) {
+                environment.setName("Environment " + environmentId);
+            }
+            if (StringUtils.isBlank(environment.getShortName())) {
+                environment.setShortName(environment.getName());
+            }
+            if (StringUtils.isBlank(environment.getColor())) {
+                environment.setColor("BLUE");
+            }
+        }
+    }
+
+    private void fillProject(List<DataSource> list) {
+        if (CollectionUtils.isEmpty(list) || ContextUtils.queryLoginUser() == null) {
+            return;
+        }
+        List<Long> projectIds = EasyCollectionUtils.toList(list, DataSource::getProjectId)
+            .stream()
+            .filter(id -> id != null)
+            .distinct()
+            .toList();
+        if (CollectionUtils.isEmpty(projectIds)) {
+            return;
+        }
+        Map<Long, Project> projectMap = projectService.queryList(projectIds).stream()
+            .collect(java.util.stream.Collectors.toMap(Project::getId, project -> project));
+        LambdaQueryWrapper<ProjectAccessDO> accessQueryWrapper = new LambdaQueryWrapper<>();
+        accessQueryWrapper.in(ProjectAccessDO::getProjectId, projectIds);
+        List<ProjectAccessDO> projectAccessList = getProjectAccessMapper().selectList(accessQueryWrapper);
+        java.util.Set<Long> sharedProjectIds = projectAccessList.stream()
+            .map(ProjectAccessDO::getProjectId)
+            .collect(java.util.stream.Collectors.toSet());
+
+        for (DataSource dataSource : list) {
+            Long projectId = dataSource.getProjectId();
+            if (projectId == null) {
+                dataSource.setAccessScope("PERSONAL");
+                continue;
+            }
+            Project project = projectMap.get(projectId);
+            if (project != null) {
+                dataSource.setProjectId(projectId);
+                dataSource.setProjectName(project.getName());
+            }
+            dataSource.setAccessScope(sharedProjectIds.contains(projectId) ? "PROJECT" : "PERSONAL");
+        }
+    }
+
+    private Long resolveProjectId(Long projectId) {
+        if (projectId != null) {
+            projectService.query(projectId);
+        }
+        return projectId;
+    }
+
+    private void cloneProjectRelation(Long sourceDataSourceId, Long targetDataSourceId) {
+        if (ContextUtils.queryLoginUser() == null) {
+            return;
+        }
+        DataSourceDO source = getMapper().selectById(sourceDataSourceId);
+        if (source == null || source.getProjectId() == null) {
+            return;
+        }
+        DataSourceDO target = new DataSourceDO();
+        target.setId(targetDataSourceId);
+        target.setProjectId(source.getProjectId());
+        getMapper().updateById(target);
     }
 
 }

@@ -49,6 +49,10 @@ export default defineConfig({
           component: 'main',
         },
         {
+          path: '/knowledge',
+          component: 'main',
+        },
+        {
           path: '/',
           component: 'main',
         },

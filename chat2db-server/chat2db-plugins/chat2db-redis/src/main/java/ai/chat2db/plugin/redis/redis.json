@@ -1,0 +1,24 @@
+{
+  "dbType": "REDIS",
+  "supportDatabase": true,
+  "supportSchema": false,
+  "driverConfigList": [
+    {
+      "url": "jdbc:redis://localhost:6379/0",
+      "defaultDriver": true,
+      "custom": false,
+      "downloadJdbcDriverUrls": [
+        "https://repo1.maven.org/maven2/com/synehq/jdbc/redis-jdbc-driver/1.0.1/redis-jdbc-driver-1.0.1.jar",
+        "https://repo1.maven.org/maven2/redis/clients/jedis/4.4.3/jedis-4.4.3.jar",
+        "https://repo1.maven.org/maven2/org/apache/commons/commons-pool2/2.11.1/commons-pool2-2.11.1.jar",
+        "https://repo1.maven.org/maven2/org/json/json/20211205/json-20211205.jar",
+        "https://repo1.maven.org/maven2/com/google/code/gson/gson/2.8.9/gson-2.8.9.jar",
+        "https://repo1.maven.org/maven2/org/slf4j/slf4j-api/1.7.32/slf4j-api-1.7.32.jar"
+      ],
+      "jdbcDriver": "redis-jdbc-driver-1.0.1.jar,jedis-4.4.3.jar,commons-pool2-2.11.1.jar,json-20211205.jar,gson-2.8.9.jar,slf4j-api-1.7.32.jar",
+      "jdbcDriverClass": "com.synehq.jdbc.redis.RedisDriver"
+    }
+  ],
+  "name": "Redis"
+}
+

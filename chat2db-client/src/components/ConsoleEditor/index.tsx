@@ -8,27 +8,28 @@ import React, {
   forwardRef,
   createContext,
 } from 'react';
-import { formatParams } from '@/utils/url';
-import connectToEventSource from '@/utils/eventSource';
-import { Spin, Drawer, Modal } from 'antd';
+import { Button, Spin, Drawer, Modal, Tag, message } from 'antd';
 import ChatInput, { SyncModelType } from './components/ChatInput';
 import MonacoEditor, { IEditorOptions, IExportRefFunction, IRangeType } from '../MonacoEditor';
-import aiServer from '@/service/ai';
 import { v4 as uuidv4 } from 'uuid';
 import { IAiConfig, IBoundInfo } from '@/typings';
 import Popularize from '@/components/Popularize';
 import OperationLine from './components/OperationLine';
-import { chatErrorForKey, chatErrorToLogin } from '@/constants/chat';
 import { AIType } from '@/typings/ai';
 import i18n from '@/i18n';
 import configService from '@/service/config';
 import styles from './index.less';
+import { IAiSchemaSource } from '@/utils/aiStream';
+import { DatabaseTypeCode } from '@/constants';
+import { validateSqlScript } from './utils/sqlScriptValidation';
 
 // ----- hooks -----
 import { useSaveEditorData } from './hooks/useSaveEditorData';
+import { useAiChatSession } from './hooks/useAiChatSession';
+import { useChat2dbAiAuth } from './hooks/useChat2dbAiAuth';
 
 // ----- store -----
-import { useSettingStore, fetchRemainingUse, setAiConfig } from '@/store/setting';
+import { useSettingStore, fetchRemainingUse } from '@/store/setting';
 
 // ----- function -----
 import { handelCreateConsole } from '@/pages/main/workspace/functions/shortcutKeyCreateConsole';
@@ -92,24 +93,16 @@ function ConsoleEditor(props: IProps, ref: ForwardedRef<IConsoleRef>) {
     isActive,
   } = props;
   const uid = useMemo(() => uuidv4(), []);
-  const chatResult = useRef('');
   const editorRef = useRef<IExportRefFunction>();
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const scriptValidationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [selectedTables, setSelectedTables] = useState<string[]>([]);
   const [tableNameList, setTableNameList] = useState<string[]>([]);
-  const [syncTableModel, setSyncTableModel] = useState<number>(0);
-  const [isLoading, setIsLoading] = useState(false);
-  const [aiContent, setAiContent] = useState('');
-  const [isAiDrawerOpen, setIsAiDrawerOpen] = useState(false);
-  const [isAiDrawerLoading, setIsAiDrawerLoading] = useState(false);
-  const [popularizeModal, setPopularizeModal] = useState(false);
-  const [modalProps, setModalProps] = useState({});
-  const [isStream, setIsStream] = useState(false);
-  const aiFetchIntervalRef = useRef<any>();
-  const closeEventSource = useRef<any>();
-  const { aiConfig, hasWhite, remainingUse } = useSettingStore((state) => {
+  const [syncTableModel, setSyncTableModel] = useState<number>(SyncModelType.AUTO);
+  const [scriptValidationEnabled, setScriptValidationEnabled] = useState(false);
+  const { aiConfig, remainingUse } = useSettingStore((state) => {
     return {
       aiConfig: state.aiConfig,
-      hasWhite: state.hasWhite,
       remainingUse: state.remainingUse,
     };
   });
@@ -129,9 +122,53 @@ function ConsoleEditor(props: IProps, ref: ForwardedRef<IConsoleRef>) {
    */
   const isChat2DBAI = useMemo(() => aiConfig?.aiSqlSource === AIType.CHAT2DBAI, [aiConfig?.aiSqlSource]);
 
-  useEffect(() => {
+  const {
+    closePopularizeModal,
+    isFetchingAuth,
+    modalProps,
+    popularizeModal,
+    requestLoginQrCode,
+    showKeyLimitedPrompt,
+  } = useChat2dbAiAuth({
+    aiConfig,
+  });
+
+  const {
+    aiContent,
+    cancelChat,
+    closeDrawer,
+    isAiDrawerLoading,
+    isAiDrawerOpen,
+    isLoading,
+    isStream,
+    sqlSchemaSources,
+    sqlValidationWarning,
+    startChat,
+  } = useAiChatSession({
+    uid,
+    isChat2DBAI,
+    onNeedLogin: () => {
+      requestLoginQrCode(true);
+    },
+    onKeyLimited: () => {
+      showKeyLimitedPrompt(remainingUse);
+    },
+    onUsageRefresh: (apiKey?: string) => {
+      fetchRemainingUse(apiKey);
+    },
+  });
+
+  React.useEffect(() => {
     handleSelectTableSyncModel();
-  }, [hasWhite, localStorage.getItem('syncTableModel')]);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (scriptValidationTimerRef.current) {
+        clearTimeout(scriptValidationTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (appendValue) {
@@ -147,43 +184,6 @@ function ConsoleEditor(props: IProps, ref: ForwardedRef<IConsoleRef>) {
     [editorRef?.current],
   );
 
-  const handleApiKeyEmptyOrGetQrCode = async (shouldPoll?: boolean) => {
-    setIsLoading(true);
-    try {
-      const { wechatQrCodeUrl, token, tip } = await aiServer.getLoginQrCode({});
-      setIsLoading(false);
-
-      setPopularizeModal(true);
-      setModalProps({
-        imageUrl: wechatQrCodeUrl,
-        token,
-        tip,
-      });
-      if (shouldPoll) {
-        let pollCnt = 0;
-        aiFetchIntervalRef.current = setInterval(async () => {
-          const { apiKey } = (await aiServer.getLoginStatus({ token })) || {};
-          pollCnt++;
-          if (apiKey || pollCnt >= 60) {
-            clearInterval(aiFetchIntervalRef.current);
-          }
-          if (apiKey) {
-            setPopularizeModal(false);
-
-            setAiConfig({
-              ...(aiConfig || {}),
-              apiKey,
-            });
-
-            fetchRemainingUse(apiKey);
-          }
-        }, 3000);
-      }
-    } catch (e) {
-      setIsLoading(false);
-    }
-  };
-
   const handleAIChatInEditor = async (content: string, promptType: IPromptType, ext?: string) => {
     const _aiConfig = await configService.getAiSystemConfig({});
     handleAiChat(content, promptType, _aiConfig, ext);
@@ -192,111 +192,27 @@ function ConsoleEditor(props: IProps, ref: ForwardedRef<IConsoleRef>) {
   const handleAiChat = async (content: string, promptType: IPromptType, _aiConfig?: IAiConfig, ext?: string) => {
     const { apiKey } = _aiConfig || aiConfig || {};
     if (!apiKey && isChat2DBAI) {
-      handleApiKeyEmptyOrGetQrCode(true);
+      requestLoginQrCode(true);
       return;
     }
 
-    const { dataSourceId, databaseName, schemaName } = boundInfo;
     const isNL2SQL = promptType === IPromptType.NL_2_SQL;
-    if (isNL2SQL) {
-      setIsLoading(true);
-    } else {
-      setAiContent('');
-      setIsAiDrawerOpen(true);
-      setIsAiDrawerLoading(true);
-    }
-
-    const params = formatParams({
-      message: content,
-      promptType,
-      dataSourceId,
-      databaseName,
-      schemaName,
-      tableNames: syncTableModel ? selectedTables : null,
+    startChat({
+      apiKey,
+      boundInfo,
+      content,
       ext,
-    });
-
-    const handleMessage = (_message: string) => {
-      setIsLoading(false);
-      setIsAiDrawerLoading(false);
-      try {
-        const isEOF = _message === '[DONE]';
-        if (isEOF) {
-          closeEventSource.current();
-          setIsStream(false);
-          if (isChat2DBAI) {
-            fetchRemainingUse(apiKey);
-          }
-          if (isNL2SQL) {
-            editorRef?.current?.setValue('\n');
-          } else {
-            setIsAiDrawerLoading(false);
-            chatResult.current += '\n';
-            setAiContent(chatResult.current);
-            chatResult.current = '';
-          }
-          return;
-        }
-
-        let hasErrorToLogin = false;
-        chatErrorToLogin.forEach((err) => {
-          if (_message.includes(err)) {
-            hasErrorToLogin = true;
-          }
-        });
-        let hasKeyLimitedOrExpired = false;
-        chatErrorForKey.forEach((err) => {
-          if (_message.includes(err)) {
-            hasKeyLimitedOrExpired = true;
-          }
-        });
-
-        if (hasKeyLimitedOrExpired) {
-          closeEventSource.current();
-          setIsLoading(false);
-          handlePopUp();
-          return;
-        }
-
-        if (hasErrorToLogin) {
-          closeEventSource.current();
-          setIsLoading(false);
-          hasErrorToLogin && handleApiKeyEmptyOrGetQrCode(true);
-          // hasErrorToInvite && handleClickRemainBtn();
-          fetchRemainingUse(apiKey);
-          return;
-        }
-
-        if (isNL2SQL) {
-          editorRef?.current?.setValue(JSON.parse(_message).content);
-        } else {
-          chatResult.current += JSON.parse(_message).content;
-          setAiContent(chatResult.current);
-        }
-      } catch (error) {
-        setIsLoading(false);
-        setIsStream(false);
-        setIsAiDrawerLoading(false);
-        closeEventSource.current();
-      }
-    };
-
-    const handleError = (error: any) => {
-      console.error('Error:', error);
-      setIsLoading(false);
-      setIsAiDrawerLoading(false);
-      setIsStream(false);
-      closeEventSource.current();
-    };
-
-    closeEventSource.current = connectToEventSource({
-      url: `/api/ai/chat?${params}`,
-      uid,
-      onOpen: () => {
-        setIsStream(true);
+      mode: isNL2SQL ? 'editor' : 'drawer',
+      promptType,
+      responseMode: isNL2SQL ? 'SQL_ONLY' : 'RICH_TEXT',
+      selectedTables,
+      syncTableModel,
+      onEditorChunk: (sql: string) => {
+        editorRef?.current?.setValue(sql);
       },
-      onMessage: handleMessage,
-      onError: handleError,
+      onEditorComplete: () => {
+        editorRef?.current?.setValue('\n');
+      },
     });
   };
 
@@ -307,6 +223,65 @@ function ConsoleEditor(props: IProps, ref: ForwardedRef<IConsoleRef>) {
       return;
     }
     props.onExecuteSQL && props.onExecuteSQL(sqlContent);
+  };
+
+  const isMysqlWorkspaceConsole = source === 'workspace' && boundInfo?.databaseType === DatabaseTypeCode.MYSQL;
+
+  const applySqlScriptValidation = (sql: string) => {
+    const issues = validateSqlScript(sql);
+    if (issues.length) {
+      editorRef.current?.setValidationDecorations(issues);
+    } else {
+      editorRef.current?.clearValidationDecorations();
+    }
+    return issues;
+  };
+
+  const handleEditorChange = (value: string) => {
+    if (!scriptValidationEnabled) {
+      return;
+    }
+    if (scriptValidationTimerRef.current) {
+      clearTimeout(scriptValidationTimerRef.current);
+    }
+    scriptValidationTimerRef.current = setTimeout(() => {
+      applySqlScriptValidation(value);
+    }, 250);
+  };
+
+  const handleImportScript = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) {
+      return;
+    }
+
+    const script = await file.text();
+    editorRef.current?.setValue(script, 'cover');
+    setScriptValidationEnabled(true);
+    setTimeout(() => {
+      const issues = applySqlScriptValidation(script);
+      if (issues.length) {
+        message.warning(`Imported with ${issues.length} possible SQL issue(s).`);
+      } else {
+        message.success('SQL script imported.');
+      }
+    }, 0);
+  };
+
+  const handleExportScript = () => {
+    const script = editorRef.current?.getAllContent() || '';
+    const blob = new Blob([script], { type: 'text/sql;charset=utf-8' });
+    const link = document.createElement('a');
+    const objectUrl = URL.createObjectURL(blob);
+    const dataSourceName = boundInfo?.dataSourceName || 'query';
+    const databaseName = boundInfo?.databaseName || 'database';
+    link.href = objectUrl;
+    link.download = `${dataSourceName}-${databaseName}-${Date.now()}.sql`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(objectUrl);
   };
 
   const addAction = [
@@ -329,32 +304,15 @@ function ConsoleEditor(props: IProps, ref: ForwardedRef<IConsoleRef>) {
     },
   ];
 
-  /**
-   * 弹框 关注公众号
-   */
-  const handlePopUp = () => {
-    setModalProps({
-      imageUrl:
-        'http://oss.sqlgpt.cn/static/chat2db-wechat.jpg?x-oss-process=image/auto-orient,1/resize,m_lfit,w_256/quality,Q_80/format,webp',
-      tip: (
-        <>
-          {remainingUse?.remainingUses === 0 && <p>Key次数用完或者过期</p>}
-          <p>微信扫描二维码并关注公众号获得 AI 使用机会。</p>
-        </>
-      ),
-    });
-    setPopularizeModal(true);
-  };
-
   const handleSelectTableSyncModel = () => {
     const syncModel = localStorage.getItem('syncTableModel');
-    const hasAiAccess = hasWhite;
-    if (syncModel !== null) {
+    if (syncModel === String(SyncModelType.AUTO) || syncModel === String(SyncModelType.MANUAL)) {
       setSyncTableModel(Number(syncModel));
       return;
     }
 
-    setSyncTableModel(hasAiAccess ? SyncModelType.AUTO : SyncModelType.MANUAL);
+    setSyncTableModel(SyncModelType.AUTO);
+    localStorage.setItem('syncTableModel', String(SyncModelType.AUTO));
   };
 
   // 注册快捷键
@@ -377,6 +335,83 @@ function ConsoleEditor(props: IProps, ref: ForwardedRef<IConsoleRef>) {
     });
   };
 
+  const fallbackScopeSources = useMemo<IAiSchemaSource[]>(() => {
+    return selectedTables.map((tableName) => ({
+      tableName,
+      currentDataSource: true,
+      sourceType: 'SELECTED',
+      dataSourceAlias: boundInfo?.dataSourceName,
+      databaseName: boundInfo?.databaseName,
+      schemaName: boundInfo?.schemaName,
+    }));
+  }, [boundInfo?.dataSourceName, boundInfo?.databaseName, boundInfo?.schemaName, selectedTables]);
+
+  const displayedSchemaSources = sqlSchemaSources.length ? sqlSchemaSources : fallbackScopeSources;
+  const hasSchemaScope = hasAiChat && displayedSchemaSources.length > 0;
+  const hasTopConsolePanel = hasSchemaScope || isMysqlWorkspaceConsole;
+
+  const renderScriptActions = () => {
+    if (!isMysqlWorkspaceConsole) {
+      return null;
+    }
+    return (
+      <div className={styles.scriptActionGroup}>
+        <input
+          ref={importInputRef}
+          type="file"
+          accept=".sql,.txt,text/plain,text/sql,application/sql"
+          className={styles.scriptFileInput}
+          onChange={handleImportScript}
+        />
+        <Button size="small" className={styles.scriptActionButton} onClick={() => importInputRef.current?.click()}>
+          import
+        </Button>
+        <Button size="small" className={styles.scriptActionButton} onClick={handleExportScript}>
+          export
+        </Button>
+      </div>
+    );
+  };
+
+  const renderSchemaSources = () => {
+    if (!hasTopConsolePanel) {
+      return null;
+    }
+
+    return (
+      <div className={styles.schemaScopeBlock}>
+        <div className={styles.schemaScopeHeader}>
+          <div className={styles.schemaScopeHeaderInfo}>
+            <span className={styles.schemaScopeTitle}>{i18n('chat.scope.sources')}</span>
+            {sqlValidationWarning && <span className={styles.schemaScopeWarning}>{sqlValidationWarning}</span>}
+          </div>
+          {renderScriptActions()}
+        </div>
+        {hasSchemaScope && (
+          <div className={styles.schemaScopeTags}>
+            {displayedSchemaSources.map((schemaSource, index) => {
+              const scopeType = schemaSource.currentDataSource
+                ? i18n('chat.scope.current')
+                : i18n('chat.scope.projectHint');
+              const dataSourceAlias = schemaSource.dataSourceAlias ? `${schemaSource.dataSourceAlias} / ` : '';
+              const databaseName = schemaSource.databaseName ? `${schemaSource.databaseName}.` : '';
+              const tableLabel = `${dataSourceAlias}${databaseName}${schemaSource.tableName}`;
+              return (
+                <Tag
+                  key={`${schemaSource.tableName}-${schemaSource.dataSourceId || 'local'}-${index}`}
+                  color={schemaSource.currentDataSource ? 'blue' : 'default'}
+                  className={styles.schemaScopeTag}
+                >
+                  {scopeType}: {tableLabel}
+                </Tag>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <IntelligentEditorContext.Provider
       value={{
@@ -388,12 +423,13 @@ function ConsoleEditor(props: IProps, ref: ForwardedRef<IConsoleRef>) {
       }}
     >
       <div className={styles.console} ref={ref as any}>
-        <Spin spinning={isLoading} style={{ height: '100%' }}>
+        <Spin spinning={isLoading || isFetchingAuth} style={{ height: '100%' }}>
           {hasAiChat && (
             <ChatInput
               isStream={isStream}
               disabled={isLoading}
               aiType={aiConfig?.aiSqlSource}
+              scopeHint={i18n('chat.input.scopeHint', boundInfo.databaseType || 'SQL')}
               tables={tableNameList}
               onPressEnter={(value: string) => {
                 handleAiChat(value, IPromptType.NL_2_SQL);
@@ -408,20 +444,30 @@ function ConsoleEditor(props: IProps, ref: ForwardedRef<IConsoleRef>) {
                 localStorage.setItem('syncTableModel', String(model));
               }}
               onCancelStream={() => {
-                closeEventSource.current();
-                setIsStream(false);
-                setIsLoading(false);
+                cancelChat();
               }}
             />
           )}
+          {renderSchemaSources()}
           <MonacoEditor
             id={uid}
             defaultValue={defaultValue}
             ref={editorRef as any}
-            className={hasAiChat ? styles.consoleEditorWithChat : styles.consoleEditor}
+            className={
+              hasAiChat
+                ? hasSchemaScope
+                  ? styles.consoleEditorWithChatAndScope
+                  : hasTopConsolePanel
+                    ? styles.consoleEditorWithChatAndToolbar
+                    : styles.consoleEditorWithChat
+                : hasTopConsolePanel
+                  ? styles.consoleEditorWithToolbar
+                  : styles.consoleEditor
+            }
             addAction={addAction}
             options={props.editorOptions}
             shortcutKey={registerShortcutKey}
+            onChange={handleEditorChange}
             isActive={isActive}
           />
           <Drawer
@@ -429,14 +475,7 @@ function ConsoleEditor(props: IProps, ref: ForwardedRef<IConsoleRef>) {
             getContainer={false}
             mask={false}
             onClose={() => {
-              try {
-                setIsAiDrawerOpen(false);
-                setIsAiDrawerLoading(false);
-                setIsStream(false);
-                closeEventSource.current && closeEventSource.current();
-              } catch (error) {
-                // console.log('close drawer', error);
-              }
+              closeDrawer();
             }}
           >
             <Spin spinning={isAiDrawerLoading} style={{ height: '100%' }}>
@@ -456,8 +495,7 @@ function ConsoleEditor(props: IProps, ref: ForwardedRef<IConsoleRef>) {
           open={popularizeModal}
           footer={false}
           onCancel={() => {
-            aiFetchIntervalRef.current && clearInterval(aiFetchIntervalRef.current);
-            setPopularizeModal(false);
+            closePopularizeModal();
           }}
         >
           <Popularize {...modalProps} />

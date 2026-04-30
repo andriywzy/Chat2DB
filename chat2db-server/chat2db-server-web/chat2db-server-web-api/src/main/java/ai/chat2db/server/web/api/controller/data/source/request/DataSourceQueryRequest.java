@@ -15,10 +15,4 @@ public class DataSourceQueryRequest extends PageQueryRequest {
      * Alias fuzzy search terms
      */
     private String searchKey;
-    /**
-     * Connection Type
-     *
-     * @see ai.chat2db.server.domain.api.enums.DataSourceKindEnum
-     */
-    private String kind;
 }

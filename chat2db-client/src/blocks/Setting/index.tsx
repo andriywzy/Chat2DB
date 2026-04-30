@@ -7,12 +7,15 @@ import BaseSetting from './BaseSetting';
 import AISetting from './AiSetting';
 import ProxySetting from './ProxySetting';
 import About from './About';
+import SsoSetting from './SsoSetting';
 import styles from './index.less';
 import { ILatestVersion } from '@/service/config';
 import UpdateDetection, { IUpdateDetectionRef, UpdatedStatusEnum } from '@/blocks/Setting/UpdateDetection';
+import { IRole } from '@/typings/user';
 
 // ---- store -----
 import { useSettingStore, getAiSystemConfig, setAiSystemConfig } from '@/store/setting';
+import { useUserStore } from '@/store/user';
 
 interface IProps {
   className?: string;
@@ -33,6 +36,9 @@ function Setting(props: IProps) {
   const [updateDetectionData, setUpdateDetectionData] = useState<IUpdateDetectionData | null>(null);
   const updateDetectionRef = React.useRef<IUpdateDetectionRef>(null);
   const aiConfig = useSettingStore((state) => state.aiConfig);
+  const { userInfo } = useUserStore((state) => ({
+    userInfo: state.curUser,
+  }));
 
   useEffect(() => {
     if (defaultArouse) {
@@ -81,6 +87,15 @@ function Setting(props: IProps) {
       icon: '\ue646',
       body: <AISetting aiConfig={aiConfig} handleApplyAiConfig={setAiSystemConfig} />,
       code: 'ai',
+      requiresLogin: true,
+    },
+    {
+      label: i18n('setting.nav.sso'),
+      icon: '\ue64b',
+      body: <SsoSetting />,
+      code: 'sso',
+      requiresLogin: true,
+      adminOnly: true,
     },
     {
       label: i18n('setting.nav.proxy'),
@@ -102,6 +117,18 @@ function Setting(props: IProps) {
       code: 'about',
     },
   ];
+
+  const visibleMenus = menusList.filter((menu) => {
+    if (noLogin && (menu as any).requiresLogin) {
+      return false;
+    }
+    if ((menu as any).adminOnly && userInfo?.roleCode === IRole.USER) {
+      return false;
+    }
+    return true;
+  });
+
+  const safeCurrentMenu = currentMenu >= visibleMenus.length ? 0 : currentMenu;
 
   return (
     <>
@@ -133,17 +160,13 @@ function Setting(props: IProps) {
         <div className={styles.modalBox}>
           <div className={styles.menus}>
             <div className={classnames(styles.menusTitle)}>{i18n('setting.title.setting')}</div>
-            {menusList.map((t, index) => {
-              // 如果是没有登录的页面，不显示ai设置等需要登录的功能
-              if (noLogin && index === 1) {
-                return false;
-              }
+            {visibleMenus.map((t, index) => {
               return (
                 <div
                   key={index}
                   onClick={changeMenu.bind(null, index)}
                   className={classnames(styles.menuItem, {
-                    [styles.activeMenu]: t.label === menusList[currentMenu].label,
+                    [styles.activeMenu]: t.label === visibleMenus[safeCurrentMenu].label,
                   })}
                 >
                   <Iconfont className={styles.prefixIcon} code={t.icon} />
@@ -154,8 +177,8 @@ function Setting(props: IProps) {
             })}
           </div>
           <div className={styles.menuContent}>
-            <div className={classnames(styles.menuContentTitle)}>{menusList[currentMenu].label}</div>
-            {menusList[currentMenu].body}
+            <div className={classnames(styles.menuContentTitle)}>{visibleMenus[safeCurrentMenu].label}</div>
+            {visibleMenus[safeCurrentMenu].body}
           </div>
         </div>
       </Modal>

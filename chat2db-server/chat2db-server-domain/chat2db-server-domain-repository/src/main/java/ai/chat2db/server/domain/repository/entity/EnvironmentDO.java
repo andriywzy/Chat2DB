@@ -63,4 +63,19 @@ public class EnvironmentDO implements Serializable {
      * color
      */
     private String color;
+
+    /**
+     * scope type
+     */
+    private String scopeType;
+
+    /**
+     * scope id
+     */
+    private Long scopeId;
+
+    /**
+     * project id
+     */
+    private Long projectId;
 }

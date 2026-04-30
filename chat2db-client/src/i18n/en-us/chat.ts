@@ -7,4 +7,9 @@ export default {
   'chat.input.syncTable.tips': 'The automatically synchronize all table structures to the AI context',
   'chat.input.remain.tooltip': 'The manually selected table will be synchronized to the AI context',
   'chat.input.syncTable.tempTips': '🎉Update: Automatically synchronize all table structures to the AI context',
+  'chat.input.scopeHint':
+    'Scope: current project / current environment / {1} schema. AI will return executable SQL directly.',
+  'chat.scope.sources': 'AI reference tables',
+  'chat.scope.current': 'Current datasource',
+  'chat.scope.projectHint': 'Project peer',
 };

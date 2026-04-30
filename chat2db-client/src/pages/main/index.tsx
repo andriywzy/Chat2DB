@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Dropdown, Tooltip } from 'antd';
+import { Dropdown, Tooltip } from 'antd';
 import classnames from 'classnames';
 
 import Iconfont from '@/components/Iconfont';
@@ -28,12 +28,11 @@ import Workspace from './workspace';
 import Dashboard from './dashboard';
 import Connection from './connection';
 import Team from './team';
+import Knowledge from './knowledge';
 import Setting from '@/blocks/Setting';
 
 import styles from './index.less';
 import { useUpdateEffect } from '@/hooks';
-import { getLinkBasedOnTimezone } from '@/utils/timezone';
-import { RocketIcon } from 'lucide-react';
 
 const initNavConfig: INavItem[] = [
   {
@@ -61,14 +60,25 @@ const initNavConfig: INavItem[] = [
     name: i18n('connection.title'),
   },
   {
-    key: 'github',
-    icon: '\ue885',
-    iconFontSize: 26,
+    key: 'knowledge',
+    icon: '\ue646',
+    iconFontSize: 20,
     isLoad: false,
-    openBrowser: 'https://github.com/chat2db/Chat2DB/',
-    name: 'Github',
+    component: <Knowledge />,
+    name: i18n('setting.nav.knowledge'),
   },
 ];
+
+const createTeamNavItem = (): INavItem => {
+  return {
+    key: 'team',
+    icon: '\ue64b',
+    iconFontSize: 24,
+    isLoad: false,
+    component: <Team />,
+    name: i18n('team.title'),
+  };
+};
 
 function MainPage() {
   const navigate = useNavigate();
@@ -77,15 +87,28 @@ function MainPage() {
       userInfo: state.curUser,
     };
   });
-  const [navConfig, setNavConfig] = useState<INavItem[]>(initNavConfig);
   const mainPageActiveTab = useMainStore((state) => state.mainPageActiveTab);
   const [activeNavKey, setActiveNavKey] = useState<string>(
     __ENV__ === 'desktop' ? mainPageActiveTab : window.location.pathname.split('/')[1] || mainPageActiveTab,
   );
+  const [loadedNavKeys, setLoadedNavKeys] = useState<string[]>([activeNavKey]);
 
   const isMac = useMemo(() => {
     return window.electronApi?.getPlatform().isMac;
   }, []);
+
+  const navConfig = useMemo(() => {
+    const nextNavConfig = [...initNavConfig];
+    if (userInfo?.admin) {
+      nextNavConfig.splice(3, 0, createTeamNavItem());
+    }
+    return nextNavConfig.map((item) => {
+      return {
+        ...item,
+        isLoad: loadedNavKeys.includes(String(item.key)),
+      };
+    });
+  }, [loadedNavKeys, userInfo?.admin]);
 
   // 当页面在workspace时，显示自定义布局
   useEffect(() => {
@@ -100,7 +123,6 @@ function MainPage() {
   }, [mainPageActiveTab]);
 
   useEffect(() => {
-    handleInitPage();
     getConnectionList();
     getConnectionEnvList();
   }, []);
@@ -111,46 +133,21 @@ function MainPage() {
 
   // 切换tab
   useEffect(() => {
-    // 获取当前地址栏的tab
-    const activeIndex = navConfig.findIndex((t) => `${t.key}` === activeNavKey);
-    if (activeIndex > -1) {
-      navConfig[activeIndex].isLoad = true;
-      setNavConfig([...navConfig]);
-      if (__ENV__ !== 'desktop') {
-        const href = window.location.origin + '/' + activeNavKey;
-        window.history.pushState({}, '', href);
+    setLoadedNavKeys((prevLoadedNavKeys) => {
+      if (prevLoadedNavKeys.includes(activeNavKey)) {
+        return prevLoadedNavKeys;
       }
+      return [...prevLoadedNavKeys, activeNavKey];
+    });
+    if (__ENV__ !== 'desktop') {
+      const href = window.location.origin + '/' + activeNavKey;
+      window.history.pushState({}, '', href);
     }
   }, [activeNavKey]);
 
-  const handleInitPage = async () => {
-    const cloneNavConfig = [...navConfig];
-    if (userInfo) {
-      const hasTeamIcon = cloneNavConfig.find((i) => i.key === 'team');
-      if (userInfo.admin && !hasTeamIcon) {
-        cloneNavConfig.splice(3, 0, {
-          key: 'team',
-          icon: '\ue64b',
-          iconFontSize: 24,
-          isLoad: activeNavKey === 'team', // 如果当前是team，直接加载
-          component: <Team />,
-          name: i18n('team.title'),
-        });
-      }
-      if (!userInfo.admin && hasTeamIcon) {
-        cloneNavConfig.splice(3, 1);
-      }
-    }
-    setNavConfig([...cloneNavConfig]);
-  };
-
   const switchingNav = (key: string) => {
-    if (key === 'github') {
-      window.open('https://github.com/chat2db/Chat2DB/', '_blank');
-    } else {
-      setActiveNavKey(key);
-      setMainPageActiveTab(key);
-    }
+    setActiveNavKey(key);
+    setMainPageActiveTab(key);
   };
 
   const handleLogout = () => {
@@ -207,18 +204,9 @@ function MainPage() {
           })}
         </ul>
         <div className={styles.footer}>
-          <Tooltip placement="right" title={i18n('setting.title.goto.chat2db.pro')}>
-            <RocketIcon
-              className={styles.rocketIcon} 
-              onClick={() => {
-                const link = getLinkBasedOnTimezone();
-                window.open(link, '_blank');
-              }}
-            />
-          </Tooltip>
-          {/* <Tooltip placement="right" title="个人中心">
+          <Tooltip placement="right" title="个人中心">
             {userInfo?.roleCode !== IRole.DESKTOP ? renderUser() : null}
-          </Tooltip> */}
+          </Tooltip>
           <Setting className={styles.setIcon} />
         </div>
       </div>

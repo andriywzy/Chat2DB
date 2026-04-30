@@ -26,6 +26,7 @@
         <module>chat2db-mariadb</module>
         <module>chat2db-dm</module>
         <module>chat2db-mongodb</module>
+        <module>chat2db-redis</module>
         <module>chat2db-presto</module>
         <module>chat2db-hive</module>
         <module>chat2db-kingbase</module>

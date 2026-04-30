@@ -1,18 +1,135 @@
 @import '../../../../../styles/var.less';
 
-.treeContainer{
+.treeContainer {
   flex: 1;
   height: 0px;
   display: flex;
   flex-direction: column;
+  background: var(--color-bg-subtle);
+  overflow: hidden;
 }
 
-.treeBox{
+.groupBlock {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.environmentBlock {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.groupRow {
+  height: 32px;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--color-border-secondary);
+  cursor: pointer;
+  user-select: none;
+  &:hover {
+    background: var(--color-hover-bg);
+  }
+}
+
+.environmentRow {
+  height: 30px;
+  display: flex;
+  align-items: center;
+  padding: 0 10px 0 24px;
+  border-bottom: 1px solid var(--color-border-secondary);
+  cursor: pointer;
+  user-select: none;
+  &:hover {
+    background: var(--color-hover-bg);
+  }
+}
+
+.groupRowDroppable {
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.groupRowDropActive {
+  background: var(--color-primary-bg-hover);
+  box-shadow: inset 0 0 0 1px var(--color-primary);
+}
+
+.groupArrow {
+  width: 16px;
+  flex-shrink: 0;
+  color: var(--color-text-tertiary);
+  transform: rotate(0deg);
+  transition: transform 0.15s ease-in;
+}
+
+.groupArrowExpanded {
+  transform: rotate(90deg);
+}
+
+.groupIcon {
+  margin: 0 8px 0 4px;
+  color: var(--color-primary);
+}
+
+.environmentDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  margin: 0 10px 0 6px;
+  flex-shrink: 0;
+}
+
+.treeNodeName {
   flex: 1;
-  height: 0px;
+  width: 0;
+  .f-single-line();
 }
 
-.leftModuleTitleShadow{
+.groupEditBox {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.groupEditInput {
+  flex: 1;
+}
+
+.groupAction {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  &:hover {
+    color: var(--color-text);
+    background: var(--color-hover-bg);
+  }
+}
+
+.treeBox {
+  flex: 1;
+  min-height: 0;
+  padding-left: 16px;
+}
+
+.leftModuleTitleShadow {
   border-bottom: 1px solid var(--color-border-secondary);
 }
 
+.emptyState {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-tertiary);
+  font-size: 13px;
+}

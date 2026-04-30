@@ -5,6 +5,7 @@ import ai.chat2db.server.domain.api.enums.ValidStatusEnum;
 import ai.chat2db.server.domain.api.model.User;
 import ai.chat2db.server.domain.api.service.UserService;
 import ai.chat2db.server.web.start.controller.oauth.request.LoginRequest;
+import ai.chat2db.server.web.start.service.sso.SsoConfigService;
 import ai.chat2db.server.tools.base.excption.BusinessException;
 import ai.chat2db.server.tools.base.wrapper.result.ActionResult;
 import ai.chat2db.server.tools.base.wrapper.result.DataResult;
@@ -34,6 +35,8 @@ public class OauthController {
 
     @Resource
     private UserService userService;
+    @Resource
+    private SsoConfigService ssoConfigService;
 
     /**
      * Login with username and password
@@ -43,6 +46,9 @@ public class OauthController {
      */
     @PostMapping("login_a")
     public DataResult login(@Validated @RequestBody LoginRequest request) {
+        if (!ssoConfigService.isLocalLoginAllowed()) {
+            throw new BusinessException("oauth.localLoginDisabled");
+        }
         //   Query user
         User user = userService.query(request.getUserName()).getData();
         this.validateUser(user);

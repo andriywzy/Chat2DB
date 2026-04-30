@@ -25,6 +25,39 @@ import sqlServer, { IExecuteSqlParams } from '@/service/sql';
 import { v4 as uuidV4 } from 'uuid';
 import { Spin } from 'antd';
 
+const TABLE_STRUCTURE_CHANGED_EVENT = 'chat2db:table-structure-changed';
+const SCHEMA_MUTATION_SQL_PREFIX = /(^|;)\s*(CREATE|ALTER|DROP|TRUNCATE|RENAME)\b/i;
+
+const isSchemaMutationSql = (sql?: string) => {
+  if (!sql) {
+    return false;
+  }
+  const normalizedSql = sql
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/--[^\r\n]*/g, ' ')
+    .trim();
+  return SCHEMA_MUTATION_SQL_PREFIX.test(normalizedSql);
+};
+
+const notifyTableStructureChanged = (params?: {
+  dataSourceId?: number;
+  databaseName?: string;
+  schemaName?: string;
+}) => {
+  if (!params?.dataSourceId) {
+    return;
+  }
+  window.dispatchEvent(
+    new CustomEvent(TABLE_STRUCTURE_CHANGED_EVENT, {
+      detail: {
+        dataSourceId: params.dataSourceId,
+        databaseName: params.databaseName,
+        schemaName: params.schemaName,
+      },
+    }),
+  );
+};
+
 interface IProps {
   className?: string;
   sql?: string;
@@ -101,6 +134,20 @@ export default forwardRef((props: IProps, ref: ForwardedRef<ISearchResultRef>) =
         setResultDataList(sqlResult);
         if(!notChangedSql){
           setNotChangedSql(_sql);
+        }
+
+        const hasSuccessfulSchemaMutation = sqlResult.some((item) => {
+          if (!item.success) {
+            return false;
+          }
+          return isSchemaMutationSql(item.originalSql || item.sql || _sql);
+        });
+        if (hasSuccessfulSchemaMutation) {
+          notifyTableStructureChanged({
+            dataSourceId: executeSQLParams.dataSourceId,
+            databaseName: executeSQLParams.databaseName,
+            schemaName: executeSQLParams.schemaName || undefined,
+          });
         }
       })
       .finally(() => {

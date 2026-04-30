@@ -116,4 +116,9 @@ public class DataSourceUpdateRequest {
      * Service type
      */
     private String serviceType;
+
+    /**
+     * project id
+     */
+    private Long projectId;
 }

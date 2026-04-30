@@ -59,4 +59,9 @@ public class TeamUserDO implements Serializable {
      * user id
      */
     private Long userId;
+
+    /**
+     * source type
+     */
+    private String sourceType;
 }

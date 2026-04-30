@@ -6,4 +6,8 @@ export default {
   'chat.input.syncTable.tips': '自动同步所有表结构给AI上下文（在群内联系群主，申请Chat2DBAI白名单后，仅在Chat2DBAI模型下可用）',
   'chat.input.remain.tooltip': '手动选中的表的结构将会同步给AI上下文',
   'chat.input.syncTable.tempTips': '🎉上线：自动同步所有表结构到AI上下文',
+  'chat.input.scopeHint': '范围：当前项目 / 当前环境 / {1} 表结构，AI 将直接生成可执行 SQL',
+  'chat.scope.sources': 'AI 参考表',
+  'chat.scope.current': '当前数据源',
+  'chat.scope.projectHint': '项目同环境',
 };

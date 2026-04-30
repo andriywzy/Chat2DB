@@ -1,10 +1,14 @@
 package ai.chat2db.server.web.api.controller.ai;
 
 import ai.chat2db.server.tools.common.exception.ParamBusinessException;
-import ai.chat2db.server.web.api.aspect.ConnectionInfoAspect;
 import ai.chat2db.server.web.api.controller.ai.enums.PromptType;
+import ai.chat2db.server.web.api.controller.ai.platform.model.AiChatCommand;
+import ai.chat2db.server.web.api.controller.ai.platform.model.AiRetrievalContext;
+import ai.chat2db.server.web.api.controller.ai.platform.model.AiRetrievalQuery;
+import ai.chat2db.server.web.api.controller.ai.platform.orchestrator.AiOrchestrator;
+import ai.chat2db.server.web.api.controller.ai.platform.prompt.AiSchemaContextService;
+import ai.chat2db.server.web.api.controller.ai.platform.retrieval.AiRetrievalService;
 import ai.chat2db.server.web.api.controller.ai.request.ChatQueryRequest;
-import ai.chat2db.server.web.api.http.GatewayClientService;
 import cn.hutool.core.util.StrUtil;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -20,7 +24,6 @@ import java.util.Map;
  * @author moji
  */
 @RestController
-@ConnectionInfoAspect
 @RequestMapping("/api/ai/text/generation")
 @Slf4j
 public class TextGenerationController extends ChatController {
@@ -31,9 +34,14 @@ public class TextGenerationController extends ChatController {
      */
     private static final Long CHAT_TIMEOUT = Duration.ofMinutes(50).toMillis();
 
+    @Resource
+    private AiSchemaContextService aiSchemaContextService;
 
     @Resource
-    private GatewayClientService gatewayClientService;
+    private AiRetrievalService aiRetrievalService;
+
+    @Resource
+    private AiOrchestrator aiOrchestrator;
 
     /**
      * sql auto complete
@@ -63,8 +71,16 @@ public class TextGenerationController extends ChatController {
                 "```sql";
 
         // query database schema info
-        String databaseType = queryDatabaseType(queryRequest);
-        String schemas = queryDatabaseSchema(queryRequest);
+        String databaseType = aiSchemaContextService.queryDatabaseType(queryRequest);
+        AiRetrievalContext retrievalContext = aiRetrievalService.retrieveSchema(AiRetrievalQuery.builder()
+            .dataSourceId(queryRequest.getDataSourceId())
+            .databaseName(queryRequest.getDatabaseName())
+            .schemaName(queryRequest.getSchemaName())
+            .message(queryRequest.getMessage())
+            .build());
+        String schemas = retrievalContext == null || retrievalContext.getSchemaSnippets() == null
+            ? ""
+            : com.alibaba.fastjson2.JSON.toJSONString(retrievalContext.getSchemaSnippets());
         if (StringUtils.isNotBlank(schemas)) {
             databaseType = String.format(", given a %s database schema", databaseType);
             schemas = String.format("This query will run on a database whose schema is represented in this string:\n$s", schemas);
@@ -73,20 +89,19 @@ public class TextGenerationController extends ChatController {
             schemas = "";
         }
         String prompt = String.format(promptTemplate, databaseType, queryRequest.getMessage(), schemas, queryRequest.getMessage());
-        queryRequest.setMessage(prompt);
 
         // chat with AI
-        SseEmitter sseEmitter = new SseEmitter(CHAT_TIMEOUT);
-        String uid = headers.get("uid");
-        if (StrUtil.isBlank(uid)) {
-            throw new ParamBusinessException("uid");
-        }
-
         if (StringUtils.isBlank(queryRequest.getMessage())) {
             throw new ParamBusinessException("message");
         }
 
-        return distributeAISql(queryRequest, sseEmitter, uid);
+        return aiOrchestrator.streamChat(AiChatCommand.builder()
+            .queryRequest(queryRequest)
+            .uid(resolveUid(queryRequest, headers))
+            .promptOverride(prompt)
+            .retrievalContext(retrievalContext)
+            .emitter(new SseEmitter(CHAT_TIMEOUT))
+            .build());
     }
 
 }

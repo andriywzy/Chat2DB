@@ -4,20 +4,16 @@ import ai.chat2db.server.web.api.controller.ai.fastchat.model.FastChatChoice;
 import ai.chat2db.server.web.api.controller.ai.fastchat.model.FastChatCompletions;
 import ai.chat2db.server.web.api.controller.ai.fastchat.model.FastChatCompletionsUsage;
 import ai.chat2db.server.web.api.controller.ai.fastchat.model.FastChatMessage;
-import ai.chat2db.server.web.api.controller.ai.tongyi.model.TongyiChatCompletions;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.unfbx.chatgpt.entity.chat.Message;
+import ai.chat2db.server.web.api.controller.ai.platform.callback.AbstractAiEventSourceListener;
+import ai.chat2db.server.web.api.controller.ai.platform.callback.AiStreamCallback;
+import ai.chat2db.server.web.api.controller.ai.platform.callback.SseEmitterAiStreamCallback;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.Response;
-import okhttp3.ResponseBody;
 import okhttp3.sse.EventSource;
-import okhttp3.sse.EventSourceListener;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.io.IOException;
 import java.util.Objects;
 
 /**
@@ -27,14 +23,14 @@ import java.util.Objects;
  * @date 2023-02-22
  */
 @Slf4j
-public class TongyiChatAIEventSourceListener extends EventSourceListener {
-
-    private SseEmitter sseEmitter;
-
-    private ObjectMapper mapper = new ObjectMapper().disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+public class TongyiChatAIEventSourceListener extends AbstractAiEventSourceListener {
 
     public TongyiChatAIEventSourceListener(SseEmitter sseEmitter) {
-        this.sseEmitter = sseEmitter;
+        this(new SseEmitterAiStreamCallback(sseEmitter));
+    }
+
+    public TongyiChatAIEventSourceListener(AiStreamCallback callback) {
+        super(callback);
     }
 
     /**
@@ -54,76 +50,53 @@ public class TongyiChatAIEventSourceListener extends EventSourceListener {
         log.info("Tongyi Chat AI response data：{}", data);
         if (data.equals("[DONE]")) {
             log.info("Tongyi Chat AI closed");
-            sseEmitter.send(SseEmitter.event()
-                .id("[DONE]")
-                .data("[DONE]")
-                .reconnectTime(3000));
-            sseEmitter.complete();
+            complete();
             return;
         }
 
-        TongyiChatCompletions chatCompletions = mapper.readValue(data, TongyiChatCompletions.class);
-        String text = chatCompletions.getOutput().getText();
+        FastChatCompletions chatCompletions = mapper.readValue(data, FastChatCompletions.class);
+        String text = "";
+        for (FastChatChoice choice : chatCompletions.getChoices()) {
+            FastChatMessage message = choice.getDelta();
+            if (message != null && message.getContent() != null) {
+                text = message.getContent();
+                break;
+            }
+            if (choice.getText() != null) {
+                text = choice.getText();
+                break;
+            }
+        }
+
+        FastChatCompletionsUsage usage = chatCompletions.getUsage();
+        if (usage != null) {
+            log.info(
+                "Usage: number of prompt token is {}, number of completion token is {}, and number of total "
+                    + "tokens in request and response is {}.%n", usage.getPromptTokens(),
+                usage.getCompletionTokens(), usage.getTotalTokens());
+        }
         log.info("id: {}, text: {}", chatCompletions.getId(), text);
 
-        Message message = new Message();
-        message.setContent(text);
-        sseEmitter.send(SseEmitter.event()
-            .id(null)
-            .data(message)
-            .reconnectTime(3000));
+        sendChunk(chatCompletions.getId(), text);
     }
 
     @Override
     public void onClosed(EventSource eventSource) {
-        try {
-            sseEmitter.send(SseEmitter.event()
-                .id("[DONE]")
-                .data("[DONE]"));
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        sseEmitter.complete();
         log.info("TongyiChatAI close sse connection...");
+        super.onClosed(eventSource);
     }
 
     @Override
     public void onFailure(EventSource eventSource, Throwable t, Response response) {
         try {
             if (Objects.isNull(response)) {
-                String message = t.getMessage();
-                Message sseMessage = new Message();
-                sseMessage.setContent(message);
-                sseEmitter.send(SseEmitter.event()
-                    .id("[ERROR]")
-                    .data(sseMessage));
-                sseEmitter.send(SseEmitter.event()
-                    .id("[DONE]")
-                    .data("[DONE]"));
-                sseEmitter.complete();
+                fail(t.getMessage());
                 return;
             }
-            ResponseBody body = response.body();
-            String bodyString = Objects.nonNull(t) ? t.getMessage() : "";
-            if (Objects.nonNull(body)) {
-                bodyString = body.string();
-                if (StringUtils.isBlank(bodyString) && Objects.nonNull(t)) {
-                    bodyString = t.getMessage();
-                }
-                log.error("Tongyi Chat AI sse response：{}", bodyString);
-            } else {
-                log.error("Tongyi Chat AI sse response：{}，error：{}", response, t);
-            }
+            String bodyString = resolveFailureBody(t, response);
+            log.error("Tongyi Chat AI sse response：{}", bodyString);
             eventSource.cancel();
-            Message message = new Message();
-            message.setContent("Tongyi Chat AI error：" + bodyString);
-            sseEmitter.send(SseEmitter.event()
-                .id("[ERROR]")
-                .data(message));
-            sseEmitter.send(SseEmitter.event()
-                .id("[DONE]")
-                .data("[DONE]"));
-            sseEmitter.complete();
+            fail("Tongyi Chat AI error：" + bodyString);
         } catch (Exception exception) {
             log.error("Tongyi Chat AI send data error:", exception);
         }

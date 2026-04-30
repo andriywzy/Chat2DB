@@ -1,12 +1,14 @@
 import React, { memo, useMemo } from 'react';
-import { Dropdown } from 'antd';
+import { Dropdown, Tooltip } from 'antd';
+import { AimOutlined, MoreOutlined } from '@ant-design/icons';
 import classnames from 'classnames';
 import styles from './index.less';
+import i18n from '@/i18n';
 
 // ---- store ----
 import { useConnectionStore } from '@/pages/main/store/connection';
-import { useWorkspaceStore } from '@/pages/main/workspace/store';
 import { setCurrentConnectionDetails } from '@/pages/main/workspace/store/common';
+import { setMainPageActiveTab } from '@/pages/main/store/main';
 
 // ----- components -----
 import Iconfont from '@/components/Iconfont';
@@ -20,12 +22,6 @@ export default memo(() => {
   const { connectionList } = useConnectionStore((state) => {
     return {
       connectionList: state.connectionList,
-    };
-  });
-
-  const { currentConnectionDetails } = useWorkspaceStore((state) => {
-    return {
-      currentConnectionDetails: state.currentConnectionDetails,
     };
   });
 
@@ -56,16 +52,23 @@ export default memo(() => {
         };
       }) || []
     );
-  }, [connectionList, currentConnectionDetails]);
+  }, [connectionList]);
 
   return (
-    <Dropdown menu={{ items: connectionItems }} trigger={['click']} overlayClassName={styles.dropdownOverlay}>
-      <div className={styles.selectConnection}>
-        {currentConnectionDetails && renderConnectionLabel(currentConnectionDetails)}
-        <div className={styles.dropDownArrow}>
-          <Iconfont code="&#xe641;" />
+    <div className={styles.header}>
+      <div className={styles.title}>{i18n('workspace.database.title')}</div>
+      <div className={styles.actions}>
+        <Tooltip title={i18n('connection.title.connections')} mouseEnterDelay={0.5}>
+          <div className={styles.iconButton} onClick={() => setMainPageActiveTab('connections')}>
+            <AimOutlined />
+          </div>
+        </Tooltip>
+        <div className={styles.iconButton}>
+          <Dropdown menu={{ items: connectionItems }} trigger={['click']} overlayClassName={styles.dropdownOverlay}>
+            <MoreOutlined />
+          </Dropdown>
         </div>
       </div>
-    </Dropdown>
+    </div>
   );
 });

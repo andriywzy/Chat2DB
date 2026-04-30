@@ -1,21 +1,24 @@
+import connectionService from '@/service/connection';
 import {
-  getCommonDataSourceList,
+  getCommonProjectList,
   getCommonTeamList,
-  getCommonUserAndTeamList,
   getCommonUserList,
 } from '@/service/team';
-import { IDataSourceVO, ITeamAndUserVO, ITeamVO, IUserVO, ManagementType, SearchType } from '@/typings/team';
-import { Modal, Select, Spin } from 'antd';
+import { IEnvironmentVO, IProjectVO, ITeamProjectGrantPayload, ITeamVO, IUserVO, SearchType } from '@/typings/team';
+import { Form, Modal, Select, Spin } from 'antd';
 import debounce from 'lodash/debounce';
 import React, { useEffect, useMemo, useState } from 'react';
-import styles from './index.less';
 import i18n from '@/i18n';
 
 interface IProps {
   open: boolean;
   type?: SearchType;
-  onConfirm: (values: Object) => void;
+  onConfirm: (values: object) => void;
   onClose: () => void;
+  initialValues?: {
+    projectId?: number;
+    environmentIdList?: number[];
+  };
 }
 
 interface ValueType {
@@ -26,14 +29,6 @@ interface ValueType {
 }
 
 const addAuthMap = {
-  [SearchType['USER/TEAM']]: {
-    title: i18n('team.action.addUserAndTeam'),
-    loadRequest: getCommonUserAndTeamList,
-    searchLabel: (data: ITeamAndUserVO) => data.name,
-    searchValue: (data: ITeamAndUserVO) => JSON.stringify({ id: data.id, type: data.type }),
-    searchListKey: 'accessObjectList',
-    placeholder: i18n('team.action.addUserAndTeam.placeholder'),
-  },
   [SearchType.TEAM]: {
     title: i18n('team.action.addTeam'),
     loadRequest: getCommonTeamList,
@@ -50,22 +45,24 @@ const addAuthMap = {
     searchListKey: 'userIdList',
     placeholder: i18n('team.action.addUser.placeholder'),
   },
-  [SearchType.DATASOURCE]: {
-    title: i18n('team.action.addDatasource'),
-    loadRequest: getCommonDataSourceList,
-    searchLabel: (data: IDataSourceVO) => data.alias,
-    searchValue: (data: IDataSourceVO) => data.id,
-    searchListKey: 'dataSourceIdList',
-    placeholder: i18n('team.action.addDatasource.placeholder'),
+  [SearchType.PROJECT]: {
+    title: i18n('team.action.addProject'),
+    loadRequest: getCommonProjectList,
+    searchLabel: (data: IProjectVO) => data.name,
+    searchValue: (data: IProjectVO) => data.id,
+    searchListKey: 'projectIdList',
+    placeholder: i18n('team.action.addProject.placeholder'),
   },
 };
 
 function UniversalAddModal(props: IProps) {
   const { open, type } = props;
+  const [form] = Form.useForm();
 
   const [fetching, setFetching] = useState(false);
   const [options, setOptions] = useState<ValueType[]>([]);
   const [selectedValues, setSelectedValues] = useState([]);
+  const [environmentList, setEnvironmentList] = useState<IEnvironmentVO[]>([]);
 
   const authData = useMemo(() => {
     if (type) {
@@ -73,9 +70,43 @@ function UniversalAddModal(props: IProps) {
     }
   }, [type]);
 
+  const selectedProjectId = Form.useWatch('projectId', form);
+  const availableEnvironmentOptions = useMemo(
+    () =>
+      environmentList
+        .filter((environment) => environment.projectId === selectedProjectId)
+        .map((environment) => ({
+          label: environment.name,
+          value: environment.id,
+        })),
+    [environmentList, selectedProjectId],
+  );
+
   useEffect(() => {
+    if (!open) {
+      return;
+    }
+    if (type === SearchType.PROJECT) {
+      getCommonProjectList({ searchKey: '' }).then((res) => {
+        const projectOptions = (res || []).map((i) => ({
+          ...i,
+          label: i.name,
+          value: i.id,
+          key: i.id,
+        }));
+        setOptions(projectOptions);
+      });
+      connectionService.getEnvList().then((res) => {
+        setEnvironmentList(res || []);
+      });
+      form.setFieldsValue({
+        projectId: props.initialValues?.projectId,
+        environmentIdList: props.initialValues?.environmentIdList || [],
+      });
+      return;
+    }
     loadOptions('');
-  }, []);
+  }, [open, type, props.initialValues?.projectId, props.initialValues?.environmentIdList]);
 
   const loadOptions = (value: string) => {
     setOptions([]);
@@ -100,9 +131,27 @@ function UniversalAddModal(props: IProps) {
       return;
     }
 
+    if (type === SearchType.PROJECT) {
+      form
+        .validateFields()
+        .then((values: ITeamProjectGrantPayload & { environmentIdList?: number[] }) => {
+          props.onConfirm({
+            projectGrantList: [
+              {
+                projectId: values.projectId,
+                environmentIdList: values.environmentIdList || [],
+              },
+            ],
+          });
+          props.onClose && props.onClose();
+          form.resetFields();
+          setOptions([]);
+        });
+      return;
+    }
+
     const realValue = {
-      [authData.searchListKey]:
-        type !== SearchType['USER/TEAM'] ? selectedValues : selectedValues.map((i) => JSON.parse(i)),
+      [authData.searchListKey]: selectedValues,
     };
 
     props.onConfirm(realValue);
@@ -120,20 +169,52 @@ function UniversalAddModal(props: IProps) {
       }}
       title={authData?.title}
     >
-      <Select
-        size="large"
-        mode="multiple"
-        style={{ width: '100%' }}
-        onSearch={debounce(loadOptions, 300)}
-        placeholder={authData?.placeholder}
-        filterOption={false}
-        notFoundContent={fetching ? <Spin style={{ margin: '16px 0' }} size="small" /> : null}
-        options={options}
-        value={selectedValues}
-        onChange={(values) => {
-          setSelectedValues(values);
-        }}
-      />
+      {type === SearchType.PROJECT ? (
+        <Form form={form} layout="vertical">
+          <Form.Item
+            label={i18n('team.project.name')}
+            name="projectId"
+            rules={[{ required: true, message: i18n('common.form.error.required') }]}
+          >
+            <Select
+              size="large"
+              showSearch
+              placeholder={i18n('team.action.addProject.placeholder')}
+              options={options}
+              onChange={() => form.setFieldValue('environmentIdList', [])}
+              filterOption={(input, option) =>
+                String(option?.label || '')
+                  .toLowerCase()
+                  .includes(input.toLowerCase())
+              }
+            />
+          </Form.Item>
+          <Form.Item label={i18n('team.project.environments')} name="environmentIdList">
+            <Select
+              size="large"
+              mode="multiple"
+              allowClear
+              placeholder={i18n('team.project.environments.placeholder')}
+              options={availableEnvironmentOptions}
+            />
+          </Form.Item>
+        </Form>
+      ) : (
+        <Select
+          size="large"
+          mode="multiple"
+          style={{ width: '100%' }}
+          onSearch={debounce(loadOptions, 300)}
+          placeholder={authData?.placeholder}
+          filterOption={false}
+          notFoundContent={fetching ? <Spin style={{ margin: '16px 0' }} size="small" /> : null}
+          options={options}
+          value={selectedValues}
+          onChange={(values) => {
+            setSelectedValues(values);
+          }}
+        />
+      )}
     </Modal>
   );
 }

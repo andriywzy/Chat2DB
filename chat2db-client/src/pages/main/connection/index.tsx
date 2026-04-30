@@ -1,5 +1,5 @@
 import React, { useRef, useState, Fragment, useEffect } from 'react';
-import { Button, Dropdown } from 'antd';
+import { Button, Dropdown, Modal, Tag } from 'antd';
 import classnames from 'classnames';
 import i18n from '@/i18n';
 // import RefreshLoadingButton from '@/components/RefreshLoadingButton';
@@ -21,7 +21,11 @@ import MenuLabel from '@/components/MenuLabel';
 import useClickAndDoubleClick from '@/hooks/useClickAndDoubleClick';
 
 // ----- store -----
-import { useConnectionStore, getConnectionList } from '@/pages/main/store/connection';
+import {
+  useConnectionStore,
+  getConnectionList,
+  setConnectionManageActiveId,
+} from '@/pages/main/store/connection';
 import { setMainPageActiveTab } from '@/pages/main/store/main';
 import { setCurrentConnectionDetails } from '@/pages/main/workspace/store/common';
 import { getOpenConsoleList } from '@/pages/main/workspace/store/console';
@@ -29,9 +33,10 @@ import { getOpenConsoleList } from '@/pages/main/workspace/store/console';
 import styles from './index.less';
 
 const ConnectionsPage = () => {
-  const { connectionList } = useConnectionStore((state) => {
+  const { connectionList, connectionManageActiveId } = useConnectionStore((state) => {
     return {
       connectionList: state.connectionList,
+      connectionManageActiveId: state.connectionManageActiveId,
     };
   });
   const volatileRef = useRef<any>();
@@ -42,6 +47,7 @@ const ConnectionsPage = () => {
   const handleMenuItemSingleClick = (t: IConnectionListItem) => {
     if (connectionActiveId !== t.id) {
       setConnectionActiveId(t.id);
+      setConnectionManageActiveId(t.id);
     }
   };
 
@@ -70,21 +76,39 @@ const ConnectionsPage = () => {
       });
   }, [connectionActiveId]);
 
+  useEffect(() => {
+    if (connectionManageActiveId && connectionManageActiveId !== connectionActiveId) {
+      setConnectionActiveId(connectionManageActiveId);
+    }
+  }, [connectionManageActiveId, connectionActiveId]);
+
+  const handleDeleteConnection = async (id: IConnectionListItem['id']) => {
+    await connectionService.remove({ id });
+    await getConnectionList();
+    // 连接删除后需要更新下 consoleList
+    getOpenConsoleList();
+    if (connectionActiveId === id) {
+      setConnectionActiveId(null);
+      setConnectionDetail(null);
+      setConnectionManageActiveId(null);
+    }
+  };
+
+  const openDeleteConfirm = (id: IConnectionListItem['id']) => {
+    Modal.confirm({
+      title: i18n('common.tips.delete.confirm'),
+      okText: i18n('common.button.affirm'),
+      cancelText: i18n('common.button.cancel'),
+      onOk: () => handleDeleteConnection(id),
+    });
+  };
+
   //
-  const createDropdownItems = (t) => {
+  const createDropdownItems = (t: IConnectionListItem) => {
     const handelDelete = (e) => {
       // 禁止冒泡到menuItem
       e.domEvent?.stopPropagation?.();
-      connectionService.remove({ id: t.id }).then(() => {
-        getConnectionList().then(() => {
-          // 连接删除后需要更新下 consoleList
-          getOpenConsoleList();
-        });
-        if (connectionActiveId === t.id) {
-          setConnectionActiveId(null);
-          setConnectionDetail(null);
-        }
-      });
+      openDeleteConfirm(t.id);
     };
 
     const enterWorkSpace = (e) => {
@@ -97,6 +121,7 @@ const ConnectionsPage = () => {
       connectionService.clone({ id: t.id }).then((res) => {
         getConnectionList();
         setConnectionActiveId(res);
+        setConnectionManageActiveId(res);
       });
     }
 
@@ -121,6 +146,10 @@ const ConnectionsPage = () => {
 
   const renderConnectionMenuList = () => {
     return connectionList?.map((t) => {
+      const projectName = t.projectName;
+      const environmentName = t.environment?.shortName || t.environment?.name;
+      const accessScopeLabel =
+        t.accessScope === 'PROJECT' ? i18n('connection.label.accessScope.project') : i18n('connection.label.accessScope.personal');
       return (
         <Dropdown
           key={t.id}
@@ -138,14 +167,25 @@ const ConnectionsPage = () => {
             }}
           >
             <div className={classnames(styles.menuItemsTitle)}>
-              <span className={styles.envTag} style={{ background: t.environment.color.toLocaleLowerCase() }} />
+              <span
+                className={styles.envTag}
+                style={{ background: (t.environment?.color || 'BLUE').toLocaleLowerCase() }}
+              />
               <span className={styles.databaseTypeIcon}>
                 {<Iconfont className={styles.menuItemIcon} code={databaseMap[t.type]?.icon} />}
               </span>
-              <span className={styles.name}>{t.alias}</span>
-              {/* <Tag color={t.environment.color.toLocaleLowerCase()}>
-              {t.environment.shortName}
-            </Tag> */}
+              <div className={styles.menuItemMeta}>
+                <span className={styles.name}>{t.alias}</span>
+                <div className={styles.tags}>
+                  <Tag className={styles.metaTag}>{accessScopeLabel}</Tag>
+                  {projectName ? <Tag className={styles.metaTag}>{projectName}</Tag> : null}
+                  {environmentName ? (
+                    <Tag color={(t.environment?.color || 'blue').toLocaleLowerCase()} className={styles.metaTag}>
+                      {environmentName}
+                    </Tag>
+                  ) : null}
+                </div>
+              </div>
             </div>
           </div>
         </Dropdown>
@@ -161,6 +201,7 @@ const ConnectionsPage = () => {
       .then((res) => {
         getConnectionList();
         setConnectionActiveId(res);
+        setConnectionManageActiveId(res);
       });
   };
 
@@ -177,6 +218,7 @@ const ConnectionsPage = () => {
               onClick={() => {
                 setConnectionActiveId(null);
                 setConnectionDetail(null);
+                setConnectionManageActiveId(null);
               }}
             >
               {i18n('connection.button.addConnection')}
@@ -187,7 +229,11 @@ const ConnectionsPage = () => {
           className={styles.layoutRight}
           isLoading={connectionDetail === undefined && !!connectionActiveId}
         >
-          <CreateConnection connectionDetail={connectionDetail} onSubmit={onSubmit} />
+          <CreateConnection
+            connectionDetail={connectionDetail}
+            onSubmit={onSubmit}
+            onDelete={handleDeleteConnection}
+          />
         </LoadingContent>
       </div>
     </>

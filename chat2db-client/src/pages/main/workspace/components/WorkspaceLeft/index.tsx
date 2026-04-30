@@ -10,11 +10,13 @@ import { useConnectionStore } from '@/pages/main/store/connection';
 import { setMainPageActiveTab } from '@/pages/main/store/main';
 
 const WorkspaceLeft = memo(() => {
-  const { connectionList } = useConnectionStore((state) => {
+  const { connectionList, projectList } = useConnectionStore((state) => {
     return {
       connectionList: state.connectionList,
+      projectList: state.projectList,
     };
   });
+  const hasLoaded = connectionList !== null && projectList !== null;
 
   const jumpPage = () => {
     setMainPageActiveTab('connections');
@@ -23,7 +25,7 @@ const WorkspaceLeft = memo(() => {
   return (
     <>
       <div className={classnames(styles.workspaceLeft)}>
-        {connectionList?.length ? (
+        {hasLoaded ? (
           <>
             <WorkspaceLeftHeader />
             <TableList />

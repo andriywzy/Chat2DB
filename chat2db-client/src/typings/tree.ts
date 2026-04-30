@@ -1,4 +1,5 @@
 import { TreeNodeType, DatabaseTypeCode } from '@/constants';
+import { IConnectionListItem } from './connection';
 
 export interface IExtraParams {
   dataSourceId: number;
@@ -10,6 +11,7 @@ export interface IExtraParams {
   functionName?: string;
   procedureName?: string;
   triggerName?: string;
+  connectionDetail?: IConnectionListItem;
 }
 
 export interface ITreeNode {

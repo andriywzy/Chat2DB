@@ -2,10 +2,10 @@ import { EventSourcePolyfill } from 'event-source-polyfill';
 
 const connectToEventSource = (params: {
   url: string;
-  uid: string;
-  onOpen: Function;
-  onMessage: Function;
-  onError: Function;
+  uid?: string;
+  onOpen: () => void;
+  onMessage: (message: string) => void;
+  onError: (error: unknown) => void;
 }) => {
   const { url, uid, onOpen, onMessage, onError } = params;
 
@@ -16,8 +16,8 @@ const connectToEventSource = (params: {
   const DBHUB = localStorage.getItem('DBHUB');
   const p = {
     headers: {
-      uid,
       DBHUB,
+      ...(uid ? { uid } : {}),
     },
   };
   const eventSource = new EventSourcePolyfill(`${window._BaseURL}${url}`, p);

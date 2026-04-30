@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import java.io.Serializable;
 import java.util.Date;
+import com.baomidou.mybatisplus.annotation.TableField;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -125,11 +126,6 @@ public class DataSourceDO implements Serializable {
     private Long environmentId;
 
     /**
-     * Connection Type
-     */
-    private String kind;
-
-    /**
      * service name
      */
     private String serviceName;
@@ -138,5 +134,10 @@ public class DataSourceDO implements Serializable {
      * Service type
      */
     private String serviceType;
+
+    private Long projectId;
+
+    @TableField(exist = false)
+    private String projectName;
 
 }

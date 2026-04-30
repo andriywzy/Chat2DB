@@ -17,12 +17,13 @@ type IEditConnectionDetail = IConnectionDetails | null | Pick<IConnectionDetails
 interface IProps {
   className?: string;
   onSubmit?: (data: IConnectionDetails) => Promise<any>; // 点击保存或修改的回调，我会把数据给你
+  onDelete?: (id: number) => Promise<void> | void;
   connectionDetail: IEditConnectionDetail | null | undefined;
   noPermission?: boolean;
 }
 
 export default memo<IProps>((props) => {
-  const { className, onSubmit, connectionDetail: externalConnectionDetail } = props;
+  const { className, onSubmit, onDelete, connectionDetail: externalConnectionDetail } = props;
   const [connectionDetail, setConnectionDetail] = useState<IEditConnectionDetail | null | undefined>(
     externalConnectionDetail,
   );
@@ -58,6 +59,7 @@ export default memo<IProps>((props) => {
               }}
               connectionData={connectionDetail as any}
               submit={onSubmit}
+              onDelete={onDelete}
             />
           </div>
         )}

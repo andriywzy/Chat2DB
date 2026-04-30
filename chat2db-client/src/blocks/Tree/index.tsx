@@ -5,9 +5,9 @@ import Iconfont from '@/components/Iconfont';
 import { Tooltip, Dropdown } from 'antd';
 import { ITreeNode } from '@/typings';
 import { TreeNodeType, databaseMap } from '@/constants';
-import { treeConfig, switchIcon, ITreeConfigItem } from './treeConfig';
+import { getTreeConfigItem, switchIcon, ITreeConfigItem } from './treeConfig';
 import { useCommonStore } from '@/store/common';
-import { setCurrentWorkspaceGlobalExtend } from '@/pages/main/workspace/store/common';
+import { setCurrentConnectionDetails, setCurrentWorkspaceGlobalExtend } from '@/pages/main/workspace/store/common';
 import LoadingGracile from '@/components/Loading/LoadingGracile';
 import { setFocusId, setFocusTreeNode, useTreeStore, clearTreeStore } from './treeStore';
 import { useGetRightClickMenu } from './hooks/useGetRightClickMenu';
@@ -16,15 +16,29 @@ import LoadingContent from '@/components/Loading/LoadingContent';
 import { cloneDeep } from 'lodash';
 // import { flushSync } from 'react-dom';
 
+const TABLE_STRUCTURE_CHANGED_EVENT = 'chat2db:table-structure-changed';
+
+interface ITableStructureChangedDetail {
+  dataSourceId?: number;
+  databaseName?: string;
+  schemaName?: string;
+}
+
 interface IProps {
   className?: string;
   treeData: ITreeNode[] | null;
   searchValue: string;
+  getNodeDraggable?: (node: ITreeNode) => boolean;
+  onNodeDragStart?: (node: ITreeNode, event: React.DragEvent<HTMLDivElement>) => void;
+  onNodeDragEnd?: (node: ITreeNode, event: React.DragEvent<HTMLDivElement>) => void;
 }
 
 interface TreeNodeIProps {
   data: ITreeNode;
   level: number;
+  getNodeDraggable?: (node: ITreeNode) => boolean;
+  onNodeDragStart?: (node: ITreeNode, event: React.DragEvent<HTMLDivElement>) => void;
+  onNodeDragEnd?: (node: ITreeNode, event: React.DragEvent<HTMLDivElement>) => void;
 }
 
 interface IContext {
@@ -35,6 +49,15 @@ interface IContext {
 }
 
 export const Context = createContext<IContext>({} as any);
+
+const buildLoadExtraParams = (extraParams?: ITreeNode['extraParams']) => {
+  if (!extraParams) {
+    return {};
+  }
+  const rest = { ...(extraParams as any) };
+  delete rest.connectionDetail;
+  return rest;
+};
 
 // 树转平级
 const smoothTree = (treeData: ITreeNode[], result: ITreeNode[] = [], parentNode?: ITreeNode) => {
@@ -160,9 +183,25 @@ const Tree = (props: IProps) => {
   const treeNodes = useMemo(() => {
     const realNodeList = (searchSmoothTreeData || smoothTreeData).slice(startIdx, startIdx + 50);
     return realNodeList.map((item) => {
-      return <TreeNode key={item.uuid} level={item.level || 0} data={item} />;
+      return (
+        <TreeNode
+          key={item.uuid}
+          level={item.level || 0}
+          data={item}
+          getNodeDraggable={props.getNodeDraggable}
+          onNodeDragStart={props.onNodeDragStart}
+          onNodeDragEnd={props.onNodeDragEnd}
+        />
+      );
     });
-  }, [smoothTreeData, searchSmoothTreeData, startIdx]);
+  }, [
+    smoothTreeData,
+    searchSmoothTreeData,
+    startIdx,
+    props.getNodeDraggable,
+    props.onNodeDragStart,
+    props.onNodeDragEnd,
+  ]);
 
   useEffect(() => {
     if (searchValue && treeData) {
@@ -208,11 +247,13 @@ const TreeNode = memo((props: TreeNodeIProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const indentArr = new Array(level).fill('indent');
   const { treeData, setTreeData, searchTreeData, setSearchTreeData } = useContext(Context);
+  const isDraggable = props.getNodeDraggable?.(treeNodeData);
 
   // 加载数据
   function loadData(_props?: { refresh: boolean; pageNo: number; treeNodeData?: ITreeNode }) {
     const _treeNodeData = _props?.treeNodeData || props.data;
-    const treeNodeConfig: ITreeConfigItem = treeConfig[_treeNodeData.pretendNodeType || _treeNodeData.treeNodeType];
+    const treeNodeConfig: ITreeConfigItem = getTreeConfigItem(_treeNodeData);
+    const loadExtraParams = buildLoadExtraParams(_treeNodeData.extraParams);
     setIsLoading(true);
     if (_props?.pageNo === 1 || !_props?.pageNo) {
       insertData(treeData!, _treeNodeData.uuid!, null,[treeData, setTreeData]);
@@ -223,10 +264,8 @@ const TreeNode = memo((props: TreeNodeIProps) => {
 
     treeNodeConfig
       .getChildren?.({
-        ..._treeNodeData.extraParams,
-        extraParams: {
-          ..._treeNodeData.extraParams,
-        },
+        ...loadExtraParams,
+        extraParams: loadExtraParams,
         refresh: _props?.refresh || false,
         pageNo: _props?.pageNo || 1,
       })
@@ -313,6 +352,49 @@ const TreeNode = memo((props: TreeNodeIProps) => {
     }
   };
 
+  useEffect(() => {
+    const handleTableStructureChanged = (event: Event) => {
+      if (treeNodeData.treeNodeType !== TreeNodeType.TABLES) {
+        return;
+      }
+      if (!treeNodeData.children) {
+        return;
+      }
+
+      const { dataSourceId, databaseName, schemaName } = (
+        (event as CustomEvent<ITableStructureChangedDetail>).detail || {}
+      );
+      const currentParams = treeNodeData.extraParams || {};
+
+      if (!dataSourceId || currentParams.dataSourceId !== dataSourceId) {
+        return;
+      }
+      if ((databaseName || '') !== (currentParams.databaseName || '')) {
+        return;
+      }
+      if ((schemaName || '') !== (currentParams.schemaName || '')) {
+        return;
+      }
+
+      loadData({
+        treeNodeData,
+        refresh: true,
+      });
+    };
+
+    window.addEventListener(TABLE_STRUCTURE_CHANGED_EVENT, handleTableStructureChanged);
+    return () => {
+      window.removeEventListener(TABLE_STRUCTURE_CHANGED_EVENT, handleTableStructureChanged);
+    };
+  }, [
+    treeNodeData,
+    treeNodeData.children,
+    treeNodeData.treeNodeType,
+    treeNodeData.extraParams?.dataSourceId,
+    treeNodeData.extraParams?.databaseName,
+    treeNodeData.extraParams?.schemaName,
+  ]);
+
   // 找到对应的icon
   const recognizeIcon = (treeNodeType: TreeNodeType) => {
     if (treeNodeType === TreeNodeType.DATA_SOURCE) {
@@ -329,6 +411,9 @@ const TreeNode = memo((props: TreeNodeIProps) => {
     useCommonStore.setState({
       focusedContent: (treeNodeData.name || '') as any,
     });
+    if (treeNodeData.treeNodeType === TreeNodeType.DATA_SOURCE && treeNodeData.extraParams?.connectionDetail) {
+      setCurrentConnectionDetails(treeNodeData.extraParams.connectionDetail);
+    }
     if(treeNodeData.treeNodeType === TreeNodeType.TABLE){
       setCurrentWorkspaceGlobalExtend({
         code: 'viewDDL',
@@ -356,7 +441,9 @@ const TreeNode = memo((props: TreeNodeIProps) => {
   // 双击节点
   const handelDoubleClickTreeNode = () => {
     if (
+      treeNodeData.treeNodeType === TreeNodeType.TABLES ||
       treeNodeData.treeNodeType === TreeNodeType.TABLE ||
+      treeNodeData.treeNodeType === TreeNodeType.KEY ||
       treeNodeData.treeNodeType === TreeNodeType.VIEW ||
       treeNodeData.treeNodeType === TreeNodeType.PROCEDURE ||
       treeNodeData.treeNodeType === TreeNodeType.FUNCTION ||
@@ -397,10 +484,26 @@ const TreeNode = memo((props: TreeNodeIProps) => {
       >
         <Tooltip placement="right" color={window._AppThemePack?.colorPrimary} title={treeNodeData.comment}>
           <div
-            className={classnames(styles.treeNode, { [styles.treeNodeFocus]: isFocus })}
+            className={classnames(styles.treeNode, {
+              [styles.treeNodeFocus]: isFocus,
+              [styles.treeNodeDraggable]: isDraggable,
+            })}
             onClick={handelClickTreeNode}
             onContextMenu={handelClickTreeNode}
             onDoubleClick={handelDoubleClickTreeNode}
+            draggable={isDraggable}
+            onDragStart={(event) => {
+              if (!isDraggable) {
+                return;
+              }
+              props.onNodeDragStart?.(treeNodeData, event);
+            }}
+            onDragEnd={(event) => {
+              if (!isDraggable) {
+                return;
+              }
+              props.onNodeDragEnd?.(treeNodeData, event);
+            }}
             data-chat2db-general-can-copy-element
           >
             <div className={styles.left}>

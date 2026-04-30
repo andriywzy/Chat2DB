@@ -18,7 +18,7 @@ const requireRule = { required: true, message: i18n('common.form.error.required'
 function TeamManagement() {
   const [form] = Form.useForm();
   const [loadding, setLoading] = useState(false);
-  const [dataSource, setDataSource] = useState<ITeamVO[]>([]);
+  const [teams, setTeams] = useState<ITeamVO[]>([]);
   const [pagination, setPagination] = useState({
     searchKey: '',
     current: 1,
@@ -79,11 +79,11 @@ function TeamManagement() {
                   ...drawerInfo,
                   open: true,
                   teamId: record.id,
-                  type: AffiliationType.TEAM_DATASOURCE,
+                  type: AffiliationType.TEAM_PROJECT,
                 });
               }}
             >
-              {i18n('team.action.affiliation.datasource')}
+              {i18n('team.action.affiliation.project')}
             </Button>
             <Popconfirm
               title={i18n('common.tips.delete.confirm')}
@@ -110,15 +110,16 @@ function TeamManagement() {
     setLoading(true);
     try {
       const { searchKey, current: pageNo, pageSize } = pagination;
-      let res = await getTeamManagementList({ searchKey, pageNo, pageSize });
+      const res = await getTeamManagementList({ searchKey, pageNo, pageSize });
       if (res) {
-        setDataSource(res?.data ?? []);
+        setTeams(res?.data ?? []);
         setPagination({
           ...pagination,
           total: res?.total ?? 0,
         } as any);
       }
     } catch (error) {
+      return;
     } finally {
       setLoading(false);
     }
@@ -140,7 +141,7 @@ function TeamManagement() {
 
   const handleCreateOrUpdateTeam = async (teamInfo: ITeamVO) => {
     const requestApi = teamInfo.id ? updateTeam : createTeam;
-    let res = await requestApi(teamInfo);
+    const res = await requestApi(teamInfo);
     if (res) {
       queryTeamList();
     }
@@ -180,7 +181,7 @@ function TeamManagement() {
         sticky
         rowKey={'id'}
         loading={loadding}
-        dataSource={dataSource}
+        dataSource={teams}
         columns={columns}
         pagination={pagination}
         onChange={handleTableChange}
@@ -192,7 +193,7 @@ function TeamManagement() {
         onOk={() => {
           form
             .validateFields()
-            .then((values) => {
+            .then(() => {
               const formValues = form.getFieldsValue(true);
               handleCreateOrUpdateTeam(formValues);
               setIsModalVisible(false);

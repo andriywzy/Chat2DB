@@ -34,6 +34,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -77,6 +78,7 @@ public class DlTemplateServiceImpl implements DlTemplateService {
                 listResult.setErrorMessage(executeResult.getMessage());
             }
             addOperationLog(executeResult);
+            invalidateTableCacheIfNeeded(executeResult);
         }
         return listResult;
     }
@@ -104,6 +106,7 @@ public class DlTemplateServiceImpl implements DlTemplateService {
                 ExecuteResult executeResult = executor.executeUpdate(originalSql, connection, 1);
                 dataResult.setData(executeResult);
                 addOperationLog(executeResult);
+                invalidateTableCacheIfNeeded(executeResult);
             }
 //            connection.commit();
         } catch (Exception e) {
@@ -257,5 +260,44 @@ public class DlTemplateServiceImpl implements DlTemplateService {
         } catch (Exception e) {
             log.error("addOperationLog error:", e);
         }
+    }
+
+    private void invalidateTableCacheIfNeeded(ExecuteResult executeResult) {
+        if (executeResult == null || !Boolean.TRUE.equals(executeResult.getSuccess())) {
+            return;
+        }
+        String sql = StringUtils.defaultIfBlank(executeResult.getOriginalSql(), executeResult.getSql());
+        if (!isSchemaMutationSql(sql)) {
+            return;
+        }
+        try {
+            ConnectInfo connectInfo = Chat2DBContext.getConnectInfo();
+            if (connectInfo == null) {
+                return;
+            }
+            tableService.invalidateTableCache(
+                connectInfo.getDataSourceId(),
+                connectInfo.getDatabaseName(),
+                connectInfo.getSchemaName()
+            );
+        } catch (Exception e) {
+            log.warn("invalidateTableCacheIfNeeded error", e);
+        }
+    }
+
+    private boolean isSchemaMutationSql(String sql) {
+        if (StringUtils.isBlank(sql)) {
+            return false;
+        }
+        String normalized = sql
+            .replaceAll("(?s)/\\*.*?\\*/", " ")
+            .replaceAll("(?m)--[^\\r\\n]*", " ")
+            .trim()
+            .toUpperCase(Locale.ROOT);
+        return normalized.startsWith("CREATE ")
+            || normalized.startsWith("ALTER ")
+            || normalized.startsWith("DROP ")
+            || normalized.startsWith("TRUNCATE ")
+            || normalized.startsWith("RENAME ");
     }
 }

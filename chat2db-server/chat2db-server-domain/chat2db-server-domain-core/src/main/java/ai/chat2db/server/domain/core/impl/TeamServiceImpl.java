@@ -14,10 +14,18 @@ import ai.chat2db.server.domain.core.converter.TeamConverter;
 import ai.chat2db.server.domain.core.converter.UserConverter;
 import ai.chat2db.server.domain.repository.Dbutils;
 import ai.chat2db.server.domain.repository.entity.DataSourceAccessDO;
+import ai.chat2db.server.domain.repository.entity.ProjectAccessDO;
+import ai.chat2db.server.domain.repository.entity.ProjectAccessEnvironmentDO;
+import ai.chat2db.server.domain.repository.entity.SsoGroupTeamMappingDO;
 import ai.chat2db.server.domain.repository.entity.TeamDO;
+import ai.chat2db.server.domain.repository.entity.TeamUserBindingSourceDO;
 import ai.chat2db.server.domain.repository.entity.TeamUserDO;
 import ai.chat2db.server.domain.repository.mapper.DataSourceAccessMapper;
+import ai.chat2db.server.domain.repository.mapper.ProjectAccessEnvironmentMapper;
+import ai.chat2db.server.domain.repository.mapper.ProjectAccessMapper;
+import ai.chat2db.server.domain.repository.mapper.SsoGroupTeamMappingMapper;
 import ai.chat2db.server.domain.repository.mapper.TeamMapper;
+import ai.chat2db.server.domain.repository.mapper.TeamUserBindingSourceMapper;
 import ai.chat2db.server.domain.repository.mapper.TeamUserMapper;
 import ai.chat2db.server.tools.base.wrapper.result.ActionResult;
 import ai.chat2db.server.tools.base.wrapper.result.DataResult;
@@ -55,8 +63,24 @@ public class TeamServiceImpl implements TeamService {
         return Dbutils.getMapper(TeamUserMapper.class);
     }
 
+    private TeamUserBindingSourceMapper getTeamUserBindingSourceMapper() {
+        return Dbutils.getMapper(TeamUserBindingSourceMapper.class);
+    }
+
     private DataSourceAccessMapper getDataSourceAccessMapper() {
         return Dbutils.getMapper(DataSourceAccessMapper.class);
+    }
+
+    private ProjectAccessMapper getProjectAccessMapper() {
+        return Dbutils.getMapper(ProjectAccessMapper.class);
+    }
+
+    private ProjectAccessEnvironmentMapper getProjectAccessEnvironmentMapper() {
+        return Dbutils.getMapper(ProjectAccessEnvironmentMapper.class);
+    }
+
+    private SsoGroupTeamMappingMapper getSsoGroupTeamMappingMapper() {
+        return Dbutils.getMapper(SsoGroupTeamMappingMapper.class);
     }
     @Resource
     private TeamConverter teamConverter;
@@ -126,13 +150,36 @@ public class TeamServiceImpl implements TeamService {
 
         LambdaQueryWrapper<TeamUserDO> teamUserQueryWrapper = new LambdaQueryWrapper<>();
         teamUserQueryWrapper.eq(TeamUserDO::getTeamId, id);
+        List<TeamUserDO> teamUserList = getTeamUserMapper().selectList(teamUserQueryWrapper);
+        if (CollectionUtils.isNotEmpty(teamUserList)) {
+            List<Long> teamUserIds = EasyCollectionUtils.toList(teamUserList, TeamUserDO::getId);
+            LambdaQueryWrapper<TeamUserBindingSourceDO> bindingSourceQueryWrapper = new LambdaQueryWrapper<>();
+            bindingSourceQueryWrapper.in(TeamUserBindingSourceDO::getTeamUserId, teamUserIds);
+            getTeamUserBindingSourceMapper().delete(bindingSourceQueryWrapper);
+        }
         getTeamUserMapper().delete(teamUserQueryWrapper);
+
+        LambdaQueryWrapper<SsoGroupTeamMappingDO> groupTeamMappingQueryWrapper = new LambdaQueryWrapper<>();
+        groupTeamMappingQueryWrapper.eq(SsoGroupTeamMappingDO::getTeamId, id);
+        getSsoGroupTeamMappingMapper().delete(groupTeamMappingQueryWrapper);
 
         LambdaQueryWrapper<DataSourceAccessDO>  dataSourceAccessQueryWrapper = new LambdaQueryWrapper<>();
         dataSourceAccessQueryWrapper.eq(DataSourceAccessDO::getAccessObjectId, id)
             .eq(DataSourceAccessDO::getAccessObjectType, AccessObjectTypeEnum.TEAM.getCode())
         ;
         getDataSourceAccessMapper().delete(dataSourceAccessQueryWrapper);
+
+        LambdaQueryWrapper<ProjectAccessDO> projectAccessQueryWrapper = new LambdaQueryWrapper<>();
+        projectAccessQueryWrapper.eq(ProjectAccessDO::getAccessObjectId, id)
+            .eq(ProjectAccessDO::getAccessObjectType, AccessObjectTypeEnum.TEAM.getCode());
+        List<ProjectAccessDO> projectAccessList = getProjectAccessMapper().selectList(projectAccessQueryWrapper);
+        if (CollectionUtils.isNotEmpty(projectAccessList)) {
+            List<Long> projectAccessIds = EasyCollectionUtils.toList(projectAccessList, ProjectAccessDO::getId);
+            LambdaQueryWrapper<ProjectAccessEnvironmentDO> projectAccessEnvironmentQueryWrapper = new LambdaQueryWrapper<>();
+            projectAccessEnvironmentQueryWrapper.in(ProjectAccessEnvironmentDO::getProjectAccessId, projectAccessIds);
+            getProjectAccessEnvironmentMapper().delete(projectAccessEnvironmentQueryWrapper);
+            getProjectAccessMapper().delete(projectAccessQueryWrapper);
+        }
         return ActionResult.isSuccess();
     }
 

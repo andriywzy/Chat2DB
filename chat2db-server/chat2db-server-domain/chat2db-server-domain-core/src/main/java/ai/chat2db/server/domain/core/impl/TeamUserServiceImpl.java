@@ -12,7 +12,9 @@ import ai.chat2db.server.domain.core.converter.TeamConverter;
 import ai.chat2db.server.domain.core.converter.TeamUserConverter;
 import ai.chat2db.server.domain.core.converter.UserConverter;
 import ai.chat2db.server.domain.repository.Dbutils;
+import ai.chat2db.server.domain.repository.entity.TeamUserBindingSourceDO;
 import ai.chat2db.server.domain.repository.entity.TeamUserDO;
+import ai.chat2db.server.domain.repository.mapper.TeamUserBindingSourceMapper;
 import ai.chat2db.server.domain.repository.mapper.TeamUserCustomMapper;
 import ai.chat2db.server.domain.repository.mapper.TeamUserMapper;
 import ai.chat2db.server.tools.base.wrapper.result.ActionResult;
@@ -48,6 +50,10 @@ public class TeamUserServiceImpl implements TeamUserService {
 
     private TeamUserMapper getTeamUserMapper() {
         return Dbutils.getMapper(TeamUserMapper.class);
+    }
+
+    private TeamUserBindingSourceMapper getTeamUserBindingSourceMapper() {
+        return Dbutils.getMapper(TeamUserBindingSourceMapper.class);
     }
     @Resource
     private UserConverter userConverter;
@@ -97,6 +103,9 @@ public class TeamUserServiceImpl implements TeamUserService {
 
     @Override
     public ActionResult delete(Long id) {
+        LambdaQueryWrapper<TeamUserBindingSourceDO> deleteWrapper = new LambdaQueryWrapper<>();
+        deleteWrapper.eq(TeamUserBindingSourceDO::getTeamUserId, id);
+        getTeamUserBindingSourceMapper().delete(deleteWrapper);
         getTeamUserMapper().deleteById(id);
         return ActionResult.isSuccess();
     }

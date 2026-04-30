@@ -4,6 +4,7 @@ package ai.chat2db.server.admin.api.controller.common;
 import java.util.List;
 
 import ai.chat2db.server.admin.api.controller.common.converter.CommonAdminConverter;
+import ai.chat2db.server.admin.api.controller.project.vo.SimpleProjectVO;
 import ai.chat2db.server.admin.api.controller.common.vo.TeamUserListVO;
 import ai.chat2db.server.admin.api.controller.datasource.vo.SimpleDataSourceVO;
 import ai.chat2db.server.admin.api.controller.team.vo.SimpleTeamVO;
@@ -13,6 +14,7 @@ import ai.chat2db.server.domain.api.param.datasource.DataSourceSelector;
 import ai.chat2db.server.domain.api.param.team.TeamPageQueryParam;
 import ai.chat2db.server.domain.api.param.user.UserPageQueryParam;
 import ai.chat2db.server.domain.api.service.DataSourceService;
+import ai.chat2db.server.domain.api.service.ProjectService;
 import ai.chat2db.server.domain.api.service.TeamService;
 import ai.chat2db.server.domain.api.service.UserService;
 import ai.chat2db.server.tools.base.wrapper.result.ListResult;
@@ -40,6 +42,8 @@ public class CommonAdminController {
     private TeamService teamService;
     @Resource
     private DataSourceService dataSourceService;
+    @Resource
+    private ProjectService projectService;
     @Resource
     private CommonAdminConverter commonAdminConverter;
 
@@ -103,5 +107,23 @@ public class CommonAdminController {
         return dataSourceService.queryPageWithPermission(commonAdminConverter.request2paramDataSource(request),
                 DATA_SOURCE_SELECTOR)
             .mapToList(commonAdminConverter::dto2voDataSource);
+    }
+
+    @GetMapping("/project/list")
+    public ListResult<SimpleProjectVO> projectList(@Valid CommonQueryRequest request) {
+        String searchKey = request.getSearchKey();
+        List<SimpleProjectVO> result = projectService.queryList()
+            .getData()
+            .stream()
+            .filter(project -> searchKey == null || project.getName().toLowerCase().contains(searchKey.toLowerCase()))
+            .map(project -> {
+                SimpleProjectVO vo = new SimpleProjectVO();
+                vo.setId(project.getId());
+                vo.setName(project.getName());
+                vo.setDescription(project.getDescription());
+                return vo;
+            })
+            .toList();
+        return ListResult.of(result);
     }
 }

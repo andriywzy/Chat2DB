@@ -14,9 +14,10 @@ import ai.chat2db.server.tools.base.wrapper.result.DataResult;
 import ai.chat2db.server.tools.base.wrapper.result.PageResult;
 import ai.chat2db.server.tools.common.exception.ParamBusinessException;
 import ai.chat2db.server.web.api.aspect.ConnectionInfoAspect;
-import ai.chat2db.server.web.api.controller.ai.chat2db.client.Chat2dbAIClient;
-import ai.chat2db.server.web.api.controller.ai.fastchat.embeddings.FastChatEmbeddingResponse;
-import ai.chat2db.server.web.api.controller.ai.rest.client.RestAIClient;
+import ai.chat2db.server.web.api.controller.ai.platform.config.AiConfigResolver;
+import ai.chat2db.server.web.api.controller.ai.platform.embedding.AiEmbeddingService;
+import ai.chat2db.server.web.api.controller.ai.platform.model.AiEmbeddingResponse;
+import ai.chat2db.server.web.api.controller.ai.platform.policy.AiFeaturePolicyService;
 import ai.chat2db.server.web.api.controller.rdb.converter.RdbWebConverter;
 import ai.chat2db.server.web.api.controller.rdb.request.TableBriefQueryRequest;
 import ai.chat2db.server.web.api.controller.rdb.request.TableMilvusQueryRequest;
@@ -35,7 +36,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
@@ -60,6 +60,15 @@ public class EmbeddingController extends ChatController {
     @Autowired
     private TableService tableService;
 
+    @Autowired
+    private AiEmbeddingService aiEmbeddingService;
+
+    @Autowired
+    private AiConfigResolver aiConfigResolver;
+
+    @Autowired
+    private AiFeaturePolicyService aiFeaturePolicyService;
+
     /**
      * check if in white list
      */
@@ -69,12 +78,7 @@ public class EmbeddingController extends ChatController {
         if (StringUtils.isBlank(request.getApiKey())) {
             return DataResult.of(false);
         }
-        try {
-            DataResult<Boolean> res = gatewayClientService.checkInWhite(request);
-        } catch (Exception ex) {
-            log.error("checkInWhite error", ex);
-        }
-        return DataResult.of(false);
+        return DataResult.of(aiFeaturePolicyService.supportsSchemaVectorSearch(request.getApiKey()));
     }
 
     /**
@@ -242,7 +246,7 @@ public class EmbeddingController extends ChatController {
             return;
         }
 
-        String apiKey = getApiKey();
+        String apiKey = aiConfigResolver.getChat2dbApiKey();
         if (StringUtils.isBlank(apiKey)) {
             return;
         }
@@ -257,7 +261,7 @@ public class EmbeddingController extends ChatController {
         }
 
         // check if in white list
-        boolean res = gatewayClientService.checkInWhite(new WhiteListRequest(apiKey, WhiteListTypeEnum.VECTOR.getCode())).getData();
+        boolean res = aiFeaturePolicyService.supportsSchemaVectorSearch(apiKey);
         if (!res) {
             return;
         }
@@ -281,11 +285,11 @@ public class EmbeddingController extends ChatController {
         List<List<BigDecimal>> contentVector = new ArrayList<>();
         for(String str : schemaList){
             // request embedding
-            FastChatEmbeddingResponse response = distributeAIEmbedding(str);
-            if(response == null){
+            AiEmbeddingResponse response = aiEmbeddingService.embed(str);
+            if(response == null || CollectionUtils.isEmpty(response.getVectors())){
                 throw new ParamBusinessException();
             }
-            contentVector.add(response.getData().get(0).getEmbedding());
+            contentVector.add(response.getVectors().get(0));
         }
         if (CollectionUtils.isEmpty(contentVector)) {
             throw new ParamBusinessException();
@@ -310,7 +314,7 @@ public class EmbeddingController extends ChatController {
             return;
         }
 
-        String apiKey = getApiKey();
+        String apiKey = aiConfigResolver.getChat2dbApiKey();
         if (StringUtils.isBlank(apiKey)) {
             return;
         }

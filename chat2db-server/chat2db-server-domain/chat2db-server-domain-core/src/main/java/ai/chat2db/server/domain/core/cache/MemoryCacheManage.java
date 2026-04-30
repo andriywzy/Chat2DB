@@ -98,4 +98,11 @@ public class MemoryCacheManage {
         }
     }
 
+    public static void remove(String key) {
+        if (key == null) {
+            return;
+        }
+        CACHE.invalidate(key);
+    }
+
 }

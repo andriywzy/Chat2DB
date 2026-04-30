@@ -1,4 +1,12 @@
-import { IPageResponse, IConnectionDetails, ICreateConnectionDetails, IConnectionEnv, IPageParams, IConnectionListItem } from '@/typings';
+import {
+  IPageResponse,
+  IConnectionDetails,
+  ICreateConnectionDetails,
+  IConnectionEnv,
+  IPageParams,
+  IConnectionListItem,
+  IConnectionProjectItem,
+} from '@/typings';
 import { DatabaseTypeCode } from '@/constants';
 import createRequest from './base';
 
@@ -74,7 +82,41 @@ const downloadDriver = createRequest<{ dbType: string }, void>('/api/jdbc/driver
 
 const saveDriver = createRequest<IUploadDriver, void>('/api/jdbc/driver/save', { method: 'post' });
 
-const getEnvList = createRequest<void, IConnectionEnv[]>('/api/common/environment/list_all', { errorLevel: false });
+const getEnvList = createRequest<void, IConnectionEnv[]>('/api/environment/list', { errorLevel: false });
+
+const createEnvironment = createRequest<
+  { name: string; shortName?: string; color?: string; scopeType?: string; scopeId?: number; projectId?: number },
+  number
+>('/api/environment/create', {
+  method: 'post',
+});
+
+const updateEnvironment = createRequest<
+  { id: number; name: string; shortName?: string; color?: string; scopeType?: string; scopeId?: number; projectId?: number },
+  number
+>('/api/environment/update', {
+  method: 'post',
+});
+
+const deleteEnvironment = createRequest<{ id: number }, void>('/api/environment/:id', {
+  method: 'delete',
+});
+
+const getProjectList = createRequest<void, IConnectionProjectItem[]>('/api/project/list', {
+  method: 'get',
+});
+
+const createProject = createRequest<{ name: string }, number>('/api/project/create', {
+  method: 'post',
+});
+
+const updateProject = createRequest<{ id: number; name: string }, number>('/api/project/update', {
+  method: 'post',
+});
+
+const deleteProject = createRequest<{ id: number }, void>('/api/project/:id', {
+  method: 'delete',
+});
 
 /** 导入Navicat链接 */
 // const importNavicatConnection = createRequest<
@@ -88,6 +130,13 @@ const getEnvList = createRequest<void, IConnectionEnv[]>('/api/common/environmen
 
 export default {
   getEnvList,
+  createEnvironment,
+  updateEnvironment,
+  deleteEnvironment,
+  getProjectList,
+  createProject,
+  updateProject,
+  deleteProject,
   getList,
   getDetails,
   save,

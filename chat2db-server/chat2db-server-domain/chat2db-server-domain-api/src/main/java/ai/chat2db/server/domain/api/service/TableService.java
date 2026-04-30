@@ -137,4 +137,14 @@ public interface TableService {
      * @return sql
      */
     DataResult<String> copyDmlSql(DmlSqlCopyParam param);
+
+    /**
+     * Invalidate table cache for target datasource/database/schema.
+     * Next table query will rebuild cache from metadata.
+     *
+     * @param dataSourceId datasource id
+     * @param databaseName database name
+     * @param schemaName schema name
+     */
+    void invalidateTableCache(Long dataSourceId, String databaseName, String schemaName);
 }

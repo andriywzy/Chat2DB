@@ -42,8 +42,6 @@ public class DataSourceServiceTest extends TestApplication {
         userLoginIdentity(false, 2L);
 
         DataSourceCreateParam createParam = new DataSourceCreateParam();
-        createParam.setKind("PRIVATE");
-//        createParam.setKind("SHARED");
         createParam.setDriverConfig(new DriverConfig());
 
         DataResult<Long> withPermission = dataSourceService.createWithPermission(createParam);
@@ -127,8 +125,6 @@ public class DataSourceServiceTest extends TestApplication {
 
         DataSourcePageQueryParam queryParam = new DataSourcePageQueryParam();
         queryParam.setSearchKey("test");
-        queryParam.setKind("PRIVATE");
-//        queryParam.setKind("SHARED");
         queryParam.setPageNo(1);
         queryParam.setPageSize(10);
         queryParam.setOrderByList(new ArrayList<OrderBy>());

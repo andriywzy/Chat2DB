@@ -1,5 +1,12 @@
 package ai.chat2db.server.domain.repository;
 
+import ai.chat2db.server.domain.repository.mapper.KnowledgeDocumentMapper;
+import ai.chat2db.server.domain.repository.mapper.ProjectAccessMapper;
+import ai.chat2db.server.domain.repository.mapper.ProjectAccessEnvironmentMapper;
+import ai.chat2db.server.domain.repository.mapper.ProjectMapper;
+import ai.chat2db.server.domain.repository.mapper.SsoGroupTeamMappingMapper;
+import ai.chat2db.server.domain.repository.mapper.TeamUserBindingSourceMapper;
+import ai.chat2db.server.domain.repository.mapper.UserIdentityBindingMapper;
 import ai.chat2db.server.tools.common.model.ConfigJson;
 import ai.chat2db.server.tools.common.util.ConfigUtils;
 import com.baomidou.mybatisplus.annotation.DbType;
@@ -56,6 +63,10 @@ public class Dbutils {
         SQL_SESSION_THREAD_LOCAL.remove();
     }
 
+    public static boolean hasSession() {
+        return SQL_SESSION_THREAD_LOCAL.get() != null;
+    }
+
     private static SqlSessionFactory sqlSessionFactory;
 
     static {
@@ -79,6 +90,14 @@ public class Dbutils {
         configuration.setLogImpl(Slf4jImpl.class);
         //Scan the package where the mapper interface is located
         configuration.addMappers("ai.chat2db.server.domain.repository.mapper");
+        // Some mappers rely only on BaseMapper methods and have no XML namespace to trigger registration.
+        configuration.addMapper(KnowledgeDocumentMapper.class);
+        configuration.addMapper(ProjectMapper.class);
+        configuration.addMapper(ProjectAccessMapper.class);
+        configuration.addMapper(ProjectAccessEnvironmentMapper.class);
+        configuration.addMapper(UserIdentityBindingMapper.class);
+        configuration.addMapper(SsoGroupTeamMappingMapper.class);
+        configuration.addMapper(TeamUserBindingSourceMapper.class);
         //Globalconfig required to build mybatis-plus
         GlobalConfig globalConfig = GlobalConfigUtils.getGlobalConfig(configuration);
         //This parameter will automatically generate the basic method mapping that implements baseMapper.

@@ -44,7 +44,7 @@ public class DatabaseServiceImpl implements DatabaseService {
     @Override
     public ListResult<Database> queryAll(DatabaseQueryAllParam param) {
         List<Database> databases = CacheManage.getList(getDataBasesKey(param.getDataSourceId()), Database.class,
-                (key) -> param.isRefresh(),
+                (key) -> param.isRefresh() || isRedis(param.getDbType()),
                 (key) -> getDatabases(param.getDbType(), param.getConnection() == null ? Chat2DBContext.getConnection()
                         : param.getConnection())
         );
@@ -53,6 +53,10 @@ public class DatabaseServiceImpl implements DatabaseService {
 
     private List<Database> getDatabases(String dbType, Connection connection) {
         return Chat2DBContext.getMetaData(dbType).databases(connection);
+    }
+
+    private boolean isRedis(String dbType) {
+        return "REDIS".equalsIgnoreCase(dbType);
     }
 
     @Override

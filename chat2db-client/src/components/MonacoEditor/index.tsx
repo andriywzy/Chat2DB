@@ -33,14 +33,25 @@ interface IProps {
   defaultValue?: string;
   appendValue?: IAppendValue;
   didMount?: (editor: IEditorIns) => any;
+  onChange?: (value: string) => void;
   shortcutKey?: (editor, monaco, isActive: boolean) => void;
   focusChange?: (isActive: boolean) => void;
+}
+
+export interface IEditorValidationRange {
+  startLineNumber: number;
+  startColumn: number;
+  endLineNumber: number;
+  endColumn: number;
+  message?: string;
 }
 
 export interface IExportRefFunction {
   getCurrentSelectContent: () => string;
   getAllContent: () => string;
   setValue: (text: any, range?: IRangeType) => void;
+  setValidationDecorations: (ranges: IEditorValidationRange[]) => void;
+  clearValidationDecorations: () => void;
   // toFocus: () => void;
 }
 
@@ -57,8 +68,14 @@ function MonacoEditor(props: IProps, ref: ForwardedRef<IExportRefFunction>) {
   } = props;
   const editorRef = useRef<IEditorIns>();
   const quickInputCommand = useRef<any>();
+  const onChangeRef = useRef(props.onChange);
+  const validationDecorationsRef = useRef<string[]>([]);
   const [appTheme] = useTheme();
   const [isActive, setIsActive] = React.useState(false);
+
+  useEffect(() => {
+    onChangeRef.current = props.onChange;
+  }, [props.onChange]);
 
   // init
   useEffect(() => {
@@ -71,6 +88,9 @@ function MonacoEditor(props: IProps, ref: ForwardedRef<IExportRefFunction>) {
     });
     editorRef.current = editorIns;
     didMount && didMount(editorIns);
+    const changeDisposable = editorIns.onDidChangeModelContent(() => {
+      onChangeRef.current?.(editorIns.getValue());
+    });
 
     // Add a new command, for getting an accessor.
     quickInputCommand.current = editorIns.addCommand(0, (accessor, func) => {
@@ -102,6 +122,7 @@ function MonacoEditor(props: IProps, ref: ForwardedRef<IExportRefFunction>) {
     createAction(editorIns);
 
     return () => {
+      changeDisposable.dispose();
       if (props.needDestroy) {
         editorRef.current && editorRef.current.dispose();
       }
@@ -159,6 +180,8 @@ function MonacoEditor(props: IProps, ref: ForwardedRef<IExportRefFunction>) {
     getCurrentSelectContent,
     getAllContent,
     setValue,
+    setValidationDecorations,
+    clearValidationDecorations,
     // toFocus,
   }));
 
@@ -170,6 +193,48 @@ function MonacoEditor(props: IProps, ref: ForwardedRef<IExportRefFunction>) {
 
   const setValue = (text: any, range?: IRangeType) => {
     appendMonacoValue(editorRef.current, text, range);
+  };
+
+  const setValidationDecorations = (ranges: IEditorValidationRange[]) => {
+    const editor = editorRef.current;
+    const model = editor?.getModel();
+    if (!editor || !model) {
+      return;
+    }
+
+    validationDecorationsRef.current = editor.deltaDecorations(
+      validationDecorationsRef.current,
+      ranges.map((range) => ({
+        range: new monaco.Range(range.startLineNumber, range.startColumn, range.endLineNumber, range.endColumn),
+        options: {
+          inlineClassName: 'sqlScriptInvalidStatement',
+          hoverMessage: range.message ? { value: range.message } : undefined,
+        },
+      })),
+    );
+
+    monaco.editor.setModelMarkers(
+      model,
+      'chat2db-sql-script-validation',
+      ranges.map((range) => ({
+        startLineNumber: range.startLineNumber,
+        startColumn: range.startColumn,
+        endLineNumber: range.endLineNumber,
+        endColumn: range.endColumn,
+        message: range.message || 'SQL statement appears invalid.',
+        severity: monaco.MarkerSeverity.Error,
+      })),
+    );
+  };
+
+  const clearValidationDecorations = () => {
+    const editor = editorRef.current;
+    const model = editor?.getModel();
+    if (!editor || !model) {
+      return;
+    }
+    validationDecorationsRef.current = editor.deltaDecorations(validationDecorationsRef.current, []);
+    monaco.editor.setModelMarkers(model, 'chat2db-sql-script-validation', []);
   };
 
   // const toFocus = () => {

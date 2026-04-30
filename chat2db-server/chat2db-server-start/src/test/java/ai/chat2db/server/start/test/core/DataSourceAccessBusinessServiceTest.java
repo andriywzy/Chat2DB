@@ -19,17 +19,9 @@ public class DataSourceAccessBusinessServiceTest extends TestApplication {
     private DataSourceAccessBusinessService dataSourceAccessBusinessService;
 
     /**
-     * 1. First, determine whether it is a private data source (PRIVATE) based on the type of the data source.
-     * If it is a private data source, determine whether the currently logged-in user is the owner of the data source.
-     * If so, allow the operation, otherwise throw a permission exception.
-     * <p>
-     * 2. If the currently logged-in user is an administrator userLoginIdentity(true, **), the operation is allowed.
-     * If the currently logged-in user is a common user, determine whether the user has permission to access the data source.
-     * If so, the operation is allowed.
-     * <p>
-     * 3. If the team to which the currently logged-in user belongs has permission to access the data source, the operation is allowed.
-     * <p>
-     * 4.  If none of the above conditions are met, a permission exception is thrown.
+     * Project permission is now the primary access model.
+     * Admin users are still allowed, and non-admin users are checked against
+     * project/team access before falling back to any legacy compatibility rules.
      */
     @Test
     public void testCheckPermission() {
@@ -37,8 +29,6 @@ public class DataSourceAccessBusinessServiceTest extends TestApplication {
         userLoginIdentity(true, 2L);
 
         DataSource source = new DataSource();
-//        source.setKind("PRIVATE");
-        source.setKind("SHARED");
         source.setUserId(5L);
         source.setId(3L);
 

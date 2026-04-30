@@ -15,11 +15,18 @@ import ai.chat2db.server.domain.core.converter.UserConverter;
 import ai.chat2db.server.domain.repository.Dbutils;
 import ai.chat2db.server.domain.repository.entity.DataSourceAccessDO;
 import ai.chat2db.server.domain.repository.entity.DbhubUserDO;
+import ai.chat2db.server.domain.repository.entity.ProjectAccessDO;
+import ai.chat2db.server.domain.repository.entity.ProjectAccessEnvironmentDO;
+import ai.chat2db.server.domain.repository.entity.TeamUserBindingSourceDO;
 import ai.chat2db.server.domain.repository.entity.TeamUserDO;
+import ai.chat2db.server.domain.repository.entity.UserIdentityBindingDO;
 import ai.chat2db.server.domain.repository.mapper.DataSourceAccessMapper;
 import ai.chat2db.server.domain.repository.mapper.DbhubUserMapper;
-import ai.chat2db.server.domain.repository.mapper.TeamUserCustomMapper;
+import ai.chat2db.server.domain.repository.mapper.ProjectAccessEnvironmentMapper;
+import ai.chat2db.server.domain.repository.mapper.ProjectAccessMapper;
+import ai.chat2db.server.domain.repository.mapper.TeamUserBindingSourceMapper;
 import ai.chat2db.server.domain.repository.mapper.TeamUserMapper;
+import ai.chat2db.server.domain.repository.mapper.UserIdentityBindingMapper;
 import ai.chat2db.server.tools.base.excption.BusinessException;
 import ai.chat2db.server.tools.base.wrapper.result.ActionResult;
 import ai.chat2db.server.tools.base.wrapper.result.DataResult;
@@ -30,6 +37,8 @@ import ai.chat2db.server.tools.common.exception.ParamBusinessException;
 import ai.chat2db.server.tools.common.model.EasyLambdaQueryWrapper;
 import ai.chat2db.server.tools.common.util.ContextUtils;
 import ai.chat2db.server.tools.common.util.EasyCollectionUtils;
+import ai.chat2db.server.domain.core.cache.CacheKey;
+import ai.chat2db.server.domain.core.cache.MemoryCacheManage;
 import cn.hutool.crypto.digest.DigestUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
@@ -58,8 +67,24 @@ public class UserServiceImpl implements UserService {
     private TeamUserMapper getTeamUserMapper() {
         return Dbutils.getMapper(TeamUserMapper.class);
     }
+
+    private TeamUserBindingSourceMapper getTeamUserBindingSourceMapper() {
+        return Dbutils.getMapper(TeamUserBindingSourceMapper.class);
+    }
     private DataSourceAccessMapper getDataSourceAccessMapper() {
         return Dbutils.getMapper(DataSourceAccessMapper.class);
+    }
+
+    private ProjectAccessMapper getProjectAccessMapper() {
+        return Dbutils.getMapper(ProjectAccessMapper.class);
+    }
+
+    private ProjectAccessEnvironmentMapper getProjectAccessEnvironmentMapper() {
+        return Dbutils.getMapper(ProjectAccessEnvironmentMapper.class);
+    }
+
+    private UserIdentityBindingMapper getUserIdentityBindingMapper() {
+        return Dbutils.getMapper(UserIdentityBindingMapper.class);
     }
 
     @Override
@@ -133,6 +158,7 @@ public class UserServiceImpl implements UserService {
             data.setRoleCode(null);
         }
         getDbhubUserMapper().updateById(data);
+        MemoryCacheManage.remove(CacheKey.getLoginUserKey(data.getId()));
         return DataResult.of(data.getId());
     }
 
@@ -145,13 +171,37 @@ public class UserServiceImpl implements UserService {
 
         LambdaQueryWrapper<TeamUserDO> teamUserQueryWrapper = new LambdaQueryWrapper<>();
         teamUserQueryWrapper.eq(TeamUserDO::getUserId, id);
+        List<TeamUserDO> teamUserList = getTeamUserMapper().selectList(teamUserQueryWrapper);
+        if (CollectionUtils.isNotEmpty(teamUserList)) {
+            List<Long> teamUserIds = EasyCollectionUtils.toList(teamUserList, TeamUserDO::getId);
+            LambdaQueryWrapper<TeamUserBindingSourceDO> teamUserBindingSourceQueryWrapper = new LambdaQueryWrapper<>();
+            teamUserBindingSourceQueryWrapper.in(TeamUserBindingSourceDO::getTeamUserId, teamUserIds);
+            getTeamUserBindingSourceMapper().delete(teamUserBindingSourceQueryWrapper);
+        }
         getTeamUserMapper().delete(teamUserQueryWrapper);
+
+        LambdaQueryWrapper<UserIdentityBindingDO> userIdentityBindingQueryWrapper = new LambdaQueryWrapper<>();
+        userIdentityBindingQueryWrapper.eq(UserIdentityBindingDO::getUserId, id);
+        getUserIdentityBindingMapper().delete(userIdentityBindingQueryWrapper);
 
         LambdaQueryWrapper<DataSourceAccessDO>  dataSourceAccessQueryWrapper = new LambdaQueryWrapper<>();
         dataSourceAccessQueryWrapper.eq(DataSourceAccessDO::getAccessObjectId, id)
             .eq(DataSourceAccessDO::getAccessObjectType, AccessObjectTypeEnum.USER.getCode())
         ;
         getDataSourceAccessMapper().delete(dataSourceAccessQueryWrapper);
+
+        LambdaQueryWrapper<ProjectAccessDO> projectAccessQueryWrapper = new LambdaQueryWrapper<>();
+        projectAccessQueryWrapper.eq(ProjectAccessDO::getAccessObjectId, id)
+            .eq(ProjectAccessDO::getAccessObjectType, AccessObjectTypeEnum.USER.getCode());
+        List<ProjectAccessDO> projectAccessList = getProjectAccessMapper().selectList(projectAccessQueryWrapper);
+        if (CollectionUtils.isNotEmpty(projectAccessList)) {
+            List<Long> projectAccessIds = EasyCollectionUtils.toList(projectAccessList, ProjectAccessDO::getId);
+            LambdaQueryWrapper<ProjectAccessEnvironmentDO> projectAccessEnvironmentQueryWrapper = new LambdaQueryWrapper<>();
+            projectAccessEnvironmentQueryWrapper.in(ProjectAccessEnvironmentDO::getProjectAccessId, projectAccessIds);
+            getProjectAccessEnvironmentMapper().delete(projectAccessEnvironmentQueryWrapper);
+            getProjectAccessMapper().delete(projectAccessQueryWrapper);
+        }
+        MemoryCacheManage.remove(CacheKey.getLoginUserKey(id));
         return ActionResult.isSuccess();
     }
 

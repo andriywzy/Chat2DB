@@ -2,7 +2,6 @@ package ai.chat2db.server.web.api.controller.data.source.converter;
 
 import java.util.List;
 
-import ai.chat2db.server.domain.api.enums.DataSourceKindEnum;
 import ai.chat2db.server.domain.api.model.DataSource;
 import ai.chat2db.server.domain.api.param.ConsoleCloseParam;
 import ai.chat2db.server.domain.api.param.ConsoleConnectParam;
@@ -28,7 +27,7 @@ import org.mapstruct.Mappings;
  * @version DataSourceWebConverter.java, v 0.1 September 23, 2022 16:45 moji Exp $
  * @date 2022/09/23
  */
-@Mapper(componentModel = "spring", imports = {DataSourceKindEnum.class})
+@Mapper(componentModel = "spring")
 public abstract class DataSourceWebConverter {
 
     /**
@@ -38,8 +37,7 @@ public abstract class DataSourceWebConverter {
      * @return
      */
     @Mappings({
-        @Mapping(source = "user", target = "userName"),
-        @Mapping(target = "kind", expression = "java(DataSourceKindEnum.PRIVATE.getCode())")
+        @Mapping(source = "user", target = "userName")
     })
     public abstract DataSourceCreateParam createReq2param(DataSourceCreateRequest request);
 

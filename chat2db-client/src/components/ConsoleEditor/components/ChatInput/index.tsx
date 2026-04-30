@@ -15,6 +15,7 @@ interface IProps {
   value?: string;
   result?: string;
   tables?: string[];
+  scopeHint?: string;
   syncTableModel: number;
   selectedTables?: string[];
   aiType: AIType;
@@ -42,26 +43,24 @@ const ChatInput = (props: IProps) => {
   };
 
   const renderSelectTable = () => {
-    const { tables, onSelectTableSyncModel, selectedTables, onSelectTables } = props;
+    const { tables, onSelectTableSyncModel, selectedTables, onSelectTables, syncTableModel } = props;
     const options = (tables || []).map((t) => ({ value: t, label: t }));
     return (
       <div className={styles.aiSelectedTable}>
         <Radio.Group
           onChange={(v) => onSelectTableSyncModel(v.target.value)}
-          // value={syncTableModel}
-          value={SyncModelType.MANUAL}
+          value={syncTableModel}
           style={{ marginBottom: '8px' }}
         >
           <Space direction="horizontal">
-            {/* <Radio value={SyncModelType.AUTO}>自动</Radio> */}
+            <Radio value={SyncModelType.AUTO}>自动</Radio>
             <Radio value={SyncModelType.MANUAL}>手动</Radio>
           </Space>
         </Radio.Group>
-        {/* {syncTableModel === 0 ? (
-          i18n('chat.input.syncTable.tips')
+        {syncTableModel === SyncModelType.AUTO ? (
+          <span className={styles.aiSelectedTableTips}>{i18n('chat.input.syncTable.tips')}</span>
         ) : (
-        )} */}
-        <>
+          <>
           <span className={styles.aiSelectedTableTips}>{i18n('chat.input.remain.tooltip')}</span>
           <Select
             showSearch
@@ -74,7 +73,8 @@ const ChatInput = (props: IProps) => {
               onSelectTables && onSelectTables(v);
             }}
           />
-        </>
+          </>
+        )}
       </div>
     );
   };
@@ -123,17 +123,20 @@ const ChatInput = (props: IProps) => {
   };
 
   return (
-    <div className={styles.chatWrapper}>
-      <img className={styles.chatAi} src={AIImg} />
-      <Input
-        disabled={props.disabled}
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        bordered={false}
-        placeholder={i18n('workspace.ai.input.placeholder')}
-        onPressEnter={onPressEnter}
-        suffix={renderSuffix()}
-      />
+    <div className={styles.chatContainer}>
+      <div className={styles.chatWrapper}>
+        <img className={styles.chatAi} src={AIImg} />
+        <Input
+          disabled={props.disabled}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          bordered={false}
+          placeholder={i18n('workspace.ai.input.placeholder')}
+          onPressEnter={onPressEnter}
+          suffix={renderSuffix()}
+        />
+      </div>
+      {props.scopeHint && <div className={styles.scopeHint}>{props.scopeHint}</div>}
     </div>
   );
 };

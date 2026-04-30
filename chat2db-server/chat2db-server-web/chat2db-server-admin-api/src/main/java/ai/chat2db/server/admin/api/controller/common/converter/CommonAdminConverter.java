@@ -6,7 +6,6 @@ import ai.chat2db.server.admin.api.controller.team.vo.SimpleTeamVO;
 import ai.chat2db.server.admin.api.controller.user.vo.SimpleUserVO;
 import ai.chat2db.server.common.api.controller.request.CommonQueryRequest;
 import ai.chat2db.server.domain.api.enums.AccessObjectTypeEnum;
-import ai.chat2db.server.domain.api.enums.DataSourceKindEnum;
 import ai.chat2db.server.domain.api.model.DataSource;
 import ai.chat2db.server.domain.api.model.Team;
 import ai.chat2db.server.domain.api.model.User;
@@ -22,7 +21,7 @@ import org.mapstruct.Mappings;
  *
  * @author Jiaju Zhuang
  */
-@Mapper(componentModel = "spring", imports = {AccessObjectTypeEnum.class, DataSourceKindEnum.class})
+@Mapper(componentModel = "spring", imports = {AccessObjectTypeEnum.class})
 public abstract class CommonAdminConverter {
 
     /**
@@ -55,7 +54,6 @@ public abstract class CommonAdminConverter {
      */
     @Mappings({
         @Mapping(target = "pageSize", expression = "java(10)"),
-        @Mapping(target = "kind", expression = "java(DataSourceKindEnum.SHARED.getCode())"),
     })
     public abstract DataSourcePageQueryParam request2paramDataSource(CommonQueryRequest request);
 

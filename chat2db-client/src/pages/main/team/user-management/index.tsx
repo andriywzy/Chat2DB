@@ -6,6 +6,7 @@ import styles from './index.less';
 import { AffiliationType, IUserVO, RoleType, StatusType } from '@/typings/team';
 import i18n from '@/i18n';
 import UniversalDrawer from '../universal-drawer';
+import { formatDate } from '@/utils/date';
 
 const formItemLayout = {
   labelCol: { span: 6 },
@@ -17,7 +18,7 @@ const requireRule = { required: true, message: i18n('common.form.error.required'
 
 function UserManagement() {
   const [form] = Form.useForm();
-  const [dataSource, setDataSource] = useState<IUserVO[]>([]);
+  const [users, setUsers] = useState<IUserVO[]>([]);
   const [pagination, setPagination] = useState({
     searchKey: '',
     current: 1,
@@ -51,9 +52,30 @@ function UserManagement() {
         render: (status: StatusType) => <Tag color={status === StatusType.VALID ? 'green' : 'red'}>{status}</Tag>,
       },
       {
+        title: i18n('team.user.authSource'),
+        dataIndex: 'authSource',
+        key: 'authSource',
+        render: (authSource?: string, record?: IUserVO) => (
+          <Tag color={record?.oidcBound ? 'blue' : 'default'}>{authSource || 'LOCAL'}</Tag>
+        ),
+      },
+      {
+        title: i18n('team.user.oidcIssuer'),
+        dataIndex: 'oidcIssuer',
+        key: 'oidcIssuer',
+        ellipsis: true,
+        render: (value?: string) => value || '-',
+      },
+      {
+        title: i18n('team.user.lastSsoLoginAt'),
+        dataIndex: 'lastSsoLoginAt',
+        key: 'lastSsoLoginAt',
+        render: (value?: string) => formatDate(value, 'yyyy-MM-dd hh:mm:ss') || '-',
+      },
+      {
         title: i18n('common.text.action'),
         key: 'action',
-        width: 260,
+        width: 180,
         render: (_: any, record: IUserVO) => (
           <>
             <Button
@@ -76,19 +98,6 @@ function UserManagement() {
               }}
             >
               {i18n('team.action.affiliation.team')}
-            </Button>
-            <Button
-              type="link"
-              onClick={() => {
-                setDrawerInfo({
-                  ...drawerInfo,
-                  open: true,
-                  type: AffiliationType.USER_DATASOURCE,
-                  id: record.id,
-                });
-              }}
-            >
-              {i18n('team.action.affiliation.datasource')}
             </Button>
             <Popconfirm
               title={i18n('common.tips.delete.confirm')}
@@ -113,9 +122,9 @@ function UserManagement() {
 
   const queryUserList = async () => {
     const { searchKey, current: pageNo, pageSize } = pagination;
-    let res = await getUserManagementList({ searchKey, pageNo, pageSize });
+    const res = await getUserManagementList({ searchKey, pageNo, pageSize });
     if (res) {
-      setDataSource(res?.data ?? []);
+      setUsers(res?.data ?? []);
       setPagination({
         ...pagination,
         total: res?.total ?? 0,
@@ -139,7 +148,7 @@ function UserManagement() {
 
   const handleCreateOrUpdateUser = async (userInfo: IUserVO) => {
     const requestApi = userInfo?.id ? updateUser : createUser;
-    let res = await requestApi(userInfo);
+    const res = await requestApi(userInfo);
     if (res) {
       queryUserList();
     }
@@ -188,7 +197,7 @@ function UserManagement() {
         }}
         sticky
         rowKey={'id'}
-        dataSource={dataSource}
+        dataSource={users}
         columns={columns}
         pagination={pagination}
         onChange={handleTableChange}
@@ -200,7 +209,7 @@ function UserManagement() {
         onOk={() => {
           form
             .validateFields()
-            .then((values) => {
+            .then(() => {
               const formValues = form.getFieldsValue(true);
               handleCreateOrUpdateUser(formValues);
               setIsModalVisible(false);

@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { ApiOutlined, UserOutlined, TeamOutlined } from '@ant-design/icons';
+import { UserOutlined, TeamOutlined } from '@ant-design/icons';
 import { Tabs } from 'antd';
-import DataSourceManagement from './datasource-management';
 import UserManagement from './user-management';
 import TeamManagement from './team-management';
 import i18n from '@/i18n';
@@ -11,11 +10,6 @@ const Team = () => {
   const [activeKey, setActiveKey] = useState<string>('0');
   const tabList = useMemo(
     () => [
-      {
-        label: i18n('team.tab.datasource'),
-        icon: <ApiOutlined />,
-        children: <DataSourceManagement />,
-      },
       {
         label: i18n('team.tab.user'),
         icon: <UserOutlined />,

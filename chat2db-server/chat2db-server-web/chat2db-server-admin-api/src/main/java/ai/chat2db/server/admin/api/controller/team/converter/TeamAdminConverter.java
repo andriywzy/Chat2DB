@@ -4,7 +4,6 @@ import ai.chat2db.server.admin.api.controller.team.request.TeamCreateRequest;
 import ai.chat2db.server.admin.api.controller.team.request.TeamUpdateRequest;
 import ai.chat2db.server.admin.api.controller.team.vo.TeamPageQueryVO;
 import ai.chat2db.server.common.api.controller.request.CommonPageQueryRequest;
-import ai.chat2db.server.domain.api.enums.DataSourceKindEnum;
 import ai.chat2db.server.domain.api.model.Team;
 import ai.chat2db.server.domain.api.param.team.TeamCreateParam;
 import ai.chat2db.server.domain.api.param.team.TeamPageQueryParam;
@@ -18,7 +17,7 @@ import org.mapstruct.Mappings;
  *
  * @author Jiaju Zhuang
  */
-@Mapper(componentModel = "spring",imports = {DataSourceKindEnum.class})
+@Mapper(componentModel = "spring")
 public abstract class TeamAdminConverter {
 
 

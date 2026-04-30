@@ -31,17 +31,17 @@ https://github.com/user-attachments/assets/bd5d5f64-540f-4793-a801-17fa96c4766e
 
 Chat2DBはAI機能を統合したインテリジェントで汎用的なSQLクライアントおよびデータ報告ツールです。Chat2DBは、SQLクエリの作成を迅速化し、データベースの管理、レポートの生成、データの探索、および複数のデータベースとのインタラクションをサポートします。Chat2DBはオープンソースプロジェクトであり、皆様の貢献を歓迎します。
 
-**1. インテリジェントSQL生成**:  
-Chat2DB Proは、AI駆動によるインテリジェントなSQL開発をサポートし、SQLクエリをより速く作成する手助けをします。
+**1. マルチデータベースワークスペース**  
+オープンソース版は MySQL、PostgreSQL、H2、Oracle、SQLServer、SQLite、MariaDB、ClickHouse、DM、Presto、DB2、OceanBase、Hive、KingBase、MongoDB、Redis、Snowflake などをサポートし、スキーマブラウズ、SQL コンソール、フォーマット、実行履歴を利用できます。
 
-**2. データベース管理**:  
-MySQL、PostgreSQL、H2、Oracle、SQLServer、SQLite、MariaDB、ClickHouse、DM、Presto、DB2、OceanBase、Hive、KingBase、MongoDB、Redis、Snowflakeなど、10種類以上のデータベースをサポートしています。
+**2. Redis 専用ブラウザとエディタ**  
+Redis 接続では専用データビューを開き、ページングされた key 一覧、下部エディタ、key 名変更、追加・削除、全タイプの value 編集を行えます。
 
-**3. インテリジェントレポート生成**:  
-Chat2DB Proは、AI駆動によるインテリジェントなデータ報告をサポートし、ダッシュボードの作成を迅速に行う手助けをします。
+**3. グローバルな接続グループと権限制御**  
+接続グループはユーザー間で一貫したグローバルモデルになっています。グループの作成・改名・削除、接続のドラッグ&ドロップ移動、所属変更に加え、バックエンドには管理者/ユーザー/チーム管理とデータソース権限管理があります。
 
-**4. データ構造の同期**:  
-Chat2DB Proは、データベーステーブル構造の同期をサポートし、データベーステーブルの構造を迅速に同期する手助けをします。
+**4. 柔軟なデプロイ方法**  
+ソース実行、Spring Boot fat jar 実行、`docker/` 配下のマルチステージ Docker / Docker Compose フローをサポートします。
 
 ## 機能比較
 
@@ -108,7 +108,25 @@ Chat2DB Proは、データベーステーブル構造の同期をサポートし
   </tr>
   <tr>
     <td align="center">データベースのグループ化</td>
-    <td align="center">❌</td>
+    <td align="center">✅</td>
+    <td align="center">✅</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td align="center">Redis ブラウザ & Key エディタ</td>
+    <td align="center">✅</td>
+    <td align="center">✅</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td align="center">ユーザー / チーム管理</td>
+    <td align="center">✅ (Admin)</td>
+    <td align="center">✅</td>
+    <td align="center">✅</td>
+  </tr>
+  <tr>
+    <td align="center">データソース権限制御</td>
+    <td align="center">✅</td>
     <td align="center">✅</td>
     <td align="center">✅</td>
   </tr>
@@ -221,7 +239,7 @@ Chat2DB Proは、データベーステーブル構造の同期をサポートし
 Chat2DBは、Windows、MacOS、Linuxをサポートするクロスプラットフォームアプリケーションです。以下のリンクからChat2DBをダウンロードできます：
 - [Proバージョンのダウンロード](https://chat2db.ai/download)
 - [ローカルバージョンのダウンロード](https://chat2db.ai/download)
-- [オープンソースバージョンのダウンロード](https://github.com/CodePhiliaX/Chat2DB/releases/tag/v0.3.6)
+- [オープンソースバージョンのダウンロード](https://github.com/chat2db/Chat2DB/releases)
 
 ## コミュニティエディションのDockerインストール
 
@@ -234,11 +252,31 @@ Chat2DBをインストールする前に、システムが以下の要件を満�
 - RAM >= 4 GiB
 
 ```bash
-  docker rm chat2db
-  
-  docker run --name=chat2db -ti -p 10824:10824 -v ~/.chat2db-docker:/root/.chat2db  chat2db/chat2db:latest
+cp docker/.env.example docker/.env
+docker compose -f docker/compose.yml up -d --build
+curl -I http://127.0.0.1:10824/login
+```
 
-  docker start chat2db
+アプリケーションデータはコンテナ内では `/root/.chat2db` に保存され、`docker/compose.yml` はデフォルトでホストの `${HOME}/.chat2db-docker` にマウントします。
+
+### ローカル開発用依存サービス
+
+MySQL、PostgreSQL、Redis だけをローカルで立ち上げたい場合:
+
+```bash
+docker compose -f docker/compose.dev-services.yml up -d
+```
+
+### ソースからビルドして実行
+
+```bash
+cd chat2db-client
+yarn
+yarn run build:web:prod --app_version=local --app_port=10824
+
+cd ..
+mvn -pl chat2db-server-web-start -am -DskipTests package -f chat2db-server/pom.xml
+java -Dspring.profiles.active=release -jar chat2db-server/chat2db-server-web-start/target/chat2db-server-web-start.jar
 ```
 ## コードデバッグ
 
@@ -270,15 +308,17 @@ $ yarn run start:web
 ```bash
 $ cd ../chat2db-server
 $ mvn clean install # Maven version 3.8 or higher is required
-$ cd chat2db-server/chat2db-server-start/target/
-$ java -jar -Dloader.path=./lib -Dchatgpt.apiKey=xxxxx chat2db-server-start.jar  # 需要安装java 17以上版本，启动应用 chatgpt.apiKey 需要输入ChatGPT的key,如果不输入无法使用AIGC功能
+$ java -Dchatgpt.apiKey=xxxxx -jar chat2db-server-web-start/target/chat2db-server-web-start.jar
 ```
 **スタンドアロンデプロイ**
 ```bash
-# chat2db-client
-$ npm run build:web:prod 
-$ cp -r dist ../chat2db-server/chat2db-server-start/src/main/resources/static/front 
-$ cp -r dist/index.html ../chat2db-server/chat2db-server-start/src/main/resources/thymeleaf
+$ mvn -pl chat2db-server-web-start -am -DskipTests package -f chat2db-server/pom.xml
+$ java -Dspring.profiles.active=release -jar chat2db-server/chat2db-server-web-start/target/chat2db-server-web-start.jar
+```
+**Docker デプロイ**
+```bash
+$ docker compose -f docker/compose.yml build
+$ docker compose -f docker/compose.yml up -d
 ```
 
 ## お問い合わせ
@@ -311,5 +351,3 @@ Chat2DBに貢献してくださったすべての方々に感謝します~~
 
 ## License
 このソフトウェアで使用されている主なライセンスは[Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0)であり、[Chat2DB License](./Chat2DB_LICENSE)が補完されています。
-
-

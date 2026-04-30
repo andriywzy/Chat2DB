@@ -56,7 +56,18 @@ public class Chat2dbWebMvcConfigurer implements WebMvcConfigurer {
      * Globally released url
      */
     private static final String[] FRONT_PERMIT_ALL = new String[] {"/favicon.ico", "/error", "/static/**",
-        "/api/system", "/login", "/api/system/get_latest_version"};
+        "/api/system", "/login", "/api/system/get_latest_version", "/api/oauth/oidc/**"};
+
+    /**
+     * Paths that do not need a Dbutils session in the request thread.
+     */
+    private static final String[] DB_SESSION_EXCLUDE = new String[] {
+        "/favicon.ico",
+        "/error",
+        "/static/**",
+        "/login",
+        "/api/system/get_latest_version"
+    };
 
     @Resource
     private UserService userService;
@@ -128,7 +139,7 @@ public class Chat2dbWebMvcConfigurer implements WebMvcConfigurer {
             })
             .order(1)
             .addPathPatterns("/**")
-            .excludePathPatterns(FRONT_PERMIT_ALL);
+            .excludePathPatterns(DB_SESSION_EXCLUDE);
 
         // Verify login information
         registry.addInterceptor(new AsyncHandlerInterceptor() {

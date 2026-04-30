@@ -68,4 +68,29 @@ public class UserPageQueryVO {
      */
     private SimpleUserVO modifiedUser;
 
+    /**
+     * Whether the user is bound to OIDC
+     */
+    private Boolean oidcBound;
+
+    /**
+     * Account source
+     */
+    private String authSource;
+
+    /**
+     * OIDC issuer
+     */
+    private String oidcIssuer;
+
+    /**
+     * SSO binding status
+     */
+    private String ssoStatus;
+
+    /**
+     * Last SSO login time
+     */
+    private Date lastSsoLoginAt;
+
 }

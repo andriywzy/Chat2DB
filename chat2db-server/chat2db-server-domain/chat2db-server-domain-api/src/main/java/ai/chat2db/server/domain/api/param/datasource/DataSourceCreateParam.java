@@ -97,13 +97,6 @@ public class DataSourceCreateParam {
     private DriverConfig driverConfig;
 
     /**
-     * Connection Type
-     *
-     * @see ai.chat2db.server.domain.api.enums.DataSourceKindEnum
-     */
-    private String kind;
-
-    /**
      * environment id
      */
     @NotNull
@@ -118,4 +111,9 @@ public class DataSourceCreateParam {
      * Service type
      */
     private String serviceType;
+
+    /**
+     * project id
+     */
+    private Long projectId;
 }

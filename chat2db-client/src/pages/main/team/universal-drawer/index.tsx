@@ -3,32 +3,22 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { SearchOutlined, PlusOutlined } from '@ant-design/icons';
 import {
   AffiliationType,
-  IDataSourceAccessVO,
-  IDataSourceVO,
+  ITeamWithProjectVO,
   ITeamVO,
-  ITeamWithDataSourceVO,
   ITeamWithUserVO,
   IUserVO,
-  IUserWithDataSourceVO,
   IUserWithTeamVO,
-  ManagementType,
   SearchType,
 } from '@/typings/team';
 import {
-  deleteDataSourceFromTeam,
-  deleteDataSourceFromUser,
+  deleteProjectFromTeam,
   deleteTeamListFromUser,
   deleteUserFromTeam,
-  deleteUserOrTeamFromDataSource,
-  getDataSourceListFromTeam,
-  getDataSourceListFromUser,
+  getProjectListFromTeam,
   getTeamListFromUser,
-  getUserAndTeamListFromDataSource,
   getUserListFromTeam,
-  updateDataSourceListFromTeam,
-  updateDataSourceListFromUser,
+  updateProjectListFromTeam,
   updateTeamListFromUser,
-  updateUserAndTeamListFromDataSource,
   updateUserListFromTeam,
 } from '@/service/team';
 
@@ -45,6 +35,15 @@ interface IProps {
   byId?: number;
 }
 
+interface IModalInfo {
+  open: boolean;
+  type?: SearchType;
+  initialValues?: {
+    projectId?: number;
+    environmentIdList?: number[];
+  };
+}
+
 interface IAffiliationDetail {
   type: AffiliationType;
   searchType: SearchType;
@@ -58,8 +57,8 @@ interface IAffiliationDetail {
 
 function UniversalDrawer(props: IProps) {
   const { type, open } = props;
-  const [dataSource, setDataSource] = useState<Array<IUserVO | ITeamVO | IDataSourceVO>>([]);
-  const [modalInfo, setModalInfo] = useState<{ open: boolean; type?: SearchType }>({
+  const [rows, setRows] = useState<Array<IUserVO | ITeamVO | ITeamWithProjectVO>>([]);
+  const [modalInfo, setModalInfo] = useState<IModalInfo>({
     open: false,
   });
   const [searchInput, setSearchInput] = useState('');
@@ -120,50 +119,6 @@ function UniversalDrawer(props: IProps) {
           },
         ],
       },
-      [AffiliationType.USER_DATASOURCE]: {
-        type: AffiliationType.USER_DATASOURCE,
-        searchType: SearchType.DATASOURCE,
-        title: i18n('team.datasource.rightManagement'),
-        byIdKey: 'userId',
-        queryListApi: getDataSourceListFromUser,
-        updateListApi: updateDataSourceListFromUser,
-        deleteApi: deleteDataSourceFromUser,
-        columns: [
-          {
-            title: i18n('team.datasource.alias'),
-            dataIndex: ['dataSource', 'alias'],
-            key: 'dataSource.alias',
-          },
-          {
-            title: i18n('team.datasource.url'),
-            dataIndex: ['dataSource', 'url'],
-            key: 'dataSource.url',
-          },
-          {
-            title: i18n('common.text.action'),
-            key: 'action',
-            width: 100,
-            render: (_: any, record: IUserWithDataSourceVO) => (
-              <Popconfirm
-                title={i18n('common.tips.delete.confirm')}
-                okText={i18n('common.button.affirm')}
-                cancelText={i18n('common.button.cancel')}
-                onConfirm={async () => {
-                  if (record.id !== undefined) {
-                    await deleteDataSourceFromUser({ id: record.id });
-                    message.success(i18n('common.text.successfullyDelete'));
-                    queryTableList();
-                  }
-                }}
-              >
-                <a href="#" onClick={(e) => e.preventDefault()}>
-                  {i18n('common.button.delete')}
-                </a>
-              </Popconfirm>
-            ),
-          },
-        ],
-      },
       [AffiliationType.TEAM_USER]: {
         type: AffiliationType.TEAM_USER,
         searchType: SearchType.USER,
@@ -208,98 +163,82 @@ function UniversalDrawer(props: IProps) {
           },
         ],
       },
-      [AffiliationType.TEAM_DATASOURCE]: {
-        type: AffiliationType.TEAM_DATASOURCE,
-        searchType: SearchType.DATASOURCE,
-        title: i18n('team.action.affiliation.datasource'),
+      [AffiliationType.TEAM_PROJECT]: {
+        type: AffiliationType.TEAM_PROJECT,
+        searchType: SearchType.PROJECT,
+        title: i18n('team.action.affiliation.project'),
         byIdKey: 'teamId',
-        queryListApi: getDataSourceListFromTeam,
-        updateListApi: updateDataSourceListFromTeam,
-        deleteApi: deleteDataSourceFromTeam,
+        queryListApi: getProjectListFromTeam,
+        updateListApi: updateProjectListFromTeam,
+        deleteApi: deleteProjectFromTeam,
         columns: [
           {
-            title: i18n('team.datasource.alias'),
-            dataIndex: ['dataSource', 'alias'],
-            key: 'dataSource.alias',
+            title: i18n('team.project.name'),
+            dataIndex: ['project', 'name'],
+            key: 'project.name',
           },
           {
-            title: i18n('team.datasource.url'),
-            dataIndex: ['dataSource', 'url'],
-            key: 'dataSource.url',
+            title: i18n('team.project.environments'),
+            dataIndex: 'environmentList',
+            key: 'environmentList',
+            render: (environmentList: ITeamWithProjectVO['environmentList']) => {
+              if (!environmentList?.length) {
+                return <Tag>{i18n('team.project.environments.all')}</Tag>;
+              }
+              return (
+                <>
+                  {environmentList.map((environment) => (
+                    <Tag key={environment.id} color={environment.color?.toLowerCase() || 'blue'}>
+                      {environment.name}
+                    </Tag>
+                  ))}
+                </>
+              );
+            },
+          },
+          {
+            title: i18n('team.project.description'),
+            dataIndex: ['project', 'description'],
+            key: 'project.description',
           },
           {
             title: i18n('common.text.action'),
             key: 'action',
-            width: 100,
-            render: (_: any, record: ITeamWithDataSourceVO) => (
-              <Popconfirm
-                title={i18n('common.tips.delete.confirm')}
-                okText={i18n('common.button.affirm')}
-                cancelText={i18n('common.button.cancel')}
-                onConfirm={async () => {
-                  if (record.id !== undefined) {
-                    await deleteDataSourceFromUser({ id: record.id });
-                    message.success(i18n('common.text.successfullyDelete'));
-                    queryTableList();
+            width: 160,
+            render: (_: any, record: ITeamWithProjectVO) => (
+              <>
+                <Button
+                  type="link"
+                  onClick={() =>
+                    setModalInfo({
+                      open: true,
+                      type: SearchType.PROJECT,
+                      initialValues: {
+                        projectId: record.project?.id,
+                        environmentIdList: record.environmentList?.map((environment) => environment.id!).filter(Boolean),
+                      },
+                    })
                   }
-                }}
-              >
-                <a href="#" onClick={(e) => e.preventDefault()}>
-                  {i18n('common.button.delete')}
-                </a>
-              </Popconfirm>
-            ),
-          },
-        ],
-      },
-      [AffiliationType['DATASOURCE_USER/TEAM']]: {
-        type: AffiliationType['DATASOURCE_USER/TEAM'],
-        searchType: SearchType['USER/TEAM'],
-        title: i18n('team.datasource.rightManagement'),
-        byIdKey: 'dataSourceId',
-        queryListApi: getUserAndTeamListFromDataSource,
-        updateListApi: updateUserAndTeamListFromDataSource,
-        deleteApi: deleteUserOrTeamFromDataSource,
-        columns: [
-          {
-            title: i18n('team.datasource.code'),
-            dataIndex: ['accessObject', 'code'],
-            key: 'accessObject.code',
-          },
-          {
-            title: i18n('team.datasource.name'),
-            dataIndex: ['accessObject', 'name'],
-            key: 'accessObject.name',
-          },
-          {
-            title: i18n('team.datasource.status'),
-            dataIndex: ['accessObject', 'type'],
-            key: 'accessObject.type',
-            render: (status: ManagementType) => (
-              <Tag color={status === ManagementType.TEAM ? 'blue' : 'lime'}>{status}</Tag>
-            ),
-          },
-          {
-            title: i18n('common.text.action'),
-            key: 'action',
-            width: 100,
-            render: (_: any, record: IDataSourceAccessVO) => (
-              <Popconfirm
-                title={i18n('common.tips.delete.confirm')}
-                okText={i18n('common.button.affirm')}
-                cancelText={i18n('common.button.cancel')}
-                onConfirm={async () => {
-                  if (record.id !== undefined) {
-                    await deleteUserOrTeamFromDataSource({ id: record.id });
-                    message.success(i18n('common.text.successfullyDelete'));
-                    queryTableList();
-                  }
-                }}
-              >
-                <a href="#" onClick={(e) => e.preventDefault()}>
-                  {i18n('common.button.delete')}
-                </a>
-              </Popconfirm>
+                >
+                  {i18n('common.button.edit')}
+                </Button>
+                <Popconfirm
+                  title={i18n('common.tips.delete.confirm')}
+                  okText={i18n('common.button.affirm')}
+                  cancelText={i18n('common.button.cancel')}
+                  onConfirm={async () => {
+                    if (record.id !== undefined) {
+                      await deleteProjectFromTeam({ id: record.id });
+                      message.success(i18n('common.text.successfullyDelete'));
+                      queryTableList();
+                    }
+                  }}
+                >
+                  <a href="#" onClick={(e) => e.preventDefault()}>
+                    {i18n('common.button.delete')}
+                  </a>
+                </Popconfirm>
+              </>
             ),
           },
         ],
@@ -309,6 +248,32 @@ function UniversalDrawer(props: IProps) {
   );
 
   const managementDataByType = type ? managementMap[type] : null;
+
+  const searchPlaceholder = useMemo(() => {
+    switch (managementDataByType?.searchType) {
+      case SearchType.PROJECT:
+        return i18n('team.action.addProject.placeholder');
+      case SearchType.USER:
+        return i18n('team.action.addUser.placeholder');
+      case SearchType.TEAM:
+        return i18n('team.action.addTeam.placeholder');
+      default:
+        return i18n('team.input.search.placeholder');
+    }
+  }, [managementDataByType?.searchType]);
+
+  const addButtonLabel = useMemo(() => {
+    switch (managementDataByType?.searchType) {
+      case SearchType.PROJECT:
+        return i18n('team.action.addProject');
+      case SearchType.USER:
+        return i18n('team.action.addUser');
+      case SearchType.TEAM:
+        return i18n('team.action.addTeam');
+      default:
+        return i18n('common.button.add');
+    }
+  }, [managementDataByType?.searchType]);
 
   useEffect(() => {
     if (!open) {
@@ -327,6 +292,7 @@ function UniversalDrawer(props: IProps) {
     setModalInfo({
       open: false,
       type: managementDataByType?.searchType,
+      initialValues: undefined,
     });
   }, [props.byId, type, open]);
 
@@ -347,7 +313,7 @@ function UniversalDrawer(props: IProps) {
       [managementDataByType?.byIdKey]: props.byId,
     });
     if (res) {
-      setDataSource(res?.data ?? []);
+      setRows(res?.data ?? []);
       setTotal(res?.total ?? 0);
     }
   };
@@ -375,7 +341,7 @@ function UniversalDrawer(props: IProps) {
       <div className={styles.tableTop}>
         <Input.Search
           style={{ width: '200px' }}
-          placeholder={i18n('team.input.search.placeholder')}
+          placeholder={searchPlaceholder}
           value={searchInput}
           onChange={(v) => setSearchInput(v.target.value)}
           onSearch={handleSearch}
@@ -389,10 +355,11 @@ function UniversalDrawer(props: IProps) {
               ...modalInfo,
               open: true,
               type: managementDataByType.searchType,
+              initialValues: undefined,
             });
           }}
         >
-          {i18n('common.button.add')}
+          {addButtonLabel}
         </Button>
       </div>
       <Table
@@ -402,14 +369,14 @@ function UniversalDrawer(props: IProps) {
           total,
         }}
         columns={managementDataByType?.columns}
-        dataSource={dataSource}
+        dataSource={rows}
         onChange={handleTableChange}
       />
 
       <UniversalAddModal
         {...modalInfo}
         onConfirm={(values) => {
-          managementDataByType.updateListApi({ [managementDataByType.byIdKey]: props.byId, ...values }).then((res) => {
+          managementDataByType.updateListApi({ [managementDataByType.byIdKey]: props.byId, ...values }).then(() => {
             message.success(i18n('common.tips.updateSuccess'));
             queryTableList();
           });

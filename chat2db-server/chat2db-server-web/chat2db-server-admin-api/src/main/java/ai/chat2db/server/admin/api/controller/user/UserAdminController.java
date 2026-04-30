@@ -9,10 +9,18 @@ import ai.chat2db.server.domain.api.param.team.TeamPageQueryParam.OrderCondition
 import ai.chat2db.server.domain.api.param.user.UserPageQueryParam;
 import ai.chat2db.server.domain.api.param.user.UserSelector;
 import ai.chat2db.server.domain.api.service.UserService;
+import ai.chat2db.server.domain.repository.Dbutils;
+import ai.chat2db.server.domain.repository.entity.UserIdentityBindingDO;
+import ai.chat2db.server.domain.repository.mapper.UserIdentityBindingMapper;
 import ai.chat2db.server.tools.base.wrapper.result.DataResult;
 import ai.chat2db.server.tools.base.wrapper.result.web.WebPageResult;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
+import java.time.ZoneId;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -50,8 +58,10 @@ public class UserAdminController {
     public WebPageResult<UserPageQueryVO> page(@Valid CommonPageQueryRequest request) {
         UserPageQueryParam param = userAdminConverter.request2param(request);
         param.orderBy(OrderCondition.ID_DESC);
-        return userService.pageQuery(param, USER_SELECTOR)
+        WebPageResult<UserPageQueryVO> result = userService.pageQuery(param, USER_SELECTOR)
             .mapToWeb(userAdminConverter::dto2vo);
+        enrichSsoBinding(result);
+        return result;
     }
 
     /**
@@ -87,5 +97,45 @@ public class UserAdminController {
     @DeleteMapping("/{id}")
     public DataResult<Boolean> delete(@PathVariable Long id) {
         return userService.delete(id).toBooleaSuccessnDataResult();
+    }
+
+    private void enrichSsoBinding(WebPageResult<UserPageQueryVO> result) {
+        if (!WebPageResult.hasData(result)) {
+            return;
+        }
+        List<UserPageQueryVO> rows = result.getData().getData();
+        List<Long> userIds = rows.stream().map(UserPageQueryVO::getId).filter(Objects::nonNull).toList();
+        if (userIds.isEmpty()) {
+            return;
+        }
+
+        List<UserIdentityBindingDO> bindings = Dbutils.getMapper(UserIdentityBindingMapper.class).selectList(
+            new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<UserIdentityBindingDO>()
+                .in(UserIdentityBindingDO::getUserId, userIds)
+                .eq(UserIdentityBindingDO::getProviderType, "OIDC")
+        );
+        if (bindings.isEmpty()) {
+            return;
+        }
+
+        Map<Long, UserIdentityBindingDO> bindingMap = new LinkedHashMap<>();
+        for (UserIdentityBindingDO binding : bindings) {
+            bindingMap.putIfAbsent(binding.getUserId(), binding);
+        }
+        for (UserPageQueryVO row : rows) {
+            UserIdentityBindingDO binding = bindingMap.get(row.getId());
+            if (binding == null) {
+                row.setOidcBound(Boolean.FALSE);
+                row.setAuthSource("LOCAL");
+                continue;
+            }
+            row.setOidcBound(Boolean.TRUE);
+            row.setAuthSource("OIDC");
+            row.setOidcIssuer(binding.getIssuer());
+            row.setSsoStatus(binding.getStatus());
+            if (binding.getLastLoginAt() != null) {
+                row.setLastSsoLoginAt(java.util.Date.from(binding.getLastLoginAt().atZone(ZoneId.systemDefault()).toInstant()));
+            }
+        }
     }
 }

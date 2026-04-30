@@ -18,13 +18,6 @@ public class DataSourcePageQueryParam extends PageQueryParam {
      */
     private String searchKey;
 
-    /**
-     * Connection Type
-     *
-     * @see ai.chat2db.server.domain.api.enums.DataSourceKindEnum
-     */
-    private String kind;
-
     @Getter
     public enum OrderCondition implements ai.chat2db.server.tools.base.wrapper.param.OrderCondition {
         ID_DESC(OrderBy.desc("id")),
