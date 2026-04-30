@@ -10,6 +10,7 @@ variables:
   BUILD_CACHE_DIR: "/opt/chat2db/build-cache"
   IMAGE_CACHE_DIR: "/opt/chat2db/build-cache/images"
   YARN_CACHE_DIR: "/opt/chat2db/build-cache/yarn"
+  ELECTRON_CACHE_DIR: "/opt/chat2db/build-cache/electron"
   MAVEN_CACHE_DIR: "/opt/chat2db/build-cache/m2"
   TESSDATA_CACHE_DIR: "/opt/chat2db/build-cache/tessdata"
   APT_CACHE_DIR: "/opt/chat2db/build-cache/apt/cache"
@@ -64,6 +65,7 @@ build_image:
         "${DATA_DIR}" \
         "${IMAGE_CACHE_DIR}" \
         "${YARN_CACHE_DIR}" \
+        "${ELECTRON_CACHE_DIR}" \
         "${MAVEN_CACHE_DIR}" \
         "${TESSDATA_CACHE_DIR}" \
         "${APT_CACHE_DIR}" \
@@ -99,8 +101,11 @@ build_image:
         -v "${CI_PROJECT_DIR}:/src" \
         -v "${BUILD_CACHE_DIR}:/cache" \
         -v "${YARN_CACHE_DIR}:/usr/local/share/.cache/yarn" \
+        -v "${ELECTRON_CACHE_DIR}:/root/.cache/electron" \
+        -e ELECTRON_CACHE="/root/.cache/electron" \
+        -e electron_config_cache="/root/.cache/electron" \
         "${NODE_BASE_IMAGE}" \
-        sh -lc "rm -rf \"${CONTAINER_FRONTEND_WORK_DIR}\" && mkdir -p \"${CONTAINER_FRONTEND_WORK_DIR}\" && cp -R /src/chat2db-client/. \"${CONTAINER_FRONTEND_WORK_DIR}/\" && cd \"${CONTAINER_FRONTEND_WORK_DIR}\" && yarn install --frozen-lockfile && yarn run build:web:prod --app_version=${CI_COMMIT_SHORT_SHA} --app_port=${APP_PORT}"
+        sh -lc "rm -rf \"${CONTAINER_FRONTEND_WORK_DIR}\" && mkdir -p \"${CONTAINER_FRONTEND_WORK_DIR}\" && cp -R /src/chat2db-client/. \"${CONTAINER_FRONTEND_WORK_DIR}/\" && cd \"${CONTAINER_FRONTEND_WORK_DIR}\" && yarn install --frozen-lockfile --verbose && yarn run build:web:prod --app_version=${CI_COMMIT_SHORT_SHA} --app_port=${APP_PORT}"
 
       docker run --rm \
         -v "${CI_PROJECT_DIR}:/src" \
