@@ -1568,7 +1568,7 @@ export const dataSourceFormConfigs: IConnectionConfig[] = [
           },
         },
         {
-          defaultValue: AuthenticationType.USERANDPASSWORD,
+          defaultValue: AuthenticationType.PASSWORD,
           inputType: InputType.SELECT,
           labelNameCN: '身份验证',
           labelNameEN: 'Authentication',
@@ -1576,14 +1576,31 @@ export const dataSourceFormConfigs: IConnectionConfig[] = [
           required: true,
           selects: [
             {
+              label: 'Password',
+              value: AuthenticationType.PASSWORD,
               items: [
                 {
-                  defaultValue: 'root',
+                  defaultValue: '',
+                  inputType: InputType.PASSWORD,
+                  labelNameCN: '密码',
+                  labelNameEN: 'Password',
+                  name: 'password',
+                  required: true,
+                  styles: {
+                    width: '100%',
+                  },
+                },
+              ],
+            },
+            {
+              items: [
+                {
+                  defaultValue: '',
                   inputType: InputType.INPUT,
                   labelNameCN: '用户名',
                   labelNameEN: 'User',
                   name: 'user',
-                  required: true,
+                  required: false,
                   styles: {
                     width: '100%',
                   },
