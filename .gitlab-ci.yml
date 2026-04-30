@@ -38,7 +38,7 @@ build_image:
       sanitize_image_name() {
         echo "$1" | tr '/:@' '___'
       }
-
+      
       CONTAINER_FRONTEND_WORK_DIR="/cache/frontend-src"
       CONTAINER_BACKEND_WORK_DIR="/cache/backend-src"
       CONTAINER_RUNTIME_CONTEXT_DIR="/cache/runtime-context"
