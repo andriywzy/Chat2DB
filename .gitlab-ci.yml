@@ -1,0 +1,36 @@
+stages:
+  - build
+  - deploy
+
+variables:
+  APP_NAME: "chat2db"
+  APP_PORT: "10824"
+  IMAGE_NAME: "chat2db-dev"
+  DATA_DIR: "/opt/chat2db/data"
+
+build_image:
+  stage: build
+  tags:
+    - chat2db
+    - deploy
+  only:
+    - dev
+  script:
+    - mkdir -p "${DATA_DIR}"
+    - docker build -f docker/Dockerfile -t "${IMAGE_NAME}:${CI_COMMIT_SHA}" --build-arg APP_VERSION="${CI_COMMIT_SHORT_SHA}" --build-arg APP_PORT="${APP_PORT}" .
+    - docker tag "${IMAGE_NAME}:${CI_COMMIT_SHA}" "${IMAGE_NAME}:latest"
+
+deploy_chat2db:
+  stage: deploy
+  tags:
+    - chat2db
+    - deploy
+  only:
+    - main
+  needs:
+    - build_image
+  script:
+    - docker rm -f "${APP_NAME}" || true
+    - docker run -d --name "${APP_NAME}" --restart unless-stopped -p "${APP_PORT}:10824" -v "${DATA_DIR}:/root/.chat2db" "${IMAGE_NAME}:latest"
+    - docker ps --filter "name=${APP_NAME}"
+    - curl -I -s "http://127.0.0.1:${APP_PORT}/login"
