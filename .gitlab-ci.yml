@@ -11,6 +11,8 @@ variables:
   NODE_BASE_IMAGE: "node:16-bullseye"
   MAVEN_BASE_IMAGE: "maven:3.9-eclipse-temurin-17"
   RUNTIME_BASE_IMAGE: "eclipse-temurin:17-jre"
+  GIT_STRATEGY: clone
+  GIT_DEPTH: 0
 build_image:
   stage: build
   tags:
