@@ -1,0 +1,138 @@
+stages:
+  - build
+  - deploy
+
+variables:
+  APP_NAME: "chat2db"
+  APP_PORT: "10824"
+  IMAGE_NAME: "chat2db-dev"
+  DATA_DIR: "/opt/chat2db/data"
+  BUILD_CACHE_DIR: "/opt/chat2db/build-cache"
+  FRONTEND_INSTALL_CACHE_DIR: "/opt/chat2db/build-cache/frontend-install"
+  BACKEND_BUILD_DIR: "/opt/chat2db/build-cache/backend-build"
+  RUNTIME_CONTEXT_DIR: "/opt/chat2db/build-cache/runtime-context"
+  YARN_CACHE_DIR: "/opt/chat2db/build-cache/yarn"
+  ELECTRON_CACHE_DIR: "/opt/chat2db/build-cache/electron"
+  MAVEN_CACHE_DIR: "/opt/chat2db/build-cache/m2"
+  TESSDATA_CACHE_DIR: "/opt/chat2db/build-cache/tessdata"
+  APT_CACHE_DIR: "/opt/chat2db/build-cache/apt/cache"
+  APT_LISTS_DIR: "/opt/chat2db/build-cache/apt/lists"
+  NODE_BASE_IMAGE: "node:16-bullseye"
+  MAVEN_BASE_IMAGE: "maven:3.9-eclipse-temurin-17"
+  RUNTIME_BASE_IMAGE: "eclipse-temurin:17-jre"
+  RUNTIME_BUILD_BASE_IMAGE: "chat2db-runtime-base:local"
+
+build_image:
+  stage: build
+  tags:
+    - chat2db
+    - dev
+  only:
+    - dev
+  script:
+    - |
+      set -euo pipefail
+
+      FRONTEND_CACHE_KEY="$(
+        {
+          cat "${CI_PROJECT_DIR}/chat2db-client/package.json"
+          cat "${CI_PROJECT_DIR}/chat2db-client/yarn.lock"
+          printf '%s\n' "${NODE_BASE_IMAGE}"
+          uname -s
+          uname -m
+        } | sha256sum | awk '{print $1}'
+      )"
+      FRONTEND_WORK_DIR="${FRONTEND_INSTALL_CACHE_DIR}/${FRONTEND_CACHE_KEY}"
+      BACKEND_WORK_DIR="${BACKEND_BUILD_DIR}/${CI_COMMIT_SHA}"
+      FRONTEND_CONTAINER_DIR="/workspace/chat2db-client"
+      BACKEND_CONTAINER_DIR="/workspace/chat2db-server"
+
+      mkdir -p \
+        "${DATA_DIR}" \
+        "${FRONTEND_INSTALL_CACHE_DIR}" \
+        "${BACKEND_BUILD_DIR}" \
+        "${RUNTIME_CONTEXT_DIR}/tessdata" \
+        "${YARN_CACHE_DIR}" \
+        "${ELECTRON_CACHE_DIR}" \
+        "${MAVEN_CACHE_DIR}" \
+        "${TESSDATA_CACHE_DIR}" \
+        "${APT_CACHE_DIR}" \
+        "${APT_LISTS_DIR}" \
+        "${FRONTEND_WORK_DIR}" \
+        "${BACKEND_WORK_DIR}"
+
+      rsync -a --delete \
+        --exclude node_modules \
+        --exclude dist \
+        --exclude release \
+        "${CI_PROJECT_DIR}/chat2db-client/" "${FRONTEND_WORK_DIR}/"
+
+      docker run --rm \
+        -v "${FRONTEND_WORK_DIR}:${FRONTEND_CONTAINER_DIR}" \
+        -v "${YARN_CACHE_DIR}:/usr/local/share/.cache/yarn" \
+        -v "${ELECTRON_CACHE_DIR}:/root/.cache/electron" \
+        -e ELECTRON_SKIP_BINARY_DOWNLOAD=1 \
+        -e ELECTRON_CACHE=/root/.cache/electron \
+        -e electron_config_cache=/root/.cache/electron \
+        "${NODE_BASE_IMAGE}" \
+        sh -lc "cd '${FRONTEND_CONTAINER_DIR}' && yarn install --frozen-lockfile --prefer-offline --verbose && yarn run build:web:prod --app_version=${CI_COMMIT_SHORT_SHA} --app_port=${APP_PORT}"
+
+      rsync -a --delete "${CI_PROJECT_DIR}/chat2db-server/" "${BACKEND_WORK_DIR}/"
+      rm -rf "${BACKEND_WORK_DIR}/chat2db-server-web-start/src/main/resources/static/front"/*
+      mkdir -p "${BACKEND_WORK_DIR}/chat2db-server-web-start/src/main/resources/static/front"
+      cp -R "${FRONTEND_WORK_DIR}/dist/." "${BACKEND_WORK_DIR}/chat2db-server-web-start/src/main/resources/static/front/"
+      cp "${FRONTEND_WORK_DIR}/dist/index.html" "${BACKEND_WORK_DIR}/chat2db-server-web-start/src/main/resources/thymeleaf/index.html"
+
+      docker run --rm \
+        -v "${BACKEND_WORK_DIR}:${BACKEND_CONTAINER_DIR}" \
+        -v "${MAVEN_CACHE_DIR}:/root/.m2" \
+        "${MAVEN_BASE_IMAGE}" \
+        sh -lc "cd '${BACKEND_CONTAINER_DIR}' && mvn -pl chat2db-server-web-start -am -DskipTests package -f pom.xml"
+
+      cp "${BACKEND_WORK_DIR}/chat2db-server-web-start/target/chat2db-server-web-start.jar" "${RUNTIME_CONTEXT_DIR}/chat2db-server-web-start.jar"
+
+      if [ ! -f "${TESSDATA_CACHE_DIR}/eng.traineddata" ]; then
+        curl -fsSL "https://github.com/tesseract-ocr/tessdata_fast/raw/main/eng.traineddata" -o "${TESSDATA_CACHE_DIR}/eng.traineddata"
+      fi
+      if [ ! -f "${TESSDATA_CACHE_DIR}/chi_sim.traineddata" ]; then
+        curl -fsSL "https://github.com/tesseract-ocr/tessdata_fast/raw/main/chi_sim.traineddata" -o "${TESSDATA_CACHE_DIR}/chi_sim.traineddata"
+      fi
+
+      if ! docker image inspect "${RUNTIME_BUILD_BASE_IMAGE}" >/dev/null 2>&1; then
+        docker rm -f chat2db-runtime-base-builder >/dev/null 2>&1 || true
+        docker run -d --name chat2db-runtime-base-builder \
+          -v "${APT_CACHE_DIR}:/var/cache/apt" \
+          -v "${APT_LISTS_DIR}:/var/lib/apt/lists" \
+          "${RUNTIME_BASE_IMAGE}" \
+          tail -f /dev/null
+        docker exec chat2db-runtime-base-builder sh -lc "apt-get update && apt-get install -y --no-install-recommends tesseract-ocr"
+        docker commit chat2db-runtime-base-builder "${RUNTIME_BUILD_BASE_IMAGE}"
+        docker rm -f chat2db-runtime-base-builder
+      fi
+
+      cp "${TESSDATA_CACHE_DIR}/eng.traineddata" "${RUNTIME_CONTEXT_DIR}/tessdata/eng.traineddata"
+      cp "${TESSDATA_CACHE_DIR}/chi_sim.traineddata" "${RUNTIME_CONTEXT_DIR}/tessdata/chi_sim.traineddata"
+
+      docker build \
+        -f "${CI_PROJECT_DIR}/docker/Dockerfile" \
+        -t "${IMAGE_NAME}:${CI_COMMIT_SHA}" \
+        -t "${IMAGE_NAME}:latest" \
+        --build-arg APP_PORT="${APP_PORT}" \
+        --build-arg RUNTIME_BASE_IMAGE="${RUNTIME_BUILD_BASE_IMAGE}" \
+        "${RUNTIME_CONTEXT_DIR}"
+
+deploy_chat2db:
+  stage: deploy
+  tags:
+    - chat2db
+    - dev
+  only:
+    - dev
+  needs:
+    - build_image
+  script:
+    - mkdir -p "${DATA_DIR}"
+    - docker rm -f "${APP_NAME}" || true
+    - docker run -d --name "${APP_NAME}" --restart unless-stopped -p "${APP_PORT}:10824" -v "${DATA_DIR}:/root/.chat2db" "${IMAGE_NAME}:latest"
+    - docker ps --filter "name=${APP_NAME}"
+    - curl -I -s "http://127.0.0.1:${APP_PORT}/login"
