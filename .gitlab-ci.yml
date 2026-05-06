@@ -6,6 +6,8 @@ variables:
   APP_NAME: "chat2db"
   APP_PORT: "10824"
   IMAGE_NAME: "chat2db-dev"
+  GIT_STRATEGY: "clone"
+  GIT_DEPTH: "0"
   DATA_DIR: "/opt/chat2db/data"
   BUILD_CACHE_DIR: "/opt/chat2db/build-cache"
   FRONTEND_INSTALL_CACHE_DIR: "/opt/chat2db/build-cache/frontend-install"
