@@ -211,7 +211,11 @@ public class DataSourceController {
     public DataResult<DataSourceVO> queryById(@PathVariable("id") Long id) {
         DataResult<DataSource> dataResult = dataSourceService.queryExistent(id, DATA_SOURCE_SELECTOR);
         DataSourceVO dataSourceVO = dataSourceWebConverter.dto2vo(dataResult.getData());
-        if (StringUtils.isNotBlank(dataSourceVO.getUser())) {
+        if (StringUtils.equalsIgnoreCase(dataSourceVO.getType(), "REDIS")
+            && StringUtils.isBlank(dataSourceVO.getUser())
+            && StringUtils.isNotBlank(dataSourceVO.getPassword())) {
+            dataSourceVO.setAuthenticationType("3");
+        } else if (StringUtils.isNotBlank(dataSourceVO.getUser())) {
             dataSourceVO.setAuthenticationType("1");
         } else {
             dataSourceVO.setAuthenticationType("2");

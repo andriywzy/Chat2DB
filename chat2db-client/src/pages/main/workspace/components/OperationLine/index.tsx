@@ -10,6 +10,8 @@ import FileUploadModal from '@/components/ImportConnection';
 
 // ----- store -----
 import { setMainPageActiveTab } from '@/pages/main/store/main';
+import { useUserStore } from '@/store/user';
+import { IRole } from '@/typings/user';
 
 interface IProps {
   searchValue: string;
@@ -21,21 +23,25 @@ interface IProps {
 const OperationLine = (props: IProps) => {
   const { searchValue, setSearchValue, getTreeData, onCreateProject } = props;
   const [isImportOpen, setIsImportOpen] = useState(false);
+  const currentUser = useUserStore((state) => state.curUser);
+  const canManageProject = currentUser?.admin || currentUser?.roleCode === IRole.DESKTOP;
 
   const menuItems = useMemo<MenuProps['items']>(
     () => [
-      {
-        key: 'new-project',
-        label: (
-          <div className={styles.menuItemLabel}>
-            <Iconfont code="&#xe63f;" />
-            <span>{i18n('workspace.database.newProject')}</span>
-          </div>
-        ),
-        onClick: () => {
-          onCreateProject?.();
-        },
-      },
+      ...(canManageProject
+        ? [{
+            key: 'new-project',
+            label: (
+              <div className={styles.menuItemLabel}>
+                <Iconfont code="&#xe63f;" />
+                <span>{i18n('workspace.database.newProject')}</span>
+              </div>
+            ),
+            onClick: () => {
+              onCreateProject?.();
+            },
+          }]
+        : []),
       {
         key: 'new-connection',
         label: (
@@ -63,7 +69,7 @@ const OperationLine = (props: IProps) => {
         },
       },
     ],
-    [onCreateProject],
+    [canManageProject, onCreateProject],
   );
 
   return (

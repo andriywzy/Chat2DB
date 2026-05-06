@@ -1,6 +1,7 @@
 package ai.chat2db.server.domain.core.impl;
 
 import java.util.Date;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -8,16 +9,24 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import ai.chat2db.server.domain.api.enums.AccessObjectTypeEnum;
 import ai.chat2db.server.domain.api.model.Environment;
 import ai.chat2db.server.domain.api.param.EnvironmentPageQueryParam;
 import ai.chat2db.server.domain.api.service.ProjectService;
 import ai.chat2db.server.domain.api.service.EnvironmentService;
 import ai.chat2db.server.domain.core.converter.EnvironmentConverter;
+import ai.chat2db.server.domain.core.util.PermissionUtils;
 import ai.chat2db.server.domain.repository.Dbutils;
 import ai.chat2db.server.domain.repository.entity.DataSourceDO;
 import ai.chat2db.server.domain.repository.entity.EnvironmentDO;
+import ai.chat2db.server.domain.repository.entity.ProjectAccessDO;
+import ai.chat2db.server.domain.repository.entity.ProjectAccessEnvironmentDO;
+import ai.chat2db.server.domain.repository.entity.TeamUserDO;
 import ai.chat2db.server.domain.repository.mapper.DataSourceMapper;
 import ai.chat2db.server.domain.repository.mapper.EnvironmentMapper;
+import ai.chat2db.server.domain.repository.mapper.ProjectAccessEnvironmentMapper;
+import ai.chat2db.server.domain.repository.mapper.ProjectAccessMapper;
+import ai.chat2db.server.domain.repository.mapper.TeamUserMapper;
 import ai.chat2db.server.tools.base.wrapper.result.ActionResult;
 import ai.chat2db.server.tools.base.wrapper.result.DataResult;
 import ai.chat2db.server.tools.base.wrapper.result.ListResult;
@@ -49,6 +58,18 @@ public class EnvironmentServiceImpl implements EnvironmentService {
 
     private DataSourceMapper getDataSourceMapper() {
         return Dbutils.getMapper(DataSourceMapper.class);
+    }
+
+    private ProjectAccessMapper getProjectAccessMapper() {
+        return Dbutils.getMapper(ProjectAccessMapper.class);
+    }
+
+    private ProjectAccessEnvironmentMapper getProjectAccessEnvironmentMapper() {
+        return Dbutils.getMapper(ProjectAccessEnvironmentMapper.class);
+    }
+
+    private TeamUserMapper getTeamUserMapper() {
+        return Dbutils.getMapper(TeamUserMapper.class);
     }
 
     @Resource
@@ -86,6 +107,7 @@ public class EnvironmentServiceImpl implements EnvironmentService {
     public ListResult<Environment> queryList() {
         materializeMissingBoundEnvironments();
         LambdaQueryWrapper<EnvironmentDO> queryWrapper = new LambdaQueryWrapper<>();
+        applyReadableEnvironmentFilter(queryWrapper);
         queryWrapper.orderByAsc(EnvironmentDO::getProjectId, EnvironmentDO::getName, EnvironmentDO::getId);
         return ListResult.of(environmentConverter.do2dto(getMapper().selectList(queryWrapper)));
     }
@@ -100,11 +122,15 @@ public class EnvironmentServiceImpl implements EnvironmentService {
         if (data == null) {
             return DataResult.error("common.dataNotFound", "Environment not found");
         }
+        if (!canRead(data)) {
+            return DataResult.error("common.permissionDenied", "Permission denied");
+        }
         return DataResult.of(environmentConverter.do2dto(List.of(data)).stream().findFirst().orElse(null));
     }
 
     @Override
     public DataResult<Long> create(Environment environment) {
+        PermissionUtils.checkDeskTopOrAdmin();
         if (environment == null || StringUtils.isBlank(environment.getName())) {
             return DataResult.error("common.paramError", "Environment name is required");
         }
@@ -173,6 +199,107 @@ public class EnvironmentServiceImpl implements EnvironmentService {
         return Boolean.TRUE.equals(ContextUtils.getLoginUser().getAdmin())
             || Objects.equals(ContextUtils.getUserId(), environmentDO.getCreateUserId())
             || Objects.equals(ContextUtils.getUserId(), projectOwnerId);
+    }
+
+    private boolean canRead(EnvironmentDO environmentDO) {
+        if (PermissionUtils.hasDeskTopOrAdminPermission()) {
+            return true;
+        }
+        Long userId = ContextUtils.getUserId();
+        if (Objects.equals(userId, environmentDO.getCreateUserId())) {
+            return true;
+        }
+        ReadableEnvironmentScope readableScope = getReadableEnvironmentScope();
+        if (environmentDO.getProjectId() == null) {
+            return false;
+        }
+        if (readableScope.unrestrictedProjectIds.contains(environmentDO.getProjectId())) {
+            return true;
+        }
+        return readableScope.allowedEnvironmentIds.contains(environmentDO.getId());
+    }
+
+    private void applyReadableEnvironmentFilter(LambdaQueryWrapper<EnvironmentDO> queryWrapper) {
+        if (PermissionUtils.hasDeskTopOrAdminPermission()) {
+            return;
+        }
+        Long userId = ContextUtils.getUserId();
+        ReadableEnvironmentScope readableScope = getReadableEnvironmentScope();
+        queryWrapper.and(wrapper -> wrapper.eq(EnvironmentDO::getCreateUserId, userId)
+            .or(inner -> {
+                boolean hasProjectIds = !readableScope.unrestrictedProjectIds.isEmpty();
+                boolean hasEnvironmentIds = !readableScope.allowedEnvironmentIds.isEmpty();
+                if (!hasProjectIds && !hasEnvironmentIds) {
+                    inner.apply("1 = 0");
+                    return;
+                }
+                if (hasProjectIds) {
+                    inner.in(EnvironmentDO::getProjectId, readableScope.unrestrictedProjectIds);
+                    if (hasEnvironmentIds) {
+                        inner.or().in(EnvironmentDO::getId, readableScope.allowedEnvironmentIds);
+                    }
+                    return;
+                }
+                inner.in(EnvironmentDO::getId, readableScope.allowedEnvironmentIds);
+            }));
+    }
+
+    private ReadableEnvironmentScope getReadableEnvironmentScope() {
+        ReadableEnvironmentScope scope = new ReadableEnvironmentScope();
+        Long userId = ContextUtils.getUserId();
+        Set<Long> teamIds = getCurrentTeamIds();
+
+        LambdaQueryWrapper<ProjectAccessDO> accessQueryWrapper = new LambdaQueryWrapper<>();
+        accessQueryWrapper.and(wrapper -> wrapper.eq(ProjectAccessDO::getAccessObjectType, AccessObjectTypeEnum.USER.getCode())
+                .eq(ProjectAccessDO::getAccessObjectId, userId)
+            .or(inner -> {
+                if (teamIds.isEmpty()) {
+                    inner.apply("1 = 0");
+                } else {
+                    inner.eq(ProjectAccessDO::getAccessObjectType, AccessObjectTypeEnum.TEAM.getCode())
+                        .in(ProjectAccessDO::getAccessObjectId, teamIds);
+                }
+            }));
+        List<ProjectAccessDO> accessList = getProjectAccessMapper().selectList(accessQueryWrapper);
+        if (CollectionUtils.isEmpty(accessList)) {
+            return scope;
+        }
+
+        Set<Long> accessIds = accessList.stream().map(ProjectAccessDO::getId).collect(Collectors.toSet());
+        List<ProjectAccessEnvironmentDO> mappings = accessIds.isEmpty()
+            ? List.of()
+            : getProjectAccessEnvironmentMapper().selectList(new LambdaQueryWrapper<ProjectAccessEnvironmentDO>()
+                .in(ProjectAccessEnvironmentDO::getProjectAccessId, accessIds));
+        Map<Long, List<ProjectAccessEnvironmentDO>> mappingByAccessId = mappings.stream()
+            .collect(Collectors.groupingBy(ProjectAccessEnvironmentDO::getProjectAccessId));
+
+        for (ProjectAccessDO access : accessList) {
+            List<ProjectAccessEnvironmentDO> environmentMappings = mappingByAccessId.get(access.getId());
+            if (CollectionUtils.isEmpty(environmentMappings)) {
+                scope.unrestrictedProjectIds.add(access.getProjectId());
+                continue;
+            }
+            environmentMappings.stream()
+                .map(ProjectAccessEnvironmentDO::getEnvironmentId)
+                .forEach(scope.allowedEnvironmentIds::add);
+        }
+
+        return scope;
+    }
+
+    private Set<Long> getCurrentTeamIds() {
+        Long userId = ContextUtils.getUserId();
+        LambdaQueryWrapper<TeamUserDO> teamUserQueryWrapper = new LambdaQueryWrapper<>();
+        teamUserQueryWrapper.eq(TeamUserDO::getUserId, userId);
+        return getTeamUserMapper().selectList(teamUserQueryWrapper)
+            .stream()
+            .map(TeamUserDO::getTeamId)
+            .collect(Collectors.toSet());
+    }
+
+    private static class ReadableEnvironmentScope {
+        private final Set<Long> unrestrictedProjectIds = new HashSet<>();
+        private final Set<Long> allowedEnvironmentIds = new HashSet<>();
     }
 
     private void materializeMissingBoundEnvironments() {
