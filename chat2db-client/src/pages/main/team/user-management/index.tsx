@@ -150,8 +150,10 @@ function UserManagement() {
     const requestApi = userInfo?.id ? updateUser : createUser;
     const res = await requestApi(userInfo);
     if (res) {
-      queryUserList();
+      await queryUserList();
+      return true;
     }
+    return false;
   };
 
   const handleEdit = (record: IUserVO) => {
@@ -206,22 +208,21 @@ function UserManagement() {
       <Modal
         title={isEditing ? i18n('team.action.editUser') : i18n('team.action.addUser')}
         open={isModalVisible}
-        onOk={() => {
-          form
-            .validateFields()
-            .then(() => {
-              const formValues = form.getFieldsValue(true);
-              handleCreateOrUpdateUser(formValues);
+        onOk={async () => {
+          try {
+            await form.validateFields();
+            const formValues = form.getFieldsValue(true);
+            const success = await handleCreateOrUpdateUser(formValues);
+            if (success) {
               setIsModalVisible(false);
               form.resetFields();
-            })
-            .catch((errorInfo) => {
+            }
+          } catch (errorInfo: any) {
+            if (errorInfo?.errorFields?.length) {
               form.scrollToField(errorInfo.errorFields[0].name);
               form.setFields(errorInfo.errorFields);
-            })
-            .finally(() => {
-              form.resetFields();
-            });
+            }
+          }
         }}
         onCancel={() => {
           form.resetFields();
