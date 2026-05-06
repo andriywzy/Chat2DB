@@ -218,24 +218,23 @@ const ConnectionEdit = forwardRef((props: IProps, ref: ForwardedRef<ICreateConne
   }
 
   function normalizeConnectionPayload(data: IConnectionDetails) {
-    if (data.type !== DatabaseTypeCode.REDIS) {
-      return data;
-    }
-
     const normalizedUser = typeof data.user === 'string' ? data.user.trim() : data.user;
     const normalizedPassword = typeof data.password === 'string' ? data.password : data.password;
+    const normalizedSsh = normalizeSshPayload(data.ssh);
 
     if (data.authenticationType === AuthenticationType.NONE) {
       return {
         ...data,
+        ssh: normalizedSsh,
         user: '',
         password: '',
       };
     }
 
-    if (data.authenticationType === AuthenticationType.PASSWORD) {
+    if (data.type === DatabaseTypeCode.REDIS && data.authenticationType === AuthenticationType.PASSWORD) {
       return {
         ...data,
+        ssh: normalizedSsh,
         user: '',
         password: normalizedPassword,
       };
@@ -243,9 +242,33 @@ const ConnectionEdit = forwardRef((props: IProps, ref: ForwardedRef<ICreateConne
 
     return {
       ...data,
+      ssh: normalizedSsh,
       user: normalizedUser || '',
       password: normalizedPassword,
     };
+  }
+
+  function normalizeSshPayload(ssh: IConnectionDetails['ssh']) {
+    if (!ssh) {
+      return ssh;
+    }
+
+    if (ssh.authenticationType === 'password') {
+      return {
+        ...ssh,
+        keyFile: '',
+        passphrase: '',
+      };
+    }
+
+    if (ssh.authenticationType === 'keyFile') {
+      return {
+        ...ssh,
+        password: '',
+      };
+    }
+
+    return ssh;
   }
 
   // 测试、保存、修改连接
@@ -598,6 +621,7 @@ function RenderForm(props: IRenderFormProps) {
         <Form.Item
           label={label}
           name={name}
+          preserve={false}
           style={{ '--form-label-width': labelWidth } as any}
           labelAlign={labelAlign}
         >
@@ -609,6 +633,7 @@ function RenderForm(props: IRenderFormProps) {
         <Form.Item
           label={label}
           name={name}
+          preserve={false}
           style={{ '--form-label-width': labelWidth } as any}
           labelAlign={labelAlign}
         >
@@ -653,6 +678,7 @@ function RenderForm(props: IRenderFormProps) {
         <Form.Item
           label={label}
           name={name}
+          preserve={false}
           style={{ '--form-label-width': labelWidth } as any}
           labelAlign={labelAlign}
         >
