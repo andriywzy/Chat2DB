@@ -33,6 +33,7 @@ import ai.chat2db.server.tools.base.wrapper.result.ListResult;
 import ai.chat2db.server.tools.base.wrapper.result.PageResult;
 import ai.chat2db.server.tools.common.util.ContextUtils;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import jakarta.annotation.Resource;
@@ -184,6 +185,16 @@ public class EnvironmentServiceImpl implements EnvironmentService {
         if (!canManage(existing)) {
             return ActionResult.fail("common.forbidden", "No permission to manage this environment", null);
         }
+
+        LambdaQueryWrapper<ProjectAccessEnvironmentDO> projectAccessEnvironmentQueryWrapper = new LambdaQueryWrapper<>();
+        projectAccessEnvironmentQueryWrapper.eq(ProjectAccessEnvironmentDO::getEnvironmentId, id);
+        getProjectAccessEnvironmentMapper().delete(projectAccessEnvironmentQueryWrapper);
+
+        LambdaUpdateWrapper<DataSourceDO> dataSourceUpdateWrapper = new LambdaUpdateWrapper<>();
+        dataSourceUpdateWrapper.eq(DataSourceDO::getEnvironmentId, id)
+            .set(DataSourceDO::getEnvironmentId, null);
+        getDataSourceMapper().update(null, dataSourceUpdateWrapper);
+
         getMapper().deleteById(id);
         return ActionResult.isSuccess();
     }
