@@ -9,6 +9,21 @@
             and (#{admin} = true
             or ds.USER_ID = #{userId}
             or exists(
+            select 1 from DATA_SOURCE_ACCESS dsa
+            where dsa.DATA_SOURCE_ID = ds.ID
+            and dsa.ACCESS_OBJECT_TYPE = 'USER'
+            and dsa.ACCESS_OBJECT_ID = #{userId}
+            )
+            or exists (
+            select 1
+            from DATA_SOURCE_ACCESS dsa
+            left join TEAM_USER tu on tu.TEAM_ID = dsa.ACCESS_OBJECT_ID and dsa.ACCESS_OBJECT_TYPE = 'TEAM'
+            left join TEAM t on t.id = tu.TEAM_ID
+            where dsa.DATA_SOURCE_ID = ds.ID
+            and tu.USER_ID = #{userId}
+            and t.STATUS = 'VALID'
+            )
+            or exists(
             select 1 from PROJECT_ACCESS pa where pa.ACCESS_OBJECT_TYPE = 'USER'
             and pa.ACCESS_OBJECT_ID = #{userId}
             and pa.PROJECT_ID = ds.PROJECT_ID
@@ -61,6 +76,21 @@
           and (
             #{admin} = true
             or ds.USER_ID = #{userId}
+            or exists(
+                select 1 from DATA_SOURCE_ACCESS dsa
+                where dsa.DATA_SOURCE_ID = ds.ID
+                  and dsa.ACCESS_OBJECT_TYPE = 'USER'
+                  and dsa.ACCESS_OBJECT_ID = #{userId}
+            )
+            or exists (
+                select 1
+                from DATA_SOURCE_ACCESS dsa
+                left join TEAM_USER tu on tu.TEAM_ID = dsa.ACCESS_OBJECT_ID and dsa.ACCESS_OBJECT_TYPE = 'TEAM'
+                left join TEAM t on t.id = tu.TEAM_ID
+                where dsa.DATA_SOURCE_ID = ds.ID
+                  and tu.USER_ID = #{userId}
+                  and t.STATUS = 'VALID'
+            )
             or exists(
                 select 1 from PROJECT_ACCESS pa
                 where pa.ACCESS_OBJECT_TYPE = 'USER'

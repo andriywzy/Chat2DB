@@ -28,6 +28,7 @@ import ai.chat2db.server.domain.repository.mapper.ProjectAccessMapper;
 import ai.chat2db.server.tools.base.wrapper.result.ActionResult;
 import ai.chat2db.server.tools.base.wrapper.result.DataResult;
 import ai.chat2db.server.tools.base.wrapper.result.web.WebPageResult;
+import ai.chat2db.server.tools.common.exception.ParamBusinessException;
 import ai.chat2db.server.tools.common.util.EasyCollectionUtils;
 import cn.hutool.core.date.DateUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -106,6 +107,7 @@ public class TeamProjectAdminController {
     @PostMapping("/batch_create")
     public ActionResult create(@Valid @RequestBody TeamProjectBatchCreateRequest request) {
         for (TeamProjectGrantRequest grant : normalizeRequest(request)) {
+            validateGrant(grant);
             ProjectAccessDO access = queryExistingAccess(request.getTeamId(), grant.getProjectId());
             if (access == null) {
                 access = new ProjectAccessDO();
@@ -188,6 +190,22 @@ public class TeamProjectAdminController {
             mapping.setGmtCreate(now);
             mapping.setGmtModified(now);
             getEnvironmentMapper().insert(mapping);
+        }
+    }
+
+    private void validateGrant(TeamProjectGrantRequest grant) {
+        Project project = projectService.query(grant.getProjectId()).getData();
+        if (project == null) {
+            throw new ParamBusinessException("projectId invalid");
+        }
+        if (CollectionUtils.isEmpty(grant.getEnvironmentIdList())) {
+            return;
+        }
+        for (Long environmentId : grant.getEnvironmentIdList().stream().filter(Objects::nonNull).distinct().toList()) {
+            Environment environment = environmentService.query(environmentId).getData();
+            if (environment == null || !Objects.equals(environment.getProjectId(), project.getId())) {
+                throw new ParamBusinessException("environmentId invalid");
+            }
         }
     }
 
