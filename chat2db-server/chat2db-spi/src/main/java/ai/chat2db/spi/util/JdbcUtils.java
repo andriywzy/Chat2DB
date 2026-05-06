@@ -12,6 +12,7 @@ import ai.chat2db.spi.enums.DataTypeEnum;
 import ai.chat2db.spi.model.DataSourceConnect;
 import ai.chat2db.spi.model.SSHInfo;
 import ai.chat2db.spi.sql.IDriverManager;
+import ai.chat2db.spi.sql.SQLExecutor;
 import ai.chat2db.spi.ssh.SSHManager;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -165,6 +166,10 @@ public class JdbcUtils {
             // Create connection
             connection = IDriverManager.getConnection(url, userName, password,
                     driverConfig, properties);
+            if (StringUtils.equalsIgnoreCase(dbType, "REDIS")) {
+                // Redis JDBC authentication is only exercised after an actual command.
+                SQLExecutor.getInstance().execute(connection, "ping", resultSet -> null);
+            }
         } catch (Exception e) {
             log.error("connection fail:", e);
             dataSourceConnect.setSuccess(Boolean.FALSE);
