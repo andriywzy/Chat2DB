@@ -6,7 +6,8 @@
         select ds.*
         from DATA_SOURCE ds
         <where>
-            and (ds.USER_ID = #{userId}
+            and (#{admin} = true
+            or ds.USER_ID = #{userId}
             or exists(
             select 1 from PROJECT_ACCESS pa where pa.ACCESS_OBJECT_TYPE = 'USER'
             and pa.ACCESS_OBJECT_ID = #{userId}

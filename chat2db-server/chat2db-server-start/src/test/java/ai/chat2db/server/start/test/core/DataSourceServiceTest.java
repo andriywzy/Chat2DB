@@ -26,6 +26,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 public class DataSourceServiceTest extends TestApplication {
@@ -120,7 +121,6 @@ public class DataSourceServiceTest extends TestApplication {
 
     @Test
     public void testQueryPageWithPermission() {
-//        userLoginIdentity(false,3L);
         userLoginIdentity(true,9L);
 
         DataSourcePageQueryParam queryParam = new DataSourcePageQueryParam();
@@ -133,7 +133,9 @@ public class DataSourceServiceTest extends TestApplication {
         selector.setEnvironment(true);
 
         PageResult<DataSource> result = dataSourceService.queryPageWithPermission(queryParam, selector);
+        PageResult<DataSource> allResult = dataSourceService.queryPage(queryParam, selector);
         assertNotNull(result.getData());
+        assertEquals(allResult.getTotal(), result.getTotal());
 
     }
 
