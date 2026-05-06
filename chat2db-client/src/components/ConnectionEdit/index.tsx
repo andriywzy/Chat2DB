@@ -62,6 +62,7 @@ const ConnectionEdit = forwardRef((props: IProps, ref: ForwardedRef<ICreateConne
   const [envList, setEnvList] = useState<{ value: number; label: string }[]>([]);
   const [projectOptions, setProjectOptions] = useState<{ value: number; label: string }[]>([]);
   const selectedProjectId = Form.useWatch('projectId', baseInfoForm);
+  const canManage = backfillData?.canManage ?? backfillData?.isAdmin !== false;
 
   useEffect(() => {
     const currentProjectId = selectedProjectId ?? backfillData?.projectId ?? -1;
@@ -157,7 +158,7 @@ const ConnectionEdit = forwardRef((props: IProps, ref: ForwardedRef<ICreateConne
             backfillData={backfillData!}
             form={sshForm}
             tab="ssh"
-            disabled={backfillData.isAdmin === false}
+            disabled={!canManage}
           />
           <div className={styles.testSSHConnect}>
             {loadings.sshTestLoading && <LoadingGracile />}
@@ -291,6 +292,10 @@ const ConnectionEdit = forwardRef((props: IProps, ref: ForwardedRef<ICreateConne
       [loadingsButton]: true,
     });
 
+    if (!canManage && type !== submitType.TEST) {
+      return;
+    }
+
     if ((type === submitType.SAVE) && submit) {
       submit?.(p).finally(() => {
         setLoading({
@@ -388,7 +393,7 @@ const ConnectionEdit = forwardRef((props: IProps, ref: ForwardedRef<ICreateConne
           backfillData={backfillData!}
           form={baseInfoForm}
           tab="baseInfo"
-          disabled={backfillData.isAdmin === false}
+          disabled={!canManage}
         />
       </div>
       <Collapse defaultActiveKey={['driver']} items={getItems()} />
@@ -405,7 +410,7 @@ const ConnectionEdit = forwardRef((props: IProps, ref: ForwardedRef<ICreateConne
           }
         </div>
         <div className={styles.rightButton}>
-          {backfillData.id && onDelete && (
+          {canManage && backfillData.id && onDelete && (
             <Popconfirm
               title={i18n('common.tips.delete.confirm')}
               onConfirm={handleDeleteConnection}
@@ -420,14 +425,16 @@ const ConnectionEdit = forwardRef((props: IProps, ref: ForwardedRef<ICreateConne
           <Button onClick={onCancel} className={styles.cancel}>
             {i18n('common.button.cancel')}
           </Button>
-          <Button
-            className={styles.save}
-            type="primary"
-            loading={loadings.confirmButton}
-            onClick={saveConnection.bind(null, backfillData.id ? submitType.UPDATE : submitType.SAVE)}
-          >
-            {backfillData.id ? i18n('common.button.modify') : i18n('common.button.save')}
-          </Button>
+          {canManage && (
+            <Button
+              className={styles.save}
+              type="primary"
+              loading={loadings.confirmButton}
+              onClick={saveConnection.bind(null, backfillData.id ? submitType.UPDATE : submitType.SAVE)}
+            >
+              {backfillData.id ? i18n('common.button.modify') : i18n('common.button.save')}
+            </Button>
+          )}
         </div>
       </div>
     </div>
@@ -747,7 +754,7 @@ function RenderExtendTable(props: IRenderExtendTableProps) {
     });
   }, [backfillData.type]);
   // 禁止修改
-  const disabled = backfillData.isAdmin === false;
+  const disabled = backfillData.canManage === false || backfillData.isAdmin === false;
 
   useEffect(() => {
     const extendInfoList = backfillData?.extendInfo?.length

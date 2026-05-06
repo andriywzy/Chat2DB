@@ -21,6 +21,7 @@ import ai.chat2db.server.domain.api.service.ConsoleService;
 import ai.chat2db.server.domain.api.service.DataSourceService;
 import ai.chat2db.server.domain.api.service.EnvironmentService;
 import ai.chat2db.server.domain.api.service.ProjectService;
+import ai.chat2db.server.domain.core.util.PermissionUtils;
 import ai.chat2db.server.tools.common.exception.ConnectionException;
 import ai.chat2db.server.tools.common.exception.ParamBusinessException;
 import ai.chat2db.spi.model.Database;
@@ -196,6 +197,7 @@ public class DataSourceController {
         DataSourcePageQueryParam param = dataSourceWebConverter.queryReq2param(request);
         PageResult<DataSource> result = dataSourceService.queryPageWithPermission(param, DATA_SOURCE_SELECTOR);
         List<DataSourceVO> dataSourceVOS = dataSourceWebConverter.dto2vo(result.getData());
+        fillManagePermission(dataSourceVOS);
         return WebPageResult.of(dataSourceVOS, result.getTotal(), result.getPageNo(), result.getPageSize());
     }
 
@@ -214,6 +216,7 @@ public class DataSourceController {
         } else {
             dataSourceVO.setAuthenticationType("2");
         }
+        dataSourceVO.setCanManage(PermissionUtils.hasDeskTopOrAdminPermission());
         return DataResult.of(dataSourceVO);
     }
 
@@ -275,6 +278,7 @@ public class DataSourceController {
 
     @PostMapping("/datasource/export")
     public DataResult<DataSourceTemplateVO> export(@RequestBody DataSourceExportRequest request) {
+        PermissionUtils.checkDeskTopOrAdmin();
         if (request == null || request.getIds() == null || request.getIds().isEmpty()) {
             throw new ParamBusinessException();
         }
@@ -293,6 +297,7 @@ public class DataSourceController {
 
     @PostMapping("/datasource/import")
     public DataResult<DataSourceImportResultVO> importConnections(@RequestBody DataSourceImportRequest request) {
+        PermissionUtils.checkDeskTopOrAdmin();
         if (request == null || request.getConnections() == null || request.getConnections().isEmpty()) {
             throw new ParamBusinessException();
         }
@@ -434,6 +439,13 @@ public class DataSourceController {
             }
         }
         return null;
+    }
+
+    private void fillManagePermission(List<DataSourceVO> dataSourceVOS) {
+        boolean canManage = PermissionUtils.hasDeskTopOrAdminPermission();
+        for (DataSourceVO dataSourceVO : dataSourceVOS) {
+            dataSourceVO.setCanManage(canManage);
+        }
     }
 
 }

@@ -12,6 +12,14 @@ import ai.chat2db.server.tools.common.util.ContextUtils;
  */
 public class PermissionUtils {
 
+    public static boolean hasDeskTopOrAdminPermission() {
+        LoginUser loginUser = ContextUtils.getLoginUser();
+        if (RoleCodeEnum.DESKTOP.getDefaultUserId().equals(loginUser.getId())) {
+            return true;
+        }
+        return Boolean.TRUE.equals(loginUser.getAdmin());
+    }
+
     /**
      * Verify whether the currently logged-in user has permission to operate on the current content
      *
@@ -63,12 +71,7 @@ public class PermissionUtils {
      * @return
      */
     public static void checkDeskTopOrAdmin() {
-        LoginUser loginUser = ContextUtils.getLoginUser();
-        // Representative is desktop mode
-        if (RoleCodeEnum.DESKTOP.getDefaultUserId().equals(loginUser.getId())) {
-            return;
-        }
-        if (loginUser.getAdmin()) {
+        if (hasDeskTopOrAdminPermission()) {
             return;
         }
         throw new PermissionDeniedBusinessException();

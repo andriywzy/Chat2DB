@@ -38,6 +38,7 @@ export interface IConnectionListItem {
   projectId?: number;
   projectName?: string;
   accessScope?: 'PERSONAL' | 'PROJECT';
+  canManage?: boolean;
 }
 
 
@@ -47,7 +48,8 @@ export interface IConnectionDetails {
   environment: IConnectionEnv;
   type: DatabaseTypeCode;
 
-  isAdmin: boolean;
+  isAdmin?: boolean;
+  canManage?: boolean;
   url: string;
   user: string;
   password: string;

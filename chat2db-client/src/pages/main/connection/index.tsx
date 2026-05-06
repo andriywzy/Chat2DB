@@ -17,6 +17,8 @@ import Iconfont from '@/components/Iconfont';
 import LoadingContent from '@/components/Loading/LoadingContent';
 import MenuLabel from '@/components/MenuLabel';
 import { downloadJsonFile } from '@/utils/file';
+import { useUserStore } from '@/store/user';
+import { IRole } from '@/typings/user';
 
 // ----- hooks -----
 import useClickAndDoubleClick from '@/hooks/useClickAndDoubleClick';
@@ -43,6 +45,8 @@ const ConnectionsPage = () => {
   const volatileRef = useRef<any>();
   const [connectionActiveId, setConnectionActiveId] = useState<IConnectionListItem['id'] | null>(null);
   const [connectionDetail, setConnectionDetail] = useState<IConnectionDetails | null | undefined>(null);
+  const currentUser = useUserStore((state) => state.curUser);
+  const canManageConnection = currentUser?.admin || currentUser?.roleCode === IRole.DESKTOP;
 
   // 处理列表单击事件
   const handleMenuItemSingleClick = (t: IConnectionListItem) => {
@@ -138,21 +142,25 @@ const ConnectionsPage = () => {
         label: <MenuLabel icon="&#xec57;" label={i18n('connection.button.connect')} />,
         onClick: enterWorkSpace,
       },
-      {
-        key: 'copyConnection',
-        label: <MenuLabel icon="&#xec7a;" label={i18n('common.button.copy')} />,
-        onClick: copyConnection,
-      },
-      {
-        key: 'exportConnection',
-        label: <MenuLabel icon="&#xe601;" label={i18n('connection.button.exportConnection')} />,
-        onClick: exportConnection,
-      },
-      {
-        key: 'delete',
-        label: <MenuLabel icon="&#xe6a7;" label={i18n('connection.button.remove')} />,
-        onClick: handelDelete,
-      },
+      ...(canManageConnection
+        ? [
+            {
+              key: 'copyConnection',
+              label: <MenuLabel icon="&#xec7a;" label={i18n('common.button.copy')} />,
+              onClick: copyConnection,
+            },
+            {
+              key: 'exportConnection',
+              label: <MenuLabel icon="&#xe601;" label={i18n('connection.button.exportConnection')} />,
+              onClick: exportConnection,
+            },
+            {
+              key: 'delete',
+              label: <MenuLabel icon="&#xe6a7;" label={i18n('connection.button.remove')} />,
+              onClick: handelDelete,
+            },
+          ]
+        : []),
     ];
   };
 
@@ -223,7 +231,7 @@ const ConnectionsPage = () => {
         <div ref={volatileRef} className={styles.layoutLeft}>
           <div className={styles.pageTitle}>{i18n('connection.title.connections')}</div>
           <div className={styles.menuBox}>{renderConnectionMenuList()}</div>
-          {connectionActiveId && (
+          {canManageConnection && connectionActiveId && (
             <Button
               type="primary"
               className={styles.addConnection}

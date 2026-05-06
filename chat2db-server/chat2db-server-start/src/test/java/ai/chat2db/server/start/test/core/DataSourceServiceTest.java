@@ -12,6 +12,7 @@ import ai.chat2db.server.tools.base.wrapper.result.ActionResult;
 import ai.chat2db.server.tools.base.wrapper.result.DataResult;
 import ai.chat2db.server.tools.base.wrapper.result.ListResult;
 import ai.chat2db.server.tools.base.wrapper.result.PageResult;
+import ai.chat2db.server.tools.common.exception.PermissionDeniedBusinessException;
 import ai.chat2db.server.tools.common.model.Context;
 import ai.chat2db.server.tools.common.model.LoginUser;
 import ai.chat2db.server.tools.common.util.ContextUtils;
@@ -28,6 +29,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class DataSourceServiceTest extends TestApplication {
 
@@ -45,8 +47,7 @@ public class DataSourceServiceTest extends TestApplication {
         DataSourceCreateParam createParam = new DataSourceCreateParam();
         createParam.setDriverConfig(new DriverConfig());
 
-        DataResult<Long> withPermission = dataSourceService.createWithPermission(createParam);
-        assertNotNull(withPermission.getData());
+        assertThrows(PermissionDeniedBusinessException.class, () -> dataSourceService.createWithPermission(createParam));
 
     }
 
@@ -60,10 +61,8 @@ public class DataSourceServiceTest extends TestApplication {
         updateParam.setDriverConfig(new DriverConfig());
         updateParam.setPassword("123456");
 
-        DataResult<Long> result = dataSourceService.updateWithPermission(updateParam);
-        ActionResult delete = dataSourceService.deleteWithPermission(4L);
-        assertNotNull(result.getData());
-        assertNotNull(delete);
+        assertThrows(PermissionDeniedBusinessException.class, () -> dataSourceService.updateWithPermission(updateParam));
+        assertThrows(PermissionDeniedBusinessException.class, () -> dataSourceService.deleteWithPermission(4L));
 
     }
 
@@ -96,8 +95,7 @@ public class DataSourceServiceTest extends TestApplication {
         userLoginIdentity(false, 2L);
 //        userLoginIdentity(true, 7L);
 
-        DataResult<Long> longDataResult = dataSourceService.copyByIdWithPermission(3L);
-        assertNotNull(longDataResult.getData());
+        assertThrows(PermissionDeniedBusinessException.class, () -> dataSourceService.copyByIdWithPermission(3L));
 
     }
 

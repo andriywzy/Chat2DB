@@ -10,6 +10,8 @@ import FileUploadModal from '@/components/ImportConnection';
 import {getConnectionList} from '@/pages/main/store/connection';
 import connectionService from '@/service/connection';
 import { downloadJsonFile } from '@/utils/file';
+import { useUserStore } from '@/store/user';
+import { IRole } from '@/typings/user';
 
 // IConnectionDetails 全部信息代表修改
 // null 展示因增列表
@@ -30,6 +32,8 @@ export default memo<IProps>((props) => {
     externalConnectionDetail,
   );
   const [isFileUploadModalOpen, setIsFileUploadModalOpen] = useState(false);
+  const currentUser = useUserStore((state) => state.curUser);
+  const canManageConnection = currentUser?.admin || currentUser?.roleCode === IRole.DESKTOP;
 
 
   useEffect(() => {
@@ -39,6 +43,7 @@ export default memo<IProps>((props) => {
   function handleCreateConnections(database: IDatabase) {
     setConnectionDetail({
       type: database.code,
+      canManage: canManageConnection,
     });
   }
 
@@ -73,7 +78,7 @@ export default memo<IProps>((props) => {
         {connectionDetail === null && (
           <div className={styles.dataBaseListBox}>
             <div className={styles.dataBaseList}>
-              {databaseTypeList.map((t) => {
+              {canManageConnection && databaseTypeList.map((t) => {
                 return (
                   <div key={t.code} className={styles.databaseItem} onClick={handleCreateConnections.bind(null, t)}>
                     <div className={styles.databaseItemMain}>
@@ -90,32 +95,36 @@ export default memo<IProps>((props) => {
                   </div>
                 );
               })}
-              <div className={styles.databaseItem} onClick={() => {setIsFileUploadModalOpen(true)}}>
-                <div className={styles.databaseItemMain}>
-                  <div className={styles.databaseItemLeft}>
-                    <div className={styles.logoBox}>
-                      <Iconfont code="&#xe66c;" />
+              {canManageConnection && (
+                <div className={styles.databaseItem} onClick={() => {setIsFileUploadModalOpen(true)}}>
+                  <div className={styles.databaseItemMain}>
+                    <div className={styles.databaseItemLeft}>
+                      <div className={styles.logoBox}>
+                        <Iconfont code="&#xe66c;" />
+                      </div>
+                      {i18n('connection.title.importConnection')}
                     </div>
-                    {i18n('connection.title.importConnection')}
-                  </div>
-                  <div className={styles.databaseItemRight}>
-                    <Iconfont code="&#xe631;" />
+                    <div className={styles.databaseItemRight}>
+                      <Iconfont code="&#xe631;" />
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className={styles.databaseItem} onClick={handleDownloadTemplate}>
-                <div className={styles.databaseItemMain}>
-                  <div className={styles.databaseItemLeft}>
-                    <div className={styles.logoBox}>
-                      <Iconfont code="&#xe667;" />
+              )}
+              {canManageConnection && (
+                <div className={styles.databaseItem} onClick={handleDownloadTemplate}>
+                  <div className={styles.databaseItemMain}>
+                    <div className={styles.databaseItemLeft}>
+                      <div className={styles.logoBox}>
+                        <Iconfont code="&#xe667;" />
+                      </div>
+                      {i18n('connection.button.downloadTemplate')}
                     </div>
-                    {i18n('connection.button.downloadTemplate')}
-                  </div>
-                  <div className={styles.databaseItemRight}>
-                    <Iconfont code="&#xe631;" />
+                    <div className={styles.databaseItemRight}>
+                      <Iconfont code="&#xe631;" />
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
               {Array.from({ length: 20 }).map((t, index) => {
                 return <div key={index} className={styles.databaseItemSpacer} />;
               })}

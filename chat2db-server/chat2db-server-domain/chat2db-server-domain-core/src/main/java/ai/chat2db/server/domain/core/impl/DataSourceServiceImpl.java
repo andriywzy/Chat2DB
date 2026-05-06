@@ -101,6 +101,7 @@ public class DataSourceServiceImpl implements DataSourceService {
 
     @Override
     public DataResult<Long> createWithPermission(DataSourceCreateParam param) {
+        PermissionUtils.checkDeskTopOrAdmin();
         JdbcUtils.removePropertySameAsDefault(param.getDriverConfig());
         DataSourceDO dataSourceDO = dataSourceConverter.param2do(param);
         dataSourceDO.setGmtCreate(DateUtil.date());
@@ -138,8 +139,8 @@ public class DataSourceServiceImpl implements DataSourceService {
 
     @Override
     public DataResult<Long> updateWithPermission(DataSourceUpdateParam param) {
-        DataSource dataSource = queryExistent(param.getId(), null).getData();
-        PermissionUtils.checkOperationPermission(dataSource.getUserId());
+        PermissionUtils.checkDeskTopOrAdmin();
+        queryExistent(param.getId(), null);
 
         JdbcUtils.removePropertySameAsDefault(param.getDriverConfig());
         DataSourceDO dataSourceDO = dataSourceConverter.param2do(param);
@@ -152,9 +153,8 @@ public class DataSourceServiceImpl implements DataSourceService {
 
     @Override
     public ActionResult deleteWithPermission(Long id) {
-
-        DataSource dataSource = queryExistent(id, null).getData();
-        PermissionUtils.checkOperationPermission(dataSource.getUserId());
+        PermissionUtils.checkDeskTopOrAdmin();
+        queryExistent(id, null);
 
         getMapper().deleteById(id);
 
@@ -186,8 +186,8 @@ public class DataSourceServiceImpl implements DataSourceService {
 
     @Override
     public DataResult<Long> copyByIdWithPermission(Long id) {
-        DataSource dataSource = queryExistent(id, null).getData();
-        PermissionUtils.checkOperationPermission(dataSource.getUserId());
+        PermissionUtils.checkDeskTopOrAdmin();
+        queryExistent(id, null);
 
         DataSourceDO dataSourceDO = getMapper().selectById(id);
         dataSourceDO.setId(null);

@@ -137,6 +137,11 @@ public class DataSourceVO {
     private String accessScope;
 
     /**
+     * Whether the current user can manage datasource config.
+     */
+    private Boolean canManage;
+
+    /**
      * Whether to support database
      */
     private boolean supportDatabase;
