@@ -212,6 +212,9 @@ function UserManagement() {
           try {
             await form.validateFields();
             const formValues = form.getFieldsValue(true);
+            if (isEditing && !formValues.password) {
+              delete formValues.password;
+            }
             const success = await handleCreateOrUpdateUser(formValues);
             if (success) {
               setIsModalVisible(false);
@@ -257,7 +260,7 @@ function UserManagement() {
           >
             <Input autoComplete="off" />
           </Form.Item>
-          <Form.Item label={i18n('team.user.addForm.password')} name="password" rules={[requireRule]}>
+          <Form.Item label={i18n('team.user.addForm.password')} name="password" rules={isEditing ? [] : [requireRule]}>
             <Input.Password maxLength={30} placeholder={isEditing ? '******' : ''} autoComplete="fake-password" />
           </Form.Item>
           <Form.Item label={i18n('team.user.addForm.roleCode')} name="roleCode" rules={[requireRule]}>
