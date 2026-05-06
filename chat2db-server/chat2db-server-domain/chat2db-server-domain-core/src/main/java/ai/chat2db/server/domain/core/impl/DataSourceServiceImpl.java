@@ -47,6 +47,7 @@ import ai.chat2db.spi.model.DataSourceConnect;
 import ai.chat2db.spi.model.Database;
 import ai.chat2db.spi.model.KeyValue;
 import ai.chat2db.spi.sql.Chat2DBContext;
+import ai.chat2db.spi.sql.ConnectionPool;
 import ai.chat2db.spi.sql.IDriverManager;
 import ai.chat2db.spi.sql.SQLExecutor;
 import ai.chat2db.spi.util.JdbcUtils;
@@ -145,6 +146,7 @@ public class DataSourceServiceImpl implements DataSourceService {
         dataSourceDO.setGmtModified(DateUtil.date());
         dataSourceDO.setProjectId(resolveProjectId(param.getProjectId()));
         getMapper().updateById(dataSourceDO);
+        ConnectionPool.removeConnection(param.getId());
         return DataResult.of(dataSourceDO.getId());
     }
 
@@ -280,8 +282,7 @@ public class DataSourceServiceImpl implements DataSourceService {
 
     @Override
     public ActionResult close(Long id) {
-        DataSourceCloseParam closeParam = new DataSourceCloseParam();
-        closeParam.setDataSourceId(id);
+        ConnectionPool.removeConnection(id);
         return ActionResult.isSuccess();
     }
 
