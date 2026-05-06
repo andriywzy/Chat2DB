@@ -2,11 +2,6 @@ package ai.chat2db.plugin.redis;
 
 import ai.chat2db.spi.DBManage;
 import ai.chat2db.spi.jdbc.DefaultDBManage;
-<<<<<<< HEAD
-import ai.chat2db.spi.sql.SQLExecutor;
-
-import java.sql.Connection;
-=======
 import ai.chat2db.spi.sql.ConnectInfo;
 import ai.chat2db.spi.sql.SQLExecutor;
 import com.jcraft.jsch.Session;
@@ -15,17 +10,11 @@ import org.apache.commons.lang3.StringUtils;
 
 import java.sql.Connection;
 import java.sql.SQLException;
->>>>>>> codex/tmp
 
 /**
  * Redis is accessed via a Redis JDBC driver in this project. We only implement a minimal set of operations
  * needed by Chat2DB flows (connect/select DB, drop key).
  */
-<<<<<<< HEAD
-public class RedisDBManage extends DefaultDBManage implements DBManage {
-
-    @Override
-=======
 @Slf4j
 public class RedisDBManage extends DefaultDBManage implements DBManage {
 
@@ -53,7 +42,6 @@ public class RedisDBManage extends DefaultDBManage implements DBManage {
     }
 
     @Override
->>>>>>> codex/tmp
     public void connectDatabase(Connection connection, String database) {
         // Redis DB is selected through JDBC URL (/dbIndex). Avoid issuing SELECT here because
         // the third-party Redis JDBC driver may shift db index unexpectedly in some versions.
@@ -67,8 +55,6 @@ public class RedisDBManage extends DefaultDBManage implements DBManage {
         String sql = "del " + tableName;
         SQLExecutor.getInstance().execute(connection, sql, resultSet -> null);
     }
-<<<<<<< HEAD
-=======
 
     private static void verifyConnection(Connection connection) {
         SQLExecutor.getInstance().execute(connection, "ping", resultSet -> null);
@@ -122,5 +108,4 @@ public class RedisDBManage extends DefaultDBManage implements DBManage {
         } catch (SQLException ignored) {
         }
     }
->>>>>>> codex/tmp
 }
