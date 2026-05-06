@@ -66,3 +66,44 @@ export interface IConnectionDetails {
 }
 
 export type ICreateConnectionDetails = Omit<IConnectionDetails, 'id'>
+
+export interface IConnectionTemplateItem {
+  alias?: string;
+  url?: string;
+  user?: string;
+  password?: string;
+  type?: DatabaseTypeCode | string;
+  host?: string;
+  port?: string;
+  ssh?: any;
+  sid?: string;
+  driver?: string;
+  jdbc?: string;
+  extendInfo?: IConnectionExtendInfoItem[];
+  driverConfig?: {
+    jdbcDriver?: string;
+    jdbcDriverClass?: string;
+  };
+  environmentId?: number;
+  environmentName?: string;
+  environmentShortName?: string;
+  projectId?: number;
+  projectName?: string;
+  serviceName?: string;
+  serviceType?: string;
+}
+
+export interface IConnectionTemplate {
+  version: string;
+  template: string;
+  exportedAt: string;
+  connections: IConnectionTemplateItem[];
+}
+
+export interface IConnectionImportResult {
+  total: number;
+  successCount: number;
+  failureCount: number;
+  createdIds: number[];
+  errors: string[];
+}

@@ -6,6 +6,8 @@ import {
   IPageParams,
   IConnectionListItem,
   IConnectionProjectItem,
+  IConnectionTemplate,
+  IConnectionImportResult,
 } from '@/typings';
 import { DatabaseTypeCode } from '@/constants';
 import createRequest from './base';
@@ -63,6 +65,22 @@ const remove = createRequest<{ id: number }, void>('/api/connection/datasource/:
 
 const clone = createRequest<{ id: number }, number>('/api/connection/datasource/clone', { method: 'post' });
 
+const exportConnections = createRequest<{ ids: number[] }, IConnectionTemplate>('/api/connection/datasource/export', {
+  method: 'post',
+});
+
+const getImportTemplate = createRequest<void, IConnectionTemplate>('/api/connection/datasource/template', {
+  method: 'get',
+});
+
+const importConnections = createRequest<
+  { version?: string; template?: string; defaultEnvironmentId?: number; connections: any[] },
+  IConnectionImportResult
+>('/api/connection/datasource/import', {
+  method: 'post',
+  delayTime: true,
+});
+
 const getDatabaseList = createRequest<{ dataSourceId: number; refresh?: boolean }, any>('/api/rdb/database/list', {
   method: 'get',
 });
@@ -92,7 +110,15 @@ const createEnvironment = createRequest<
 });
 
 const updateEnvironment = createRequest<
-  { id: number; name: string; shortName?: string; color?: string; scopeType?: string; scopeId?: number; projectId?: number },
+  {
+    id: number;
+    name: string;
+    shortName?: string;
+    color?: string;
+    scopeType?: string;
+    scopeId?: number;
+    projectId?: number;
+  },
   number
 >('/api/environment/update', {
   method: 'post',
@@ -144,6 +170,9 @@ export default {
   update,
   remove,
   clone,
+  exportConnections,
+  getImportTemplate,
+  importConnections,
   getDatabaseList,
   getSchemaList,
   close,

@@ -16,6 +16,7 @@ import CreateConnection from '@/blocks/CreateConnection';
 import Iconfont from '@/components/Iconfont';
 import LoadingContent from '@/components/Loading/LoadingContent';
 import MenuLabel from '@/components/MenuLabel';
+import { downloadJsonFile } from '@/utils/file';
 
 // ----- hooks -----
 import useClickAndDoubleClick from '@/hooks/useClickAndDoubleClick';
@@ -123,7 +124,13 @@ const ConnectionsPage = () => {
         setConnectionActiveId(res);
         setConnectionManageActiveId(res);
       });
-    }
+    };
+
+    const exportConnection = async (e) => {
+      e.domEvent?.stopPropagation?.();
+      const payload = await connectionService.exportConnections({ ids: [t.id] });
+      downloadJsonFile(`chat2db-connection-${t.alias || t.id}.json`, payload);
+    };
 
     return [
       {
@@ -135,6 +142,11 @@ const ConnectionsPage = () => {
         key: 'copyConnection',
         label: <MenuLabel icon="&#xec7a;" label={i18n('common.button.copy')} />,
         onClick: copyConnection,
+      },
+      {
+        key: 'exportConnection',
+        label: <MenuLabel icon="&#xe601;" label={i18n('connection.button.exportConnection')} />,
+        onClick: exportConnection,
       },
       {
         key: 'delete',

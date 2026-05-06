@@ -8,6 +8,8 @@ import Iconfont from '@/components/Iconfont';
 import i18n from '@/i18n';
 import FileUploadModal from '@/components/ImportConnection';
 import {getConnectionList} from '@/pages/main/store/connection';
+import connectionService from '@/service/connection';
+import { downloadJsonFile } from '@/utils/file';
 
 // IConnectionDetails 全部信息代表修改
 // null 展示因增列表
@@ -39,6 +41,11 @@ export default memo<IProps>((props) => {
       type: database.code,
     });
   }
+
+  const handleDownloadTemplate = async () => {
+    const template = await connectionService.getImportTemplate();
+    downloadJsonFile('chat2db-connection-template.json', template);
+  };
 
   // function handleSubmit(data: IConnectionDetails) {
   //   return onSubmit?.(data);
@@ -90,6 +97,19 @@ export default memo<IProps>((props) => {
                       <Iconfont code="&#xe66c;" />
                     </div>
                     {i18n('connection.title.importConnection')}
+                  </div>
+                  <div className={styles.databaseItemRight}>
+                    <Iconfont code="&#xe631;" />
+                  </div>
+                </div>
+              </div>
+              <div className={styles.databaseItem} onClick={handleDownloadTemplate}>
+                <div className={styles.databaseItemMain}>
+                  <div className={styles.databaseItemLeft}>
+                    <div className={styles.logoBox}>
+                      <Iconfont code="&#xe667;" />
+                    </div>
+                    {i18n('connection.button.downloadTemplate')}
                   </div>
                   <div className={styles.databaseItemRight}>
                     <Iconfont code="&#xe631;" />
