@@ -144,4 +144,12 @@ deploy_chat2db:
     - docker rm -f "${APP_NAME}" || true
     - docker run -d --name "${APP_NAME}" --restart unless-stopped -p "${APP_PORT}:10824" -v "${DATA_DIR}:/root/.chat2db" "${IMAGE_NAME}:latest"
     - docker ps --filter "name=${APP_NAME}"
-    - curl -I -s "http://127.0.0.1:${APP_PORT}/login"
+    - |
+      for i in $(seq 1 30); do
+        if curl -I -s "http://127.0.0.1:${APP_PORT}/login" >/dev/null; then
+          exit 0
+        fi
+        sleep 2
+      done
+      docker logs --tail 200 "${APP_NAME}" || true
+      exit 1
