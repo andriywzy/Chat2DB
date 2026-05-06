@@ -63,8 +63,14 @@ build_image:
         "${FRONTEND_WORK_DIR}" \
         "${BACKEND_WORK_DIR}"
 
+      docker run --rm \
+        -v "${FRONTEND_WORK_DIR}:${FRONTEND_CONTAINER_DIR}" \
+        "${NODE_BASE_IMAGE}" \
+        sh -lc "rm -rf '${FRONTEND_CONTAINER_DIR}/src/.umi' '${FRONTEND_CONTAINER_DIR}/node_modules/.cache'"
+
       rsync -a --delete \
         --exclude node_modules \
+        --exclude src/.umi \
         --exclude dist \
         --exclude release \
         "${CI_PROJECT_DIR}/chat2db-client/" "${FRONTEND_WORK_DIR}/"
