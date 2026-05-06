@@ -615,6 +615,7 @@ function RenderForm(props: IRenderFormProps) {
     const labelWidth = isEn ? t?.styles?.labelWidthEN || '100px' : t?.styles?.labelWidthCN || '70px';
     const placeholder = isEn ? t.placeholderEN : t.placeholder;
     const labelAlign = t?.styles?.labelAlign || 'left';
+    const selectedValue = form.getFieldValue(name) ?? t.defaultValue;
 
     const FormItemTypes: { [key in InputType]: () => React.ReactNode } = {
       [InputType.INPUT]: () => (
@@ -697,7 +698,7 @@ function RenderForm(props: IRenderFormProps) {
           {FormItemTypes[t.inputType]()}
         </div>
         {t.selects?.map((item) => {
-          if (t.defaultValue === item.value) {
+          if (selectedValue === item.value) {
             return item.items?.map((childItem) => {
               return renderFormItem(childItem);
             });
