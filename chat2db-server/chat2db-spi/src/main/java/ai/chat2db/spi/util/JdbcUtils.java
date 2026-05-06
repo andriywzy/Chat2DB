@@ -152,6 +152,10 @@ public class JdbcUtils {
         Connection connection = null;
         // Load driver
         try {
+            String redisUrl = RedisJdbcUrlUtils.maybeBuildUrl(dbType, host, port, null, userName, password);
+            if (StringUtils.isNotBlank(redisUrl)) {
+                url = redisUrl;
+            }
             if (ssh.isUse()) {
                 ssh.setRHost(host);
                 ssh.setRPort(port);

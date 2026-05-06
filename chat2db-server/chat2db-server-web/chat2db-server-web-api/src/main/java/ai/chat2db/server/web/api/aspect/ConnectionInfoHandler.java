@@ -13,6 +13,7 @@ import ai.chat2db.server.web.api.controller.data.source.request.DataSourceConsol
 import ai.chat2db.spi.config.DriverConfig;
 import ai.chat2db.spi.sql.Chat2DBContext;
 import ai.chat2db.spi.sql.ConnectInfo;
+import ai.chat2db.spi.util.RedisJdbcUrlUtils;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -104,12 +105,10 @@ public class ConnectionInfoHandler {
         connectInfo.setUrl(dataSource.getUrl());
         connectInfo.setPort(StringUtils.isNotBlank(dataSource.getPort()) ? Integer.parseInt(dataSource.getPort()) : null);
         connectInfo.setHost(dataSource.getHost());
-        if ("REDIS".equalsIgnoreCase(dataSource.getType())
-                && StringUtils.isNotBlank(dataSource.getHost())
-                && StringUtils.isNotBlank(dataSource.getPort())) {
-            String dbName = StringUtils.isNotBlank(database) ? database.trim() : "0";
-            connectInfo.setUrl(String.format("jdbc:redis://%s:%s/%s",
-                    dataSource.getHost().trim(), dataSource.getPort().trim(), dbName));
+        String redisUrl = RedisJdbcUrlUtils.maybeBuildUrl(dataSource.getType(), dataSource.getHost(),
+                dataSource.getPort(), database, dataSource.getUserName(), dataSource.getPassword());
+        if (StringUtils.isNotBlank(redisUrl)) {
+            connectInfo.setUrl(redisUrl);
         }
         connectInfo.setLoginUser(ContextUtils.getLoginUser().getId() + "");
         DriverConfig driverConfig = dataSource.getDriverConfig();
