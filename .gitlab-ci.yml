@@ -8,22 +8,34 @@ variables:
   IMAGE_NAME: "chat2db-dev"
   DATA_DIR: "/opt/chat2db/data"
   BUILD_CACHE_DIR: "/opt/chat2db/build-cache"
+<<<<<<< HEAD
   IMAGE_CACHE_DIR: "/opt/chat2db/build-cache/images"
+=======
+  FRONTEND_INSTALL_CACHE_DIR: "/opt/chat2db/build-cache/frontend-install"
+  BACKEND_BUILD_DIR: "/opt/chat2db/build-cache/backend-build"
+  RUNTIME_CONTEXT_DIR: "/opt/chat2db/build-cache/runtime-context"
+>>>>>>> codex/tmp
   YARN_CACHE_DIR: "/opt/chat2db/build-cache/yarn"
   ELECTRON_CACHE_DIR: "/opt/chat2db/build-cache/electron"
   MAVEN_CACHE_DIR: "/opt/chat2db/build-cache/m2"
   TESSDATA_CACHE_DIR: "/opt/chat2db/build-cache/tessdata"
   APT_CACHE_DIR: "/opt/chat2db/build-cache/apt/cache"
   APT_LISTS_DIR: "/opt/chat2db/build-cache/apt/lists"
+<<<<<<< HEAD
   FRONTEND_WORK_DIR: "/opt/chat2db/build-cache/frontend-src"
   BACKEND_WORK_DIR: "/opt/chat2db/build-cache/backend-src"
   RUNTIME_CONTEXT_DIR: "/opt/chat2db/build-cache/runtime-context"
+=======
+>>>>>>> codex/tmp
   NODE_BASE_IMAGE: "node:16-bullseye"
   MAVEN_BASE_IMAGE: "maven:3.9-eclipse-temurin-17"
   RUNTIME_BASE_IMAGE: "eclipse-temurin:17-jre"
   RUNTIME_BUILD_BASE_IMAGE: "chat2db-runtime-base:local"
+<<<<<<< HEAD
   GIT_STRATEGY: clone
   GIT_DEPTH: 0
+=======
+>>>>>>> codex/tmp
 
 build_image:
   stage: build
@@ -36,6 +48,7 @@ build_image:
     - |
       set -euo pipefail
 
+<<<<<<< HEAD
       sanitize_image_name() {
         echo "$1" | tr '/:@' '___'
       }
@@ -64,6 +77,27 @@ build_image:
       mkdir -p \
         "${DATA_DIR}" \
         "${IMAGE_CACHE_DIR}" \
+=======
+      FRONTEND_CACHE_KEY="$(
+        {
+          cat "${CI_PROJECT_DIR}/chat2db-client/package.json"
+          cat "${CI_PROJECT_DIR}/chat2db-client/yarn.lock"
+          printf '%s\n' "${NODE_BASE_IMAGE}"
+          uname -s
+          uname -m
+        } | sha256sum | awk '{print $1}'
+      )"
+      FRONTEND_WORK_DIR="${FRONTEND_INSTALL_CACHE_DIR}/${FRONTEND_CACHE_KEY}"
+      BACKEND_WORK_DIR="${BACKEND_BUILD_DIR}/${CI_COMMIT_SHA}"
+      FRONTEND_CONTAINER_DIR="/workspace/chat2db-client"
+      BACKEND_CONTAINER_DIR="/workspace/chat2db-server"
+
+      mkdir -p \
+        "${DATA_DIR}" \
+        "${FRONTEND_INSTALL_CACHE_DIR}" \
+        "${BACKEND_BUILD_DIR}" \
+        "${RUNTIME_CONTEXT_DIR}/tessdata" \
+>>>>>>> codex/tmp
         "${YARN_CACHE_DIR}" \
         "${ELECTRON_CACHE_DIR}" \
         "${MAVEN_CACHE_DIR}" \
@@ -71,12 +105,46 @@ build_image:
         "${APT_CACHE_DIR}" \
         "${APT_LISTS_DIR}" \
         "${FRONTEND_WORK_DIR}" \
+<<<<<<< HEAD
         "${BACKEND_WORK_DIR}" \
         "${RUNTIME_CONTEXT_DIR}/tessdata"
 
       ensure_image "${NODE_BASE_IMAGE}"
       ensure_image "${MAVEN_BASE_IMAGE}"
       ensure_image "${RUNTIME_BASE_IMAGE}"
+=======
+        "${BACKEND_WORK_DIR}"
+
+      rsync -a --delete \
+        --exclude node_modules \
+        --exclude dist \
+        --exclude release \
+        "${CI_PROJECT_DIR}/chat2db-client/" "${FRONTEND_WORK_DIR}/"
+
+      docker run --rm \
+        -v "${FRONTEND_WORK_DIR}:${FRONTEND_CONTAINER_DIR}" \
+        -v "${YARN_CACHE_DIR}:/usr/local/share/.cache/yarn" \
+        -v "${ELECTRON_CACHE_DIR}:/root/.cache/electron" \
+        -e ELECTRON_SKIP_BINARY_DOWNLOAD=1 \
+        -e ELECTRON_CACHE=/root/.cache/electron \
+        -e electron_config_cache=/root/.cache/electron \
+        "${NODE_BASE_IMAGE}" \
+        sh -lc "cd '${FRONTEND_CONTAINER_DIR}' && yarn install --frozen-lockfile --prefer-offline --verbose && yarn run build:web:prod --app_version=${CI_COMMIT_SHORT_SHA} --app_port=${APP_PORT}"
+
+      rsync -a --delete "${CI_PROJECT_DIR}/chat2db-server/" "${BACKEND_WORK_DIR}/"
+      rm -rf "${BACKEND_WORK_DIR}/chat2db-server-web-start/src/main/resources/static/front"/*
+      mkdir -p "${BACKEND_WORK_DIR}/chat2db-server-web-start/src/main/resources/static/front"
+      cp -R "${FRONTEND_WORK_DIR}/dist/." "${BACKEND_WORK_DIR}/chat2db-server-web-start/src/main/resources/static/front/"
+      cp "${FRONTEND_WORK_DIR}/dist/index.html" "${BACKEND_WORK_DIR}/chat2db-server-web-start/src/main/resources/thymeleaf/index.html"
+
+      docker run --rm \
+        -v "${BACKEND_WORK_DIR}:${BACKEND_CONTAINER_DIR}" \
+        -v "${MAVEN_CACHE_DIR}:/root/.m2" \
+        "${MAVEN_BASE_IMAGE}" \
+        sh -lc "cd '${BACKEND_CONTAINER_DIR}' && mvn -pl chat2db-server-web-start -am -DskipTests package -f pom.xml"
+
+      cp "${BACKEND_WORK_DIR}/chat2db-server-web-start/target/chat2db-server-web-start.jar" "${RUNTIME_CONTEXT_DIR}/chat2db-server-web-start.jar"
+>>>>>>> codex/tmp
 
       if [ ! -f "${TESSDATA_CACHE_DIR}/eng.traineddata" ]; then
         curl -fsSL "https://github.com/tesseract-ocr/tessdata_fast/raw/main/eng.traineddata" -o "${TESSDATA_CACHE_DIR}/eng.traineddata"
@@ -97,6 +165,7 @@ build_image:
         docker rm -f chat2db-runtime-base-builder
       fi
 
+<<<<<<< HEAD
       docker run --rm \
         -v "${CI_PROJECT_DIR}:/src" \
         -v "${BUILD_CACHE_DIR}:/cache" \
@@ -114,6 +183,8 @@ build_image:
         "${MAVEN_BASE_IMAGE}" \
         sh -lc "rm -rf \"${CONTAINER_BACKEND_WORK_DIR}\" && mkdir -p \"${CONTAINER_BACKEND_WORK_DIR}\" && cp -R /src/chat2db-server/. \"${CONTAINER_BACKEND_WORK_DIR}/\" && rm -rf \"${CONTAINER_BACKEND_WORK_DIR}/chat2db-server-web-start/src/main/resources/static/front\"/* && mkdir -p \"${CONTAINER_BACKEND_WORK_DIR}/chat2db-server-web-start/src/main/resources/static/front\" && cp -R \"${CONTAINER_FRONTEND_WORK_DIR}/dist/.\" \"${CONTAINER_BACKEND_WORK_DIR}/chat2db-server-web-start/src/main/resources/static/front/\" && cp \"${CONTAINER_FRONTEND_WORK_DIR}/dist/index.html\" \"${CONTAINER_BACKEND_WORK_DIR}/chat2db-server-web-start/src/main/resources/thymeleaf/index.html\" && mvn -pl chat2db-server-web-start -am -DskipTests package -f \"${CONTAINER_BACKEND_WORK_DIR}/pom.xml\" && cp \"${CONTAINER_BACKEND_WORK_DIR}/chat2db-server-web-start/target/chat2db-server-web-start.jar\" \"${CONTAINER_RUNTIME_CONTEXT_DIR}/chat2db-server-web-start.jar\""
 
+=======
+>>>>>>> codex/tmp
       cp "${TESSDATA_CACHE_DIR}/eng.traineddata" "${RUNTIME_CONTEXT_DIR}/tessdata/eng.traineddata"
       cp "${TESSDATA_CACHE_DIR}/chi_sim.traineddata" "${RUNTIME_CONTEXT_DIR}/tessdata/chi_sim.traineddata"
 

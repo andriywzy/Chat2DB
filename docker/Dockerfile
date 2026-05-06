@@ -13,4 +13,8 @@ ENV CHAT2DB_OCR_TESSDATA_DIR=/opt/tessdata
 COPY chat2db-server-web-start.jar /app/chat2db-server-web-start.jar
 
 EXPOSE ${APP_PORT}
+<<<<<<< HEAD
 ENTRYPOINT ["java","-Dspring.profiles.active=release","-jar","chat2db-server-web-start.jar"]
+=======
+ENTRYPOINT ["java", "-Dspring.profiles.active=release", "-jar", "chat2db-server-web-start.jar"]
+>>>>>>> codex/tmp
