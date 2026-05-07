@@ -19,6 +19,7 @@ import ai.chat2db.server.domain.repository.entity.ObjectSearchSyncStatusDO;
 import ai.chat2db.server.domain.repository.mapper.DataSourceMapper;
 import ai.chat2db.server.domain.repository.mapper.ObjectSearchIndexMapper;
 import ai.chat2db.server.domain.repository.mapper.ObjectSearchSyncStatusMapper;
+import ai.chat2db.server.tools.base.enums.DataSourceTypeEnum;
 import ai.chat2db.spi.config.DBConfig;
 import ai.chat2db.spi.config.DriverConfig;
 import ai.chat2db.spi.model.Database;
@@ -69,6 +70,10 @@ public class ObjectSearchSyncServiceImpl implements ObjectSearchSyncService {
     private static final String TYPE_FUNCTION = "function";
     private static final String TYPE_PROCEDURE = "procedure";
     private static final String TYPE_TRIGGER = "trigger";
+    private static final Set<String> UNSUPPORTED_OBJECT_SEARCH_TYPES = Set.of(
+        DataSourceTypeEnum.REDIS.getCode(),
+        DataSourceTypeEnum.MONGODB.getCode()
+    );
 
     private final DatabaseService databaseService;
     private final TableService tableService;
@@ -191,12 +196,21 @@ public class ObjectSearchSyncServiceImpl implements ObjectSearchSyncService {
         ObjectSearchSyncStatusDO currentStatus = markRunning(findStatus(dataSourceId), dataSourceId);
         long syncVersion = System.currentTimeMillis();
         try {
+            if (!supportsObjectSearch(dataSource)) {
+                persistSuccess(dataSourceId, syncVersion, List.of(), currentStatus);
+                return;
+            }
             List<ObjectSearchIndexDO> items = collectIndexItems(dataSource, syncVersion);
             persistSuccess(dataSourceId, syncVersion, items, currentStatus);
         } catch (Exception exception) {
             log.warn("Object search sync failed for datasource {}", dataSourceId, exception);
             persistFailure(dataSourceId, currentStatus, exception);
         }
+    }
+
+    private boolean supportsObjectSearch(DataSource dataSource) {
+        String dataSourceType = StringUtils.upperCase(StringUtils.trimToEmpty(dataSource.getType()), Locale.ROOT);
+        return !UNSUPPORTED_OBJECT_SEARCH_TYPES.contains(dataSourceType);
     }
 
     private DataSource loadDataSource(Long dataSourceId) {
