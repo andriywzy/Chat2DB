@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import styles from './index.less';
 import AIImg from '@/assets/img/ai.svg';
-import { Button, Input, Popover, Select, Radio, Space } from 'antd';
+import { Button, Popover, Select, Radio, Space } from 'antd';
 import i18n from '@/i18n/';
 import Iconfont from '@/components/Iconfont';
 import { AIType } from '@/typings/ai';
+import SingleFileMonacoEditor, { ISingleFileMonacoEditorRefFunction } from '@/components/SingleFileMonacoEditor';
 
 export const enum SyncModelType {
   AUTO = 0,
@@ -30,16 +31,14 @@ interface IProps {
 
 const ChatInput = (props: IProps) => {
   const [value, setValue] = useState(props.value);
+  const editorRef = React.useRef<ISingleFileMonacoEditorRefFunction>(null);
 
-  const onPressEnter = (e: any) => {
-    if (!e.target.value) {
+  const onPressEnter = (nextValue?: string) => {
+    const currentValue = (nextValue ?? editorRef.current?.getAllContent?.() ?? '').trim();
+    if (!currentValue) {
       return;
     }
-    if (e.nativeEvent.isComposing && e.key === 'Enter') {
-      e.preventDefault();
-      return;
-    }
-    props.onPressEnter && props.onPressEnter(e.target.value);
+    props.onPressEnter && props.onPressEnter(currentValue);
   };
 
   const renderSelectTable = () => {
@@ -94,10 +93,9 @@ const ChatInput = (props: IProps) => {
           <Button
             type="primary"
             className={styles.enter}
+            disabled={props.disabled || !value?.trim()}
             onClick={() => {
-              if (value) {
-                props.onPressEnter && props.onPressEnter(value);
-              }
+              onPressEnter();
             }}
           >
             <Iconfont code="&#xe643;" className={styles.enterIcon} />
@@ -126,15 +124,18 @@ const ChatInput = (props: IProps) => {
     <div className={styles.chatContainer}>
       <div className={styles.chatWrapper}>
         <img className={styles.chatAi} src={AIImg} />
-        <Input
-          disabled={props.disabled}
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          bordered={false}
-          placeholder={i18n('workspace.ai.input.placeholder')}
-          onPressEnter={onPressEnter}
-          suffix={renderSuffix()}
-        />
+        <div className={styles.chatEditorWrapper}>
+          <SingleFileMonacoEditor
+            ref={editorRef}
+            className={styles.chatEditor}
+            defaultValue={props.value}
+            disabled={props.disabled}
+            placeholder={i18n('workspace.ai.input.placeholder')}
+            onChange={setValue}
+            handelEnter={(nextValue) => onPressEnter(nextValue)}
+          />
+        </div>
+        {renderSuffix()}
       </div>
       {props.scopeHint && <div className={styles.scopeHint}>{props.scopeHint}</div>}
     </div>

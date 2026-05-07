@@ -9,6 +9,7 @@
   align-items: center;
   padding: 2px 4px 2px 20px;
   height: 42px;
+  gap: 8px;
   box-sizing: border-box;
 }
 
@@ -26,14 +27,25 @@
 }
 
 .chatAi {
+  flex-shrink: 0;
   width: 16px;
   height: 16px;
-  margin-right: 14px;
+  margin-right: 6px;
+}
+
+.chatEditorWrapper {
+  flex: 1;
+  min-width: 0;
+}
+
+.chatEditor {
+  height: 18px;
 }
 
 .suffixBlock {
   display: flex;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .enter {

@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useMemo, ForwardedRef, forwardRef, useImperativeHandle, useRef } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, ForwardedRef, forwardRef, useImperativeHandle, useRef, useState } from 'react';
 import styles from './index.less';
 import classnames from 'classnames';
 import MonacoEditor, { IExportRefFunction } from '@/components/MonacoEditor';
@@ -8,11 +8,15 @@ interface IProps {
   className?: string;
   handelEnter?: (value: string) => void;
   focusChange?: (isActive: boolean) => void;
-  ref: any; // ref不是写在这里吧？？？
+  defaultValue?: string;
+  placeholder?: string;
+  disabled?: boolean;
+  onChange?: (value: string) => void;
 }
 
 export interface ISingleFileMonacoEditorRefFunction {
   getAllContent?: () => string;
+  setValue?: (value: string) => void;
 }
 
 const options = {
@@ -35,11 +39,13 @@ const options = {
   lineNumbersMinChars: 0, // 行号最小宽度
 };
 
-const SingleFileMonacoEditor = memo<IProps>(
-  forwardRef((props, ref: ForwardedRef<ISingleFileMonacoEditorRefFunction>) => {
-    const { className, handelEnter, focusChange } = props;
+const SingleFileMonacoEditor = forwardRef(
+  (props: IProps, ref: ForwardedRef<ISingleFileMonacoEditorRefFunction>) => {
+    const { className, handelEnter, focusChange, defaultValue, placeholder, disabled, onChange } = props;
     const editorRef = useRef<any>(null);
     const monacoEditorRef = useRef<IExportRefFunction>(null);
+    const [value, setValue] = useState(defaultValue || '');
+    const [isFocused, setIsFocused] = useState(false);
 
     const editorId = useMemo(() => {
       return uuid();
@@ -73,22 +79,56 @@ const SingleFileMonacoEditor = memo<IProps>(
       return monacoEditorRef.current?.getAllContent() || '';
     };
 
+    const setEditorValue = (nextValue: string) => {
+      monacoEditorRef.current?.setValue?.(nextValue, 'cover');
+      setValue(nextValue);
+    };
+
+    useEffect(() => {
+      const nextValue = defaultValue || '';
+      setValue(nextValue);
+      if (monacoEditorRef.current && getAllContent() !== nextValue) {
+        monacoEditorRef.current.setValue(nextValue, 'cover');
+      }
+    }, [defaultValue]);
+
+    useEffect(() => {
+      editorRef.current?.updateOptions({
+        readOnly: !!disabled,
+      });
+    }, [disabled]);
+
     useImperativeHandle(ref, () => ({
       getAllContent,
+      setValue: setEditorValue,
     }));
 
     return (
-      <div ref={ref as any} className={classnames(styles.singleFileMonacoEditor, className)}>
+      <div className={classnames(styles.singleFileMonacoEditor, className)}>
+        {!value && !isFocused && placeholder && <div className={styles.placeholder}>{placeholder}</div>}
         <MonacoEditor
           ref={monacoEditorRef}
           id={editorId}
           options={options as any}
           shortcutKey={registerShortcutKey}
-          focusChange={focusChange}
+          defaultValue={defaultValue}
+          onChange={(nextValue) => {
+            setValue(nextValue);
+            onChange?.(nextValue);
+          }}
+          focusChange={(active) => {
+            setIsFocused(active);
+            focusChange?.(active);
+          }}
+          didMount={(editor) => {
+            editor.updateOptions({
+              readOnly: !!disabled,
+            });
+          }}
         />
       </div>
     );
-  }),
+  },
 );
 
-export default SingleFileMonacoEditor;
+export default memo(SingleFileMonacoEditor);
