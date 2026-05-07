@@ -6,6 +6,8 @@ export interface ICreateConsoleParams {
   dataSourceId: number;
   dataSourceName: string;
   databaseType: DatabaseTypeCode;
+  supportDatabase?: boolean;
+  supportSchema?: boolean;
   databaseName?: string;
   schemaName?: string;
   operationType?: WorkspaceTabType;
@@ -29,4 +31,3 @@ export interface IConsole {
 }
 
 export type ICreateConsole = Omit<IConsole, 'id' | 'dataSourceName' | 'connectable'>;
-

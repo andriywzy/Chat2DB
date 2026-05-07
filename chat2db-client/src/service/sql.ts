@@ -20,6 +20,29 @@ export interface IGetTableListParams extends IPageParams {
   databaseType?: DatabaseTypeCode;
 }
 
+export type GlobalObjectSearchType = 'table' | 'view' | 'function' | 'procedure' | 'trigger';
+
+export interface IGlobalObjectSearchItem {
+  dataSourceId: number;
+  dataSourceName: string;
+  databaseType: DatabaseTypeCode;
+  supportDatabase: boolean;
+  supportSchema: boolean;
+  databaseName?: string;
+  schemaName?: string;
+  objectType: GlobalObjectSearchType;
+  objectName: string;
+  comment?: string;
+}
+
+export interface IGlobalObjectSearchResponse {
+  data: IGlobalObjectSearchItem[];
+  total: number;
+  partial?: boolean;
+  warnings?: string[];
+  countsByType?: Partial<Record<GlobalObjectSearchType, number>>;
+}
+
 export interface IRedisKeyItem {
   keyName: string;
   keyType: string;
@@ -441,7 +464,19 @@ const getDatabaseUserNameList = createRequest<{
   schemaName?: string | null;
   refresh: boolean;
 },{sql:[]}>('/api/rdb/database/database_username_list', { method: 'get' });
+
+const searchGlobalObjects = createRequest<
+  {
+    keyword?: string;
+    types?: GlobalObjectSearchType[];
+    pageNo: number;
+    pageSize: number;
+    refresh?: boolean;
+  },
+  IGlobalObjectSearchResponse
+>('/api/rdb/object/global_search', { method: 'post' });
 export default {
+  searchGlobalObjects,
   getCreateSchemaSql,
   getCreateDatabaseSql,
   executeUpdateDataSql,

@@ -26,7 +26,10 @@ export const openSqlTable = (treeNodeData: ITreeNode, addWorkspaceTab: IAddWorks
     type: WorkspaceTabType.EditTableData,
     uniqueData: {
       dataSourceId: treeNodeData.extraParams!.dataSourceId!,
+      dataSourceName: treeNodeData.extraParams!.dataSourceName!,
       databaseType: treeNodeData.extraParams!.databaseType!,
+      supportDatabase: treeNodeData.extraParams?.supportDatabase,
+      supportSchema: treeNodeData.extraParams?.supportSchema,
       databaseName: treeNodeData.extraParams?.databaseName,
       schemaName: treeNodeData.extraParams?.schemaName,
       tableName: treeNodeData.name,

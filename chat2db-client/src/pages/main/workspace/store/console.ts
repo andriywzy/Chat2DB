@@ -65,8 +65,8 @@ export const createConsole = (params: ICreateConsoleParams) => {
     status: ConsoleStatus.DRAFT,
     operationType: params.operationType || WorkspaceTabType.CONSOLE,
     type: params.databaseType,
-    supportDatabase: currentConnectionDetails?.supportDatabase,
-    supportSchema: currentConnectionDetails?.supportSchema,
+    supportDatabase: params.supportDatabase ?? currentConnectionDetails?.supportDatabase,
+    supportSchema: params.supportSchema ?? currentConnectionDetails?.supportSchema,
   };
   return new Promise((resolve) => {
     if ((workspaceTabList?.length || 0) >= 20) {

@@ -13,6 +13,8 @@ export const openView = (props:{
     dataSourceId: treeNodeData.extraParams!.dataSourceId!,
     dataSourceName: treeNodeData.extraParams!.dataSourceName!,
     databaseType: treeNodeData.extraParams!.databaseType!,
+    supportDatabase: treeNodeData.extraParams?.supportDatabase,
+    supportSchema: treeNodeData.extraParams?.supportSchema,
     databaseName: treeNodeData.extraParams?.databaseName,
     schemaName: treeNodeData.extraParams?.schemaName,
     loadSQL: ()=>{
@@ -44,6 +46,8 @@ export const openFunction = (props:{
     dataSourceId: treeNodeData.extraParams!.dataSourceId!,
     dataSourceName: treeNodeData.extraParams!.dataSourceName!,
     databaseType: treeNodeData.extraParams!.databaseType!,
+    supportDatabase: treeNodeData.extraParams?.supportDatabase,
+    supportSchema: treeNodeData.extraParams?.supportSchema,
     databaseName: treeNodeData.extraParams?.databaseName,
     schemaName: treeNodeData.extraParams?.schemaName,
     loadSQL: ()=>{
@@ -76,6 +80,8 @@ export const openProcedure = (props:{
     dataSourceId: treeNodeData.extraParams!.dataSourceId!,
     dataSourceName: treeNodeData.extraParams!.dataSourceName!,
     databaseType: treeNodeData.extraParams!.databaseType!,
+    supportDatabase: treeNodeData.extraParams?.supportDatabase,
+    supportSchema: treeNodeData.extraParams?.supportSchema,
     databaseName: treeNodeData.extraParams?.databaseName,
     schemaName: treeNodeData.extraParams?.schemaName,
     loadSQL: ()=>{
@@ -107,6 +113,8 @@ export const openTrigger = (props:{
     dataSourceId: treeNodeData.extraParams!.dataSourceId!,
     dataSourceName: treeNodeData.extraParams!.dataSourceName!,
     databaseType: treeNodeData.extraParams!.databaseType!,
+    supportDatabase: treeNodeData.extraParams?.supportDatabase,
+    supportSchema: treeNodeData.extraParams?.supportSchema,
     databaseName: treeNodeData.extraParams?.databaseName,
     schemaName: treeNodeData.extraParams?.schemaName,
     loadSQL: ()=>{
@@ -138,6 +146,8 @@ export const openSequence = (props:{
     dataSourceId: treeNodeData.extraParams!.dataSourceId!,
     dataSourceName: treeNodeData.extraParams!.dataSourceName!,
     databaseType: treeNodeData.extraParams!.databaseType!,
+    supportDatabase: treeNodeData.extraParams?.supportDatabase,
+    supportSchema: treeNodeData.extraParams?.supportSchema,
     databaseName: treeNodeData.extraParams?.databaseName,
     schemaName: treeNodeData.extraParams?.schemaName,
     loadSQL: ()=>{
@@ -158,6 +168,5 @@ export const openSequence = (props:{
     }
   })
 }
-
 
 

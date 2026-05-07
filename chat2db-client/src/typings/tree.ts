@@ -5,6 +5,8 @@ export interface IExtraParams {
   dataSourceId: number;
   databaseType: DatabaseTypeCode;
   dataSourceName: string;
+  supportDatabase?: boolean;
+  supportSchema?: boolean;
   databaseName?: string;
   schemaName?: string;
   tableName?: string;

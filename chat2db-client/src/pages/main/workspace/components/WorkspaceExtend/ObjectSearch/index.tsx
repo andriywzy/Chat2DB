@@ -1,299 +1,123 @@
-import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { Empty, Input, Segmented, Spin } from 'antd';
-import { v4 as uuid } from 'uuid';
+import React, { memo, useEffect, useMemo, useState } from 'react';
+import { Alert, Empty, Input, Pagination, Segmented, Spin } from 'antd';
 
 import i18n from '@/i18n';
 import Iconfont from '@/components/Iconfont';
-import { isRedisWorkspace, TreeNodeType } from '@/constants';
-import { useTreeStore } from '@/blocks/Tree/treeStore';
-import { useWorkspaceStore } from '@/pages/main/workspace/store';
+import { TreeNodeType } from '@/constants';
 import { addWorkspaceTab } from '@/pages/main/workspace/store/console';
-import sqlService from '@/service/sql';
+import sqlService, {
+  GlobalObjectSearchType,
+  IGlobalObjectSearchItem,
+  IGlobalObjectSearchResponse,
+} from '@/service/sql';
+import { useConnectionStore } from '@/pages/main/store/connection';
 import { openFunction, openProcedure, openTrigger, openView } from '@/blocks/Tree/functions/openAsyncSql';
 import { openSqlTable } from '@/blocks/Tree/hooks/useSqlRightClickMenu';
 import styles from './index.less';
 
-type SearchTabKey = 'all' | 'table' | 'view' | 'function' | 'procedure' | 'trigger';
-type SearchItemType = Exclude<SearchTabKey, 'all'>;
+type SearchTabKey = 'all' | GlobalObjectSearchType;
 
-interface ISearchItem {
-  key: string;
-  name: string;
-  comment?: string | null;
-  type: SearchItemType;
-}
+const PAGE_SIZE = 50;
+const SEARCH_DEBOUNCE = 300;
+const SEARCH_TABS: SearchTabKey[] = ['all', 'table', 'view', 'function', 'procedure', 'trigger'];
 
-const normalizeText = (value: unknown) => {
-  if (typeof value !== 'string') {
-    return '';
-  }
-  return value.trim();
-};
-
-const TYPE_CONFIG: Record<SearchItemType, { icon: string; nodeType: TreeNodeType; labelKey: string }> = {
+const TYPE_CONFIG: Record<GlobalObjectSearchType, { icon: string; nodeType: TreeNodeType; labelKey: string }> = {
   table: {
-    icon: '\ue63e',
+    icon: '&#xe63e;',
     nodeType: TreeNodeType.TABLE,
     labelKey: 'workspace.objectSearch.type.table',
   },
   view: {
-    icon: '\ue70c',
+    icon: '&#xe70c;',
     nodeType: TreeNodeType.VIEW,
     labelKey: 'workspace.tree.view',
   },
   function: {
-    icon: '\ue76a',
+    icon: '&#xe76a;',
     nodeType: TreeNodeType.FUNCTION,
     labelKey: 'workspace.tree.function',
   },
   procedure: {
-    icon: '\ue73c',
+    icon: '&#xe73c;',
     nodeType: TreeNodeType.PROCEDURE,
     labelKey: 'workspace.tree.procedure',
   },
   trigger: {
-    icon: '\ue64a',
+    icon: '&#xe64a;',
     nodeType: TreeNodeType.TRIGGER,
     labelKey: 'workspace.tree.trigger',
   },
 };
 
-const SEARCH_TABS: SearchTabKey[] = ['all', 'table', 'view', 'function', 'procedure', 'trigger'];
+const initialResponse: IGlobalObjectSearchResponse = {
+  data: [],
+  total: 0,
+  partial: false,
+  warnings: [],
+  countsByType: {
+    table: 0,
+    view: 0,
+    function: 0,
+    procedure: 0,
+    trigger: 0,
+  },
+};
 
 const ObjectSearch = memo(() => {
-  const focusTreeNode = useTreeStore((state) => state.focusTreeNode);
-  const { activeConsoleId, currentConnectionDetails, workspaceTabList } = useWorkspaceStore((state) => ({
-    activeConsoleId: state.activeConsoleId,
-    currentConnectionDetails: state.currentConnectionDetails,
-    workspaceTabList: state.workspaceTabList,
-  }));
+  const connectionList = useConnectionStore((state) => state.connectionList);
 
   const [keyword, setKeyword] = useState('');
   const [activeTab, setActiveTab] = useState<SearchTabKey>('all');
+  const [pageNo, setPageNo] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [metadata, setMetadata] = useState<Record<SearchItemType, ISearchItem[]>>({
-    table: [],
-    view: [],
-    function: [],
-    procedure: [],
-    trigger: [],
-  });
-
-  const activeTabData = useMemo(() => {
-    return workspaceTabList?.find((item) => item.id === activeConsoleId)?.uniqueData;
-  }, [activeConsoleId, workspaceTabList]);
-
-  const searchScope = useMemo(() => {
-    const scopeSource = activeTabData?.dataSourceId
-      ? activeTabData
-      : focusTreeNode?.dataSourceId
-        ? focusTreeNode
-        : currentConnectionDetails
-          ? {
-              dataSourceId: currentConnectionDetails.id,
-              dataSourceName: currentConnectionDetails.alias,
-              databaseType: currentConnectionDetails.type,
-            }
-          : null;
-
-    if (!scopeSource?.dataSourceId) {
-      return null;
-    }
-
-    return {
-      dataSourceId: Number(scopeSource.dataSourceId),
-      dataSourceName: scopeSource.dataSourceName,
-      databaseType: scopeSource.databaseType,
-      databaseName: scopeSource.databaseName,
-      schemaName: scopeSource.schemaName,
-    };
-  }, [activeTabData, currentConnectionDetails, focusTreeNode]);
-
-  const missingDatabase = useMemo(() => {
-    if (!searchScope || isRedisWorkspace(searchScope.databaseType)) {
-      return false;
-    }
-    return !searchScope.databaseName && !!currentConnectionDetails?.supportDatabase;
-  }, [currentConnectionDetails?.supportDatabase, searchScope]);
-
-  const fetchMetadata = useCallback(async () => {
-    if (!searchScope || isRedisWorkspace(searchScope.databaseType) || missingDatabase) {
-      setMetadata({
-        table: [],
-        view: [],
-        function: [],
-        procedure: [],
-        trigger: [],
-      });
-      return;
-    }
-
-    const params = {
-      dataSourceId: searchScope.dataSourceId,
-      databaseName: searchScope.databaseName,
-      schemaName: searchScope.schemaName,
-    };
-
-    setLoading(true);
-    try {
-      const [tableList, viewRes, functionRes, procedureRes, triggerRes] = await Promise.all([
-        sqlService.getAllTableList({ ...params, refresh: true }),
-        sqlService.getViewList({ ...params, pageNo: 1, pageSize: 1000 } as any),
-        sqlService.getFunctionList({ ...params, pageNo: 1, pageSize: 1000 } as any),
-        sqlService.getProcedureList({ ...params, pageNo: 1, pageSize: 1000 } as any),
-        sqlService.getTriggerList({ ...params, pageNo: 1, pageSize: 1000 } as any),
-      ]);
-
-      setMetadata({
-        table: (tableList || [])
-          .map((item) => {
-            const name = normalizeText(item.name);
-            if (!name) {
-              return null;
-            }
-            return {
-              key: `table-${name}`,
-              name,
-              comment: normalizeText(item.comment),
-              type: 'table' as const,
-            };
-          })
-          .filter(Boolean) as ISearchItem[],
-        view: (((viewRes as any)?.data || [])
-          .map((item) => {
-            const name = normalizeText(item.name);
-            if (!name) {
-              return null;
-            }
-            return {
-              key: `view-${name}`,
-              name,
-              comment: normalizeText(item.comment),
-              type: 'view' as const,
-            };
-          })
-          .filter(Boolean)) as ISearchItem[],
-        function: (((functionRes as any)?.data || [])
-          .map((item) => {
-            const name = normalizeText(item.name);
-            if (!name) {
-              return null;
-            }
-            return {
-              key: `function-${name}`,
-              name,
-              comment: normalizeText(item.comment),
-              type: 'function' as const,
-            };
-          })
-          .filter(Boolean)) as ISearchItem[],
-        procedure: (((procedureRes as any)?.data || [])
-          .map((item) => {
-            const name = normalizeText(item.name);
-            if (!name) {
-              return null;
-            }
-            return {
-              key: `procedure-${name}`,
-              name,
-              comment: normalizeText(item.comment),
-              type: 'procedure' as const,
-            };
-          })
-          .filter(Boolean)) as ISearchItem[],
-        trigger: (((triggerRes as any)?.data || [])
-          .map((item) => {
-            const name = normalizeText(item.name);
-            if (!name) {
-              return null;
-            }
-            return {
-              key: `trigger-${name}`,
-              name,
-              comment: normalizeText(item.comment),
-              type: 'trigger' as const,
-            };
-          })
-          .filter(Boolean)) as ISearchItem[],
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [missingDatabase, searchScope]);
+  const [response, setResponse] = useState<IGlobalObjectSearchResponse>(initialResponse);
 
   useEffect(() => {
-    fetchMetadata();
-  }, [fetchMetadata]);
+    setPageNo(1);
+  }, [activeTab]);
 
-  const allItems = useMemo(() => {
-    return SEARCH_TABS.filter((item): item is SearchItemType => item !== 'all').flatMap((type) => metadata[type]);
-  }, [metadata]);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(true);
+      sqlService
+        .searchGlobalObjects({
+          keyword,
+          types: activeTab === 'all' ? undefined : [activeTab],
+          pageNo,
+          pageSize: PAGE_SIZE,
+          refresh: true,
+        })
+        .then((result) => {
+          setResponse({
+            ...initialResponse,
+            ...result,
+            data: (result?.data || []).filter((item) => item?.objectName),
+            warnings: result?.warnings || [],
+            countsByType: {
+              ...initialResponse.countsByType,
+              ...(result?.countsByType || {}),
+            },
+          });
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    }, SEARCH_DEBOUNCE);
+
+    return () => clearTimeout(timer);
+  }, [activeTab, keyword, pageNo]);
 
   const itemCounts = useMemo(() => {
+    const countsByType = response.countsByType || {};
     return {
-      all: allItems.length,
-      table: metadata.table.length,
-      view: metadata.view.length,
-      function: metadata.function.length,
-      procedure: metadata.procedure.length,
-      trigger: metadata.trigger.length,
+      all: Object.values(countsByType).reduce((sum, value) => sum + (value || 0), 0),
+      table: countsByType.table || 0,
+      view: countsByType.view || 0,
+      function: countsByType.function || 0,
+      procedure: countsByType.procedure || 0,
+      trigger: countsByType.trigger || 0,
     };
-  }, [allItems.length, metadata]);
-
-  const filteredItems = useMemo(() => {
-    const targetItems = activeTab === 'all' ? allItems : metadata[activeTab];
-    const normalizedKeyword = keyword.trim().toLowerCase();
-
-    if (!normalizedKeyword) {
-      return targetItems;
-    }
-
-    return targetItems.filter((item) => {
-      const name = normalizeText(item.name).toLowerCase();
-      const comment = normalizeText(item.comment).toLowerCase();
-      return name.includes(normalizedKeyword) || comment.includes(normalizedKeyword);
-    });
-  }, [activeTab, allItems, keyword, metadata]);
-
-  const openItem = (item: ISearchItem) => {
-    if (!searchScope) {
-      return;
-    }
-
-    const treeNodeData = {
-      uuid: uuid(),
-      key: item.key,
-      name: item.name,
-      treeNodeType: TYPE_CONFIG[item.type].nodeType,
-      extraParams: {
-        ...searchScope,
-        tableName: item.type === 'table' ? item.name : undefined,
-        functionName: item.type === 'function' ? item.name : undefined,
-        procedureName: item.type === 'procedure' ? item.name : undefined,
-        triggerName: item.type === 'trigger' ? item.name : undefined,
-      },
-    };
-
-    switch (item.type) {
-      case 'table':
-        openSqlTable(treeNodeData as any, addWorkspaceTab);
-        break;
-      case 'view':
-        openView({ treeNodeData } as any);
-        break;
-      case 'function':
-        openFunction({ treeNodeData } as any);
-        break;
-      case 'procedure':
-        openProcedure({ treeNodeData } as any);
-        break;
-      case 'trigger':
-        openTrigger({ treeNodeData } as any);
-        break;
-      default:
-        break;
-    }
-  };
+  }, [response.countsByType]);
 
   const tabOptions = useMemo(() => {
     return SEARCH_TABS.map((item) => {
@@ -308,39 +132,57 @@ const ObjectSearch = memo(() => {
     });
   }, [itemCounts]);
 
-  const scopeText = useMemo(() => {
-    if (!searchScope) {
-      return '';
+  const openItem = (item: IGlobalObjectSearchItem) => {
+    const treeNodeData = {
+      key: `${item.objectType}-${item.dataSourceId}-${item.objectName}`,
+      name: item.objectName,
+      treeNodeType: TYPE_CONFIG[item.objectType].nodeType,
+      extraParams: {
+        dataSourceId: item.dataSourceId,
+        dataSourceName: item.dataSourceName,
+        databaseType: item.databaseType,
+        supportDatabase: item.supportDatabase,
+        supportSchema: item.supportSchema,
+        databaseName: item.databaseName,
+        schemaName: item.schemaName,
+      },
+    };
+
+    if (item.objectType === 'table') {
+      openSqlTable(treeNodeData as any, addWorkspaceTab);
+      return;
     }
-    return [searchScope.dataSourceName, searchScope.databaseName, searchScope.schemaName].filter(Boolean).join(' / ');
-  }, [searchScope]);
+
+    const consoleParams = {
+      treeNodeData,
+    };
+    switch (item.objectType) {
+      case 'view':
+        openView(consoleParams as any);
+        return;
+      case 'function':
+        openFunction(consoleParams as any);
+        return;
+      case 'procedure':
+        openProcedure(consoleParams as any);
+        return;
+      case 'trigger':
+        openTrigger(consoleParams as any);
+        return;
+      default:
+        return;
+    }
+  };
+
+  const scopeText = i18n('workspace.objectSearch.scope.global');
+  const hasConnections = (connectionList?.length || 0) > 0;
 
   const renderBody = () => {
-    if (!searchScope) {
+    if (!hasConnections) {
       return (
         <Empty
           className={styles.empty}
           description={i18n('workspace.tips.noConnection')}
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-        />
-      );
-    }
-
-    if (isRedisWorkspace(searchScope.databaseType)) {
-      return (
-        <Empty
-          className={styles.empty}
-          description={i18n('workspace.objectSearch.unsupported')}
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-        />
-      );
-    }
-
-    if (missingDatabase) {
-      return (
-        <Empty
-          className={styles.empty}
-          description={i18n('workspace.objectSearch.selectDatabase')}
           image={Empty.PRESENTED_IMAGE_SIMPLE}
         />
       );
@@ -354,7 +196,7 @@ const ObjectSearch = memo(() => {
       );
     }
 
-    if (!filteredItems.length) {
+    if (!response.data?.length) {
       return (
         <Empty
           className={styles.empty}
@@ -366,18 +208,25 @@ const ObjectSearch = memo(() => {
 
     return (
       <div className={styles.list}>
-        {filteredItems.map((item) => (
-          <div key={item.key} className={styles.listItem} onClick={() => openItem(item)}>
+        {response.data.map((item) => (
+          <div
+            key={`${item.objectType}-${item.dataSourceId}-${item.databaseName}-${item.schemaName}-${item.objectName}`}
+            className={styles.listItem}
+            onClick={() => openItem(item)}
+          >
             <div className={styles.listItemMain}>
               <div className={styles.iconBox}>
-                <Iconfont code={TYPE_CONFIG[item.type].icon} />
+                <Iconfont code={TYPE_CONFIG[item.objectType].icon} />
               </div>
               <div className={styles.content}>
-                <div className={styles.name}>{item.name}</div>
+                <div className={styles.name}>{item.objectName}</div>
                 <div className={styles.meta}>
-                  <span>{i18n(TYPE_CONFIG[item.type].labelKey)}</span>
-                  {item.comment ? <span className={styles.comment}>{item.comment}</span> : null}
+                  <span>{i18n(TYPE_CONFIG[item.objectType].labelKey)}</span>
+                  <span className={styles.path}>
+                    {[item.dataSourceName, item.databaseName, item.schemaName].filter(Boolean).join(' / ')}
+                  </span>
                 </div>
+                {item.comment ? <div className={styles.comment}>{item.comment}</div> : null}
               </div>
             </div>
             <Iconfont code="&#xe651;" className={styles.arrow} />
@@ -391,14 +240,45 @@ const ObjectSearch = memo(() => {
     <div className={styles.objectSearch}>
       <div className={styles.header}>
         <div className={styles.headerTitle}>{i18n('workspace.objectSearch.panelTitle')}</div>
-        <Iconfont code="&#xe668;" box boxSize={24} onClick={fetchMetadata} />
+        <Iconfont
+          code="&#xe668;"
+          box
+          boxSize={24}
+          onClick={() => {
+            setLoading(true);
+            sqlService
+              .searchGlobalObjects({
+                keyword,
+                types: activeTab === 'all' ? undefined : [activeTab],
+                pageNo,
+                pageSize: PAGE_SIZE,
+                refresh: true,
+              })
+              .then((result) => {
+                setResponse({
+                  ...initialResponse,
+                  ...result,
+                  data: (result?.data || []).filter((item) => item?.objectName),
+                  warnings: result?.warnings || [],
+                  countsByType: {
+                    ...initialResponse.countsByType,
+                    ...(result?.countsByType || {}),
+                  },
+                });
+              })
+              .finally(() => setLoading(false));
+          }}
+        />
       </div>
-      <div className={styles.scope}>{scopeText || i18n('workspace.objectSearch.scope')}</div>
+      <div className={styles.scope}>{scopeText}</div>
       <div className={styles.searchBox}>
         <Input
           allowClear
           value={keyword}
-          onChange={(event) => setKeyword(event.target.value)}
+          onChange={(event) => {
+            setKeyword(event.target.value);
+            setPageNo(1);
+          }}
           placeholder={i18n('workspace.objectSearch.placeholder')}
           prefix={<Iconfont code="&#xe888;" />}
         />
@@ -408,10 +288,33 @@ const ObjectSearch = memo(() => {
           block
           options={tabOptions}
           value={activeTab}
-          onChange={(value) => setActiveTab(value as SearchTabKey)}
+          onChange={(value) => {
+            setActiveTab(value as SearchTabKey);
+            setPageNo(1);
+          }}
         />
       </div>
+      {response.partial ? (
+        <div className={styles.warningBox}>
+          <Alert
+            showIcon
+            type="warning"
+            message={i18n('workspace.objectSearch.partialWarning')}
+            description={response.warnings?.[0]}
+          />
+        </div>
+      ) : null}
       <div className={styles.body}>{renderBody()}</div>
+      <div className={styles.pagingBox}>
+        <Pagination
+          size="small"
+          current={pageNo}
+          pageSize={PAGE_SIZE}
+          total={response.total || 0}
+          showSizeChanger={false}
+          onChange={(nextPage) => setPageNo(nextPage)}
+        />
+      </div>
     </div>
   );
 });
