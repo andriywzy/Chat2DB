@@ -132,9 +132,12 @@ public class ObjectSearchSyncServiceImpl implements ObjectSearchSyncService {
 
     @Scheduled(initialDelay = 15000L, fixedDelay = SYNC_INTERVAL_MILLIS)
     public void syncDueDataSources() {
-        for (DataSourceDO dataSourceDO : getDataSourceMapper().selectList(new LambdaQueryWrapper<>())) {
-            submitSync(dataSourceDO.getId(), false);
-        }
+        withRepositorySession(() -> {
+            for (DataSourceDO dataSourceDO : getDataSourceMapper().selectList(new LambdaQueryWrapper<>())) {
+                submitSync(dataSourceDO.getId(), false);
+            }
+            return null;
+        });
     }
 
     private void submitSync(Long dataSourceId, boolean force) {
@@ -149,11 +152,29 @@ public class ObjectSearchSyncServiceImpl implements ObjectSearchSyncService {
         }
         executorService.submit(() -> {
             try {
-                syncOne(dataSourceId);
+                withRepositorySession(() -> {
+                    syncOne(dataSourceId);
+                    return null;
+                });
             } finally {
                 runningDataSourceIds.remove(dataSourceId);
             }
         });
+    }
+
+    private <T> T withRepositorySession(ContextSupplier<T> supplier) {
+        boolean created = false;
+        if (!Dbutils.hasSession()) {
+            Dbutils.setSession();
+            created = true;
+        }
+        try {
+            return supplier.get();
+        } finally {
+            if (created) {
+                Dbutils.removeSession();
+            }
+        }
     }
 
     private boolean isDue(Long dataSourceId) {
