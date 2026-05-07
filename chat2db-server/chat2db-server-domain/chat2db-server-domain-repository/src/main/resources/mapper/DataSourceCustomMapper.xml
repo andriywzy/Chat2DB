@@ -6,6 +6,7 @@
         select ds.*
         from DATA_SOURCE ds
         <where>
+            and (#{admin} = true or ds.PROJECT_ID is not null)
             and (#{admin} = true
             or ds.USER_ID = #{userId}
             or exists(
@@ -73,6 +74,7 @@
         select count(1)
         from DATA_SOURCE ds
         where ds.ID = #{dataSourceId}
+          and (#{admin} = true or ds.PROJECT_ID is not null)
           and (
             #{admin} = true
             or ds.USER_ID = #{userId}
