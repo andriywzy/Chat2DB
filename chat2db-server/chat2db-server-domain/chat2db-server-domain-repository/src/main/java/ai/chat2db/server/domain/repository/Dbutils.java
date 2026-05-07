@@ -122,18 +122,13 @@ public class Dbutils {
     private static void initFlyway(DataSource dataSource) {
         String currentVersion = ConfigUtils.getLocalVersion();
         ConfigJson configJson = ConfigUtils.getConfig();
-        // Represents that the current version has been successfully launched
-        if (StringUtils.isNotBlank(currentVersion) && configJson != null && StringUtils.equals(currentVersion,
-                configJson.getLatestStartupSuccessVersion())) {
-            return;
-        }else {
-            Flyway flyway = Flyway.configure()
-                    .dataSource(dataSource)
-                    .locations("classpath:db/migration")
-                    .load();
-            flyway.migrate();
+        Flyway flyway = Flyway.configure()
+                .dataSource(dataSource)
+                .locations("classpath:db/migration")
+                .load();
+        flyway.migrate();
 
-
+        if (configJson != null) {
             configJson.setLatestStartupSuccessVersion(currentVersion);
             ConfigUtils.setConfig(configJson);
         }
