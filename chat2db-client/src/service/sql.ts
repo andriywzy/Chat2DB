@@ -354,7 +354,7 @@ const getTableDetails = createRequest<
 >('/api/rdb/table/query', { method: 'get' });
 /** 获取库的所有表 */
 const getAllTableList = createRequest<
-  { dataSourceId: number; databaseName?: string | null; schemaName?: string | null },
+  { dataSourceId: number; databaseName?: string | null; schemaName?: string | null; refresh?: boolean },
   Array<{ name: string; comment: string }>
 >('/api/rdb/table/table_list', { method: 'get' });
 

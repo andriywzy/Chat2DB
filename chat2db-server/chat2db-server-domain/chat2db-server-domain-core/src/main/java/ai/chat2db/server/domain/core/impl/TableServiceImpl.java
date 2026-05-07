@@ -386,7 +386,7 @@ public class TableServiceImpl implements TableService {
         String key = getTableKey(param.getDataSourceId(), param.getDatabaseName(), param.getSchemaName());
         queryWrapper.eq(TableCacheVersionDO::getKey, key);
         TableCacheVersionDO versionDO = getVersionMapper().selectOne(queryWrapper);
-        if (versionDO == null) {
+        if (param.isRefresh() || versionDO == null) {
             addCache(param, versionDO);
             versionDO = getVersionMapper().selectOne(queryWrapper);
         }

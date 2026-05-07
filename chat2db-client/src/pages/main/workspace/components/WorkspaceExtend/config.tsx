@@ -3,6 +3,7 @@ import Output from '@/components/Output';
 import GlobalExtendComponents from './GlobalExtendComponents';
 import SaveList from '../SaveList';
 import ViewDDL from '@/components/ViewDDL';
+import ObjectSearch from './ObjectSearch';
 
 interface IToolbar {
   code: string;
@@ -31,6 +32,12 @@ export const extendConfig: IToolbar[] = [
     title: i18n('common.title.info'),
     icon: '\ue8e8',
     components: GlobalExtendComponents,
+  },
+  {
+    code: 'objectSearch',
+    title: i18n('workspace.objectSearch.panelTitle'),
+    icon: '\ue888',
+    components: ObjectSearch,
   },
   {
     code: 'executiveLog',

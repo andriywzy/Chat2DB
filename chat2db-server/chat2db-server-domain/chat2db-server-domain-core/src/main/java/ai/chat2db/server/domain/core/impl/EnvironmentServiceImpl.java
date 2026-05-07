@@ -19,11 +19,13 @@ import ai.chat2db.server.domain.core.util.PermissionUtils;
 import ai.chat2db.server.domain.repository.Dbutils;
 import ai.chat2db.server.domain.repository.entity.DataSourceDO;
 import ai.chat2db.server.domain.repository.entity.EnvironmentDO;
+import ai.chat2db.server.domain.repository.entity.ProjectDO;
 import ai.chat2db.server.domain.repository.entity.ProjectAccessDO;
 import ai.chat2db.server.domain.repository.entity.ProjectAccessEnvironmentDO;
 import ai.chat2db.server.domain.repository.entity.TeamUserDO;
 import ai.chat2db.server.domain.repository.mapper.DataSourceMapper;
 import ai.chat2db.server.domain.repository.mapper.EnvironmentMapper;
+import ai.chat2db.server.domain.repository.mapper.ProjectMapper;
 import ai.chat2db.server.domain.repository.mapper.ProjectAccessEnvironmentMapper;
 import ai.chat2db.server.domain.repository.mapper.ProjectAccessMapper;
 import ai.chat2db.server.domain.repository.mapper.TeamUserMapper;
@@ -63,6 +65,10 @@ public class EnvironmentServiceImpl implements EnvironmentService {
 
     private ProjectAccessMapper getProjectAccessMapper() {
         return Dbutils.getMapper(ProjectAccessMapper.class);
+    }
+
+    private ProjectMapper getProjectMapper() {
+        return Dbutils.getMapper(ProjectMapper.class);
     }
 
     private ProjectAccessEnvironmentMapper getProjectAccessEnvironmentMapper() {
@@ -202,9 +208,9 @@ public class EnvironmentServiceImpl implements EnvironmentService {
     private boolean canManage(EnvironmentDO environmentDO) {
         Long projectOwnerId = null;
         if (environmentDO.getProjectId() != null) {
-            var projectResult = projectService.query(environmentDO.getProjectId());
-            if (projectResult.success() && projectResult.getData() != null) {
-                projectOwnerId = projectResult.getData().getUserId();
+            ProjectDO projectDO = getProjectMapper().selectById(environmentDO.getProjectId());
+            if (projectDO != null) {
+                projectOwnerId = projectDO.getUserId();
             }
         }
         return Boolean.TRUE.equals(ContextUtils.getLoginUser().getAdmin())
