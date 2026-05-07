@@ -70,6 +70,14 @@ public class ObjectSearchSyncServiceImpl implements ObjectSearchSyncService {
     private static final String TYPE_FUNCTION = "function";
     private static final String TYPE_PROCEDURE = "procedure";
     private static final String TYPE_TRIGGER = "trigger";
+    private static final int DATA_SOURCE_NAME_MAX_LENGTH = 256;
+    private static final int DATABASE_TYPE_MAX_LENGTH = 64;
+    private static final int DATABASE_NAME_MAX_LENGTH = 256;
+    private static final int SCHEMA_NAME_MAX_LENGTH = 256;
+    private static final int OBJECT_TYPE_MAX_LENGTH = 32;
+    private static final int OBJECT_NAME_MAX_LENGTH = 512;
+    private static final int COMMENT_MAX_LENGTH = 2048;
+    private static final int LAST_SYNC_ERROR_MAX_LENGTH = 2048;
     private static final Set<String> UNSUPPORTED_OBJECT_SEARCH_TYPES = Set.of(
         DataSourceTypeEnum.REDIS.getCode(),
         DataSourceTypeEnum.MONGODB.getCode()
@@ -428,13 +436,16 @@ public class ObjectSearchSyncServiceImpl implements ObjectSearchSyncService {
     ) {
         ObjectSearchIndexDO item = new ObjectSearchIndexDO();
         item.setDataSourceId(dataSource.getId());
-        item.setDataSourceNameSnapshot(StringUtils.defaultIfBlank(dataSource.getAlias(), "DataSource " + dataSource.getId()));
-        item.setDatabaseType(dataSource.getType());
-        item.setDatabaseName(StringUtils.trimToNull(databaseName));
-        item.setSchemaName(StringUtils.trimToNull(schemaName));
-        item.setObjectType(objectType);
-        item.setObjectName(StringUtils.trimToNull(objectName));
-        item.setComment(StringUtils.trimToNull(comment));
+        item.setDataSourceNameSnapshot(limitLength(
+            StringUtils.defaultIfBlank(dataSource.getAlias(), "DataSource " + dataSource.getId()),
+            DATA_SOURCE_NAME_MAX_LENGTH
+        ));
+        item.setDatabaseType(limitLength(dataSource.getType(), DATABASE_TYPE_MAX_LENGTH));
+        item.setDatabaseName(limitLength(databaseName, DATABASE_NAME_MAX_LENGTH));
+        item.setSchemaName(limitLength(schemaName, SCHEMA_NAME_MAX_LENGTH));
+        item.setObjectType(limitLength(objectType, OBJECT_TYPE_MAX_LENGTH));
+        item.setObjectName(limitLength(objectName, OBJECT_NAME_MAX_LENGTH));
+        item.setComment(limitLength(comment, COMMENT_MAX_LENGTH));
         item.setSyncVersion(syncVersion);
         item.setDeleted("N");
         return item;
@@ -492,7 +503,10 @@ public class ObjectSearchSyncServiceImpl implements ObjectSearchSyncService {
         }
         statusDO.setGmtModified(now);
         statusDO.setLastSyncStatus(STATUS_FAILED);
-        statusDO.setLastSyncError(StringUtils.left(StringUtils.defaultIfBlank(exception.getMessage(), exception.getClass().getSimpleName()), 2000));
+        statusDO.setLastSyncError(limitLength(
+            StringUtils.defaultIfBlank(exception.getMessage(), exception.getClass().getSimpleName()),
+            LAST_SYNC_ERROR_MAX_LENGTH
+        ));
         statusDO.setNextSyncTime(new Date(now.getTime() + SYNC_INTERVAL_MILLIS));
         upsertStatus(statusDO);
     }
@@ -501,8 +515,21 @@ public class ObjectSearchSyncServiceImpl implements ObjectSearchSyncService {
         if (statusDO.getId() == null) {
             getStatusMapper().insert(statusDO);
         } else {
-            getStatusMapper().updateById(statusDO);
+            LambdaQueryWrapper<ObjectSearchSyncStatusDO> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.eq(ObjectSearchSyncStatusDO::getId, statusDO.getId());
+            ObjectSearchSyncStatusDO updateDO = new ObjectSearchSyncStatusDO();
+            updateDO.setGmtModified(statusDO.getGmtModified());
+            updateDO.setLastSyncStatus(statusDO.getLastSyncStatus());
+            updateDO.setLastSyncTime(statusDO.getLastSyncTime());
+            updateDO.setLastSyncError(statusDO.getLastSyncError());
+            updateDO.setLastSyncVersion(statusDO.getLastSyncVersion());
+            updateDO.setNextSyncTime(statusDO.getNextSyncTime());
+            getStatusMapper().update(updateDO, queryWrapper);
         }
+    }
+
+    private String limitLength(String value, int maxLength) {
+        return StringUtils.left(StringUtils.trimToNull(value), maxLength);
     }
 
     private String getCurrentCatalog(Connection connection) {
