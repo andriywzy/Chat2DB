@@ -23,6 +23,13 @@ interface ISearchItem {
   type: SearchItemType;
 }
 
+const normalizeText = (value: unknown) => {
+  if (typeof value !== 'string') {
+    return '';
+  }
+  return value.trim();
+};
+
 const TYPE_CONFIG: Record<SearchItemType, { icon: string; nodeType: TreeNodeType; labelKey: string }> = {
   table: {
     icon: '\ue63e',
@@ -138,36 +145,76 @@ const ObjectSearch = memo(() => {
       ]);
 
       setMetadata({
-        table: (tableList || []).map((item) => ({
-          key: `table-${item.name}`,
-          name: item.name,
-          comment: item.comment,
-          type: 'table',
-        })),
-        view: ((viewRes as any)?.data || []).map((item) => ({
-          key: `view-${item.name}`,
-          name: item.name,
-          comment: item.comment,
-          type: 'view',
-        })),
-        function: ((functionRes as any)?.data || []).map((item) => ({
-          key: `function-${item.name}`,
-          name: item.name,
-          comment: item.comment,
-          type: 'function',
-        })),
-        procedure: ((procedureRes as any)?.data || []).map((item) => ({
-          key: `procedure-${item.name}`,
-          name: item.name,
-          comment: item.comment,
-          type: 'procedure',
-        })),
-        trigger: ((triggerRes as any)?.data || []).map((item) => ({
-          key: `trigger-${item.name}`,
-          name: item.name,
-          comment: item.comment,
-          type: 'trigger',
-        })),
+        table: (tableList || [])
+          .map((item) => {
+            const name = normalizeText(item.name);
+            if (!name) {
+              return null;
+            }
+            return {
+              key: `table-${name}`,
+              name,
+              comment: normalizeText(item.comment),
+              type: 'table' as const,
+            };
+          })
+          .filter(Boolean) as ISearchItem[],
+        view: (((viewRes as any)?.data || [])
+          .map((item) => {
+            const name = normalizeText(item.name);
+            if (!name) {
+              return null;
+            }
+            return {
+              key: `view-${name}`,
+              name,
+              comment: normalizeText(item.comment),
+              type: 'view' as const,
+            };
+          })
+          .filter(Boolean)) as ISearchItem[],
+        function: (((functionRes as any)?.data || [])
+          .map((item) => {
+            const name = normalizeText(item.name);
+            if (!name) {
+              return null;
+            }
+            return {
+              key: `function-${name}`,
+              name,
+              comment: normalizeText(item.comment),
+              type: 'function' as const,
+            };
+          })
+          .filter(Boolean)) as ISearchItem[],
+        procedure: (((procedureRes as any)?.data || [])
+          .map((item) => {
+            const name = normalizeText(item.name);
+            if (!name) {
+              return null;
+            }
+            return {
+              key: `procedure-${name}`,
+              name,
+              comment: normalizeText(item.comment),
+              type: 'procedure' as const,
+            };
+          })
+          .filter(Boolean)) as ISearchItem[],
+        trigger: (((triggerRes as any)?.data || [])
+          .map((item) => {
+            const name = normalizeText(item.name);
+            if (!name) {
+              return null;
+            }
+            return {
+              key: `trigger-${name}`,
+              name,
+              comment: normalizeText(item.comment),
+              type: 'trigger' as const,
+            };
+          })
+          .filter(Boolean)) as ISearchItem[],
       });
     } finally {
       setLoading(false);
@@ -202,8 +249,9 @@ const ObjectSearch = memo(() => {
     }
 
     return targetItems.filter((item) => {
-      const comment = item.comment?.toLowerCase() || '';
-      return item.name.toLowerCase().includes(normalizedKeyword) || comment.includes(normalizedKeyword);
+      const name = normalizeText(item.name).toLowerCase();
+      const comment = normalizeText(item.comment).toLowerCase();
+      return name.includes(normalizedKeyword) || comment.includes(normalizedKeyword);
     });
   }, [activeTab, allItems, keyword, metadata]);
 
@@ -332,7 +380,7 @@ const ObjectSearch = memo(() => {
                 </div>
               </div>
             </div>
-            <Iconfont code="\ue651" className={styles.arrow} />
+            <Iconfont code="&#xe651;" className={styles.arrow} />
           </div>
         ))}
       </div>
@@ -343,7 +391,7 @@ const ObjectSearch = memo(() => {
     <div className={styles.objectSearch}>
       <div className={styles.header}>
         <div className={styles.headerTitle}>{i18n('workspace.objectSearch.panelTitle')}</div>
-        <Iconfont code="\ue668" box boxSize={24} onClick={fetchMetadata} />
+        <Iconfont code="&#xe668;" box boxSize={24} onClick={fetchMetadata} />
       </div>
       <div className={styles.scope}>{scopeText || i18n('workspace.objectSearch.scope')}</div>
       <div className={styles.searchBox}>
@@ -352,7 +400,7 @@ const ObjectSearch = memo(() => {
           value={keyword}
           onChange={(event) => setKeyword(event.target.value)}
           placeholder={i18n('workspace.objectSearch.placeholder')}
-          prefix={<Iconfont code="\ue888" />}
+          prefix={<Iconfont code="&#xe888;" />}
         />
       </div>
       <div className={styles.tabs}>
