@@ -23,27 +23,27 @@ const SEARCH_TABS: SearchTabKey[] = ['all', 'table', 'view', 'function', 'proced
 
 const TYPE_CONFIG: Record<GlobalObjectSearchType, { icon: string; nodeType: TreeNodeType; labelKey: string }> = {
   table: {
-    icon: '&#xe63e;',
+    icon: '\ue63e',
     nodeType: TreeNodeType.TABLE,
     labelKey: 'workspace.objectSearch.type.table',
   },
   view: {
-    icon: '&#xe70c;',
+    icon: '\ue70c',
     nodeType: TreeNodeType.VIEW,
     labelKey: 'workspace.tree.view',
   },
   function: {
-    icon: '&#xe76a;',
+    icon: '\ue76a',
     nodeType: TreeNodeType.FUNCTION,
     labelKey: 'workspace.tree.function',
   },
   procedure: {
-    icon: '&#xe73c;',
+    icon: '\ue73c',
     nodeType: TreeNodeType.PROCEDURE,
     labelKey: 'workspace.tree.procedure',
   },
   trigger: {
-    icon: '&#xe64a;',
+    icon: '\ue64a',
     nodeType: TreeNodeType.TRIGGER,
     labelKey: 'workspace.tree.trigger',
   },
@@ -229,7 +229,7 @@ const ObjectSearch = memo(() => {
                 {item.comment ? <div className={styles.comment}>{item.comment}</div> : null}
               </div>
             </div>
-            <Iconfont code="&#xe651;" className={styles.arrow} />
+            <Iconfont code="\ue651" className={styles.arrow} />
           </div>
         ))}
       </div>
@@ -241,7 +241,7 @@ const ObjectSearch = memo(() => {
       <div className={styles.header}>
         <div className={styles.headerTitle}>{i18n('workspace.objectSearch.panelTitle')}</div>
         <Iconfont
-          code="&#xe668;"
+          code="\ue668"
           box
           boxSize={24}
           onClick={() => {
@@ -280,7 +280,7 @@ const ObjectSearch = memo(() => {
             setPageNo(1);
           }}
           placeholder={i18n('workspace.objectSearch.placeholder')}
-          prefix={<Iconfont code="&#xe888;" />}
+          prefix={<Iconfont code="\ue888" />}
         />
       </div>
       <div className={styles.tabs}>
