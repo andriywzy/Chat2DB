@@ -1,6 +1,8 @@
 package ai.chat2db.server.domain.repository;
 
 import ai.chat2db.server.domain.repository.mapper.KnowledgeDocumentMapper;
+import ai.chat2db.server.domain.repository.mapper.ObjectSearchIndexMapper;
+import ai.chat2db.server.domain.repository.mapper.ObjectSearchSyncStatusMapper;
 import ai.chat2db.server.domain.repository.mapper.ProjectAccessMapper;
 import ai.chat2db.server.domain.repository.mapper.ProjectAccessEnvironmentMapper;
 import ai.chat2db.server.domain.repository.mapper.ProjectMapper;
@@ -98,6 +100,8 @@ public class Dbutils {
         configuration.addMapper(UserIdentityBindingMapper.class);
         configuration.addMapper(SsoGroupTeamMappingMapper.class);
         configuration.addMapper(TeamUserBindingSourceMapper.class);
+        configuration.addMapper(ObjectSearchIndexMapper.class);
+        configuration.addMapper(ObjectSearchSyncStatusMapper.class);
         //Globalconfig required to build mybatis-plus
         GlobalConfig globalConfig = GlobalConfigUtils.getGlobalConfig(configuration);
         //This parameter will automatically generate the basic method mapping that implements baseMapper.
