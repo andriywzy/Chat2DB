@@ -472,78 +472,80 @@ const TreeNode = memo((props: TreeNodeIProps) => {
       };
     });
     return (
-      <Dropdown
-        trigger={['contextMenu']}
-        menu={{
-          items: dropdownsItems,
-          style: dropdownsItems?.length ? {} : { display: 'none' }, // 有菜单项才显示
-        }}
-        overlayStyle={{
-          zIndex: 1080,
-        }}
-      >
-        <Tooltip placement="right" color={window._AppThemePack?.colorPrimary} title={treeNodeData.comment}>
-          <div
-            className={classnames(styles.treeNode, {
-              [styles.treeNodeFocus]: isFocus,
-              [styles.treeNodeDraggable]: isDraggable,
-            })}
-            onClick={handelClickTreeNode}
-            onContextMenu={handelClickTreeNode}
-            onDoubleClick={handelDoubleClickTreeNode}
-            draggable={isDraggable}
-            onDragStart={(event) => {
-              if (!isDraggable) {
-                return;
-              }
-              props.onNodeDragStart?.(treeNodeData, event);
-            }}
-            onDragEnd={(event) => {
-              if (!isDraggable) {
-                return;
-              }
-              props.onNodeDragEnd?.(treeNodeData, event);
-            }}
-            data-chat2db-general-can-copy-element
-          >
-            <div className={styles.left}>
-              {indentArr.map((item, i) => {
-                return <div key={i} className={styles.indent} />;
+      <div className={styles.treeNodeRow}>
+        <Dropdown
+          trigger={['contextMenu']}
+          menu={{
+            items: dropdownsItems,
+            style: dropdownsItems?.length ? {} : { display: 'none' }, // 有菜单项才显示
+          }}
+          overlayStyle={{
+            zIndex: 1080,
+          }}
+        >
+          <Tooltip placement="right" color={window._AppThemePack?.colorPrimary} title={treeNodeData.comment}>
+            <div
+              className={classnames(styles.treeNode, {
+                [styles.treeNodeFocus]: isFocus,
+                [styles.treeNodeDraggable]: isDraggable,
               })}
-            </div>
-            <div className={styles.right}>
-              {!treeNodeData.isLeaf && (
-                <div onClick={handleClick} className={classnames(styles.arrows, { [styles.loadingArrows]: isLoading })}>
-                  {isLoading ? (
-                    <LoadingGracile />
-                  ) : (
-                    <Iconfont
-                      className={classnames(styles.arrowsIcon, {
-                        [styles.rotateArrowsIcon]: treeNodeData.children,
-                      })}
-                      code="&#xe641;"
-                    />
-                  )}
-                </div>
-              )}
-              <div className={styles.dblclickArea}>
-                <div className={styles.typeIcon}>
-                  <Iconfont code={recognizeIcon(treeNodeData.treeNodeType)!} />
-                </div>
-                <div className={styles.contentText}>
-                  <div className={styles.name} dangerouslySetInnerHTML={{ __html: treeNodeData.name }} />
-                  {treeNodeData.treeNodeType === TreeNodeType.COLUMN && (
-                    <div className={styles.type}>
-                      {/* 转小写 */}
-                      {treeNodeData.columnType?.toLowerCase()}
-                    </div>
-                  )}
+              onClick={handelClickTreeNode}
+              onContextMenu={handelClickTreeNode}
+              onDoubleClick={handelDoubleClickTreeNode}
+              draggable={isDraggable}
+              onDragStart={(event) => {
+                if (!isDraggable) {
+                  return;
+                }
+                props.onNodeDragStart?.(treeNodeData, event);
+              }}
+              onDragEnd={(event) => {
+                if (!isDraggable) {
+                  return;
+                }
+                props.onNodeDragEnd?.(treeNodeData, event);
+              }}
+              data-chat2db-general-can-copy-element
+            >
+              <div className={styles.left}>
+                {indentArr.map((item, i) => {
+                  return <div key={i} className={styles.indent} />;
+                })}
+              </div>
+              <div className={styles.right}>
+                {!treeNodeData.isLeaf && (
+                  <div onClick={handleClick} className={classnames(styles.arrows, { [styles.loadingArrows]: isLoading })}>
+                    {isLoading ? (
+                      <LoadingGracile />
+                    ) : (
+                      <Iconfont
+                        className={classnames(styles.arrowsIcon, {
+                          [styles.rotateArrowsIcon]: treeNodeData.children,
+                        })}
+                        code="&#xe641;"
+                      />
+                    )}
+                  </div>
+                )}
+                <div className={styles.dblclickArea}>
+                  <div className={styles.typeIcon}>
+                    <Iconfont code={recognizeIcon(treeNodeData.treeNodeType)!} />
+                  </div>
+                  <div className={styles.contentText}>
+                    <div className={styles.name} dangerouslySetInnerHTML={{ __html: treeNodeData.name }} />
+                    {treeNodeData.treeNodeType === TreeNodeType.COLUMN && (
+                      <div className={styles.type}>
+                        {/* 转小写 */}
+                        {treeNodeData.columnType?.toLowerCase()}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </Tooltip>
-      </Dropdown>
+          </Tooltip>
+        </Dropdown>
+      </div>
     );
   }, [isFocus, isLoading, rightClickMenu, treeNodeData.children]);
 
