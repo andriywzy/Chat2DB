@@ -22,6 +22,19 @@
   font-weight: 600;
 }
 
+.refreshButton {
+  border: none;
+  background: transparent;
+  color: var(--color-primary);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 6px;
+
+  &:hover {
+    color: var(--color-primary-hover);
+  }
+}
+
 .scope {
   padding: 8px 12px 0;
   font-size: 12px;
@@ -72,16 +85,8 @@
 .listItemMain {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
   min-width: 0;
   flex: 1;
-}
-
-.iconBox {
-  width: 18px;
-  flex-shrink: 0;
-  color: var(--color-text-secondary);
-  line-height: 20px;
 }
 
 .content {
@@ -117,11 +122,6 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.arrow {
-  color: var(--color-text-secondary);
-  flex-shrink: 0;
 }
 
 .loadingBox,

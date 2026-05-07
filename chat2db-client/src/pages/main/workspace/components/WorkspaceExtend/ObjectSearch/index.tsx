@@ -2,7 +2,6 @@ import React, { memo, useEffect, useMemo, useState } from 'react';
 import { Alert, Empty, Input, Pagination, Segmented, Spin } from 'antd';
 
 import i18n from '@/i18n';
-import Iconfont from '@/components/Iconfont';
 import { TreeNodeType } from '@/constants';
 import { addWorkspaceTab } from '@/pages/main/workspace/store/console';
 import sqlService, {
@@ -21,29 +20,24 @@ const PAGE_SIZE = 50;
 const SEARCH_DEBOUNCE = 300;
 const SEARCH_TABS: SearchTabKey[] = ['all', 'table', 'view', 'function', 'procedure', 'trigger'];
 
-const TYPE_CONFIG: Record<GlobalObjectSearchType, { icon: string; nodeType: TreeNodeType; labelKey: string }> = {
+const TYPE_CONFIG: Record<GlobalObjectSearchType, { nodeType: TreeNodeType; labelKey: string }> = {
   table: {
-    icon: '\ue63e',
     nodeType: TreeNodeType.TABLE,
     labelKey: 'workspace.objectSearch.type.table',
   },
   view: {
-    icon: '\ue70c',
     nodeType: TreeNodeType.VIEW,
     labelKey: 'workspace.tree.view',
   },
   function: {
-    icon: '\ue76a',
     nodeType: TreeNodeType.FUNCTION,
     labelKey: 'workspace.tree.function',
   },
   procedure: {
-    icon: '\ue73c',
     nodeType: TreeNodeType.PROCEDURE,
     labelKey: 'workspace.tree.procedure',
   },
   trigger: {
-    icon: '\ue64a',
     nodeType: TreeNodeType.TRIGGER,
     labelKey: 'workspace.tree.trigger',
   },
@@ -215,9 +209,6 @@ const ObjectSearch = memo(() => {
             onClick={() => openItem(item)}
           >
             <div className={styles.listItemMain}>
-              <div className={styles.iconBox}>
-                <Iconfont code={TYPE_CONFIG[item.objectType].icon} />
-              </div>
               <div className={styles.content}>
                 <div className={styles.name}>{item.objectName}</div>
                 <div className={styles.meta}>
@@ -229,7 +220,6 @@ const ObjectSearch = memo(() => {
                 {item.comment ? <div className={styles.comment}>{item.comment}</div> : null}
               </div>
             </div>
-            <Iconfont code="\ue651" className={styles.arrow} />
           </div>
         ))}
       </div>
@@ -240,10 +230,9 @@ const ObjectSearch = memo(() => {
     <div className={styles.objectSearch}>
       <div className={styles.header}>
         <div className={styles.headerTitle}>{i18n('workspace.objectSearch.panelTitle')}</div>
-        <Iconfont
-          code="\ue668"
-          box
-          boxSize={24}
+        <button
+          type="button"
+          className={styles.refreshButton}
           onClick={() => {
             setLoading(true);
             sqlService
@@ -268,7 +257,9 @@ const ObjectSearch = memo(() => {
               })
               .finally(() => setLoading(false));
           }}
-        />
+        >
+          {i18n('common.button.refresh')}
+        </button>
       </div>
       <div className={styles.scope}>{scopeText}</div>
       <div className={styles.searchBox}>
@@ -280,7 +271,6 @@ const ObjectSearch = memo(() => {
             setPageNo(1);
           }}
           placeholder={i18n('workspace.objectSearch.placeholder')}
-          prefix={<Iconfont code="\ue888" />}
         />
       </div>
       <div className={styles.tabs}>
