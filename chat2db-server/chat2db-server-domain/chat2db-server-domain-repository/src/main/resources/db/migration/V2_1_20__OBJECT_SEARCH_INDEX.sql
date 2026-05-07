@@ -10,8 +10,8 @@ CREATE TABLE IF NOT EXISTS `object_search_sync_status` (
     `next_sync_time` datetime DEFAULT NULL COMMENT '下次同步时间',
     PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COMMENT='object search sync status';
-create unique INDEX uk_object_search_sync_status_data_source_id on object_search_sync_status(`data_source_id`);
-create INDEX idx_object_search_sync_status_next_sync_time on object_search_sync_status(`next_sync_time`);
+create unique INDEX IF NOT EXISTS uk_object_search_sync_status_data_source_id on object_search_sync_status(`data_source_id`);
+create INDEX IF NOT EXISTS idx_object_search_sync_status_next_sync_time on object_search_sync_status(`next_sync_time`);
 
 CREATE TABLE IF NOT EXISTS `object_search_index` (
     `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT '主键',
@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS `object_search_index` (
     `deleted` varchar(8) NOT NULL DEFAULT 'N' COMMENT '删除标记',
     PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COMMENT='object search index';
-create INDEX idx_object_search_index_data_source_id on object_search_index(`data_source_id`);
-create INDEX idx_object_search_index_data_source_version on object_search_index(`data_source_id`,`sync_version`);
-create INDEX idx_object_search_index_object_type on object_search_index(`object_type`);
-create INDEX idx_object_search_index_object_name on object_search_index(`object_name`);
+create INDEX IF NOT EXISTS idx_object_search_index_data_source_id on object_search_index(`data_source_id`);
+create INDEX IF NOT EXISTS idx_object_search_index_data_source_version on object_search_index(`data_source_id`,`sync_version`);
+create INDEX IF NOT EXISTS idx_object_search_index_object_type on object_search_index(`object_type`);
+create INDEX IF NOT EXISTS idx_object_search_index_object_name on object_search_index(`object_name`);
