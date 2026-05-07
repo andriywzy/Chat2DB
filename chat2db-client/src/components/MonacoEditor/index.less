@@ -1,3 +1,29 @@
 .editorContainer {
   height: 100%;
+
+  :global {
+    .monaco-editor .suggest-widget {
+      max-height: min(320px, 40vh);
+      overflow: hidden;
+    }
+
+    .monaco-editor .suggest-widget .monaco-scrollable-element,
+    .monaco-editor .suggest-widget .monaco-list,
+    .monaco-editor .suggest-widget .monaco-list-rows {
+      max-height: min(320px, 40vh) !important;
+      overflow-y: auto !important;
+    }
+
+    .monaco-editor .suggest-widget .scrollbar.vertical {
+      display: block !important;
+      width: 8px !important;
+      opacity: 1 !important;
+      pointer-events: auto !important;
+    }
+
+    .monaco-editor .suggest-widget .scrollbar.vertical .slider {
+      width: 8px !important;
+      border-radius: 4px;
+    }
+  }
 }
