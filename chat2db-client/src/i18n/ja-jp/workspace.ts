@@ -58,7 +58,7 @@ export default {
   'workspace.objectSearch.type.table': 'テーブル',
   'workspace.objectSearch.selectDatabase': '先に現在のワークスペースでデータベースを選択してください。',
   'workspace.objectSearch.unsupported': '現在の接続タイプではオブジェクト検索をサポートしていません。',
-  'workspace.objectSearch.partialWarning': '一部のデータソース検索に失敗またはタイムアウトが発生しました。',
+  'workspace.objectSearch.partialWarning': '一部のデータソースでオブジェクト索引の同期がまだ完了していません。',
   'workspace.redis.allData': 'すべてのデータ',
   'workspace.redis.key': 'キー',
   'workspace.redis.type': 'タイプ',

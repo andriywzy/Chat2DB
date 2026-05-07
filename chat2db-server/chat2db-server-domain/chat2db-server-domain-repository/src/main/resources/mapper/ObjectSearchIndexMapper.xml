@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="ai.chat2db.server.domain.repository.mapper.ObjectSearchIndexMapper">
+
+    <insert id="batchInsert" parameterType="java.util.List">
+        insert into OBJECT_SEARCH_INDEX
+        (data_source_id,data_source_name_snapshot,database_type,database_name,schema_name,object_type,object_name,comment,sync_version,deleted)
+        values
+        <foreach collection="list" item="item" separator=",">
+            (#{item.dataSourceId},#{item.dataSourceNameSnapshot},#{item.databaseType},#{item.databaseName},#{item.schemaName},#{item.objectType},#{item.objectName},#{item.comment},#{item.syncVersion},#{item.deleted})
+        </foreach>
+    </insert>
+</mapper>

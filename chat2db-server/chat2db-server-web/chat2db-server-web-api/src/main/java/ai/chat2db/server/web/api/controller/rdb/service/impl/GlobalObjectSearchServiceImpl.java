@@ -1,39 +1,36 @@
 package ai.chat2db.server.web.api.controller.rdb.service.impl;
 
 import ai.chat2db.server.domain.api.model.DataSource;
-import ai.chat2db.server.domain.api.param.SchemaQueryParam;
-import ai.chat2db.server.domain.api.param.TablePageQueryParam;
+import ai.chat2db.server.domain.api.model.ObjectSearchIndexItem;
+import ai.chat2db.server.domain.api.model.ObjectSearchSyncStatus;
 import ai.chat2db.server.domain.api.param.datasource.DataSourcePageQueryParam;
 import ai.chat2db.server.domain.api.param.datasource.DataSourceSelector;
-import ai.chat2db.server.domain.api.param.datasource.DatabaseQueryAllParam;
-import ai.chat2db.server.domain.api.service.*;
-import ai.chat2db.server.tools.base.wrapper.result.ListResult;
+import ai.chat2db.server.domain.api.service.DataSourceService;
+import ai.chat2db.server.domain.api.service.ObjectSearchIndexQueryService;
 import ai.chat2db.server.tools.base.wrapper.result.PageResult;
-import ai.chat2db.server.web.api.aspect.ConnectionInfoHandler;
 import ai.chat2db.server.web.api.controller.rdb.request.GlobalObjectSearchRequest;
 import ai.chat2db.server.web.api.controller.rdb.service.GlobalObjectSearchService;
 import ai.chat2db.server.web.api.controller.rdb.vo.GlobalObjectSearchItemVO;
 import ai.chat2db.server.web.api.controller.rdb.vo.GlobalObjectSearchResponse;
-import ai.chat2db.spi.model.*;
-import ai.chat2db.spi.sql.Chat2DBContext;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
-
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.util.*;
-import java.util.concurrent.*;
-import java.util.stream.Collectors;
 
 @Service
 @Slf4j
 public class GlobalObjectSearchServiceImpl implements GlobalObjectSearchService {
 
     private static final int MAX_SCOPE_DATASOURCES = 1000;
-    private static final int SEARCH_CONCURRENCY = 8;
-    private static final long SEARCH_TIMEOUT_SECONDS = 15L;
+    private static final String STATUS_FAILED = "FAILED";
     private static final String TYPE_TABLE = "table";
     private static final String TYPE_VIEW = "view";
     private static final String TYPE_FUNCTION = "function";
@@ -48,33 +45,14 @@ public class GlobalObjectSearchServiceImpl implements GlobalObjectSearchService 
     );
 
     private final DataSourceService dataSourceService;
-    private final DatabaseService databaseService;
-    private final TableService tableService;
-    private final ViewService viewService;
-    private final FunctionService functionService;
-    private final ProcedureService procedureService;
-    private final TriggerService triggerService;
-    private final ConnectionInfoHandler connectionInfoHandler;
-    private final ExecutorService executorService = Executors.newFixedThreadPool(SEARCH_CONCURRENCY);
+    private final ObjectSearchIndexQueryService objectSearchIndexQueryService;
 
     public GlobalObjectSearchServiceImpl(
         DataSourceService dataSourceService,
-        DatabaseService databaseService,
-        TableService tableService,
-        ViewService viewService,
-        FunctionService functionService,
-        ProcedureService procedureService,
-        TriggerService triggerService,
-        ConnectionInfoHandler connectionInfoHandler
+        ObjectSearchIndexQueryService objectSearchIndexQueryService
     ) {
         this.dataSourceService = dataSourceService;
-        this.databaseService = databaseService;
-        this.tableService = tableService;
-        this.viewService = viewService;
-        this.functionService = functionService;
-        this.procedureService = procedureService;
-        this.triggerService = triggerService;
-        this.connectionInfoHandler = connectionInfoHandler;
+        this.objectSearchIndexQueryService = objectSearchIndexQueryService;
     }
 
     @Override
@@ -84,64 +62,33 @@ public class GlobalObjectSearchServiceImpl implements GlobalObjectSearchService 
             return emptyResponse();
         }
 
+        Map<Long, DataSource> dataSourceMap = dataSources.stream()
+            .filter(Objects::nonNull)
+            .collect(Collectors.toMap(DataSource::getId, item -> item, (left, right) -> right, LinkedHashMap::new));
+        List<Long> dataSourceIds = new ArrayList<>(dataSourceMap.keySet());
+        Map<Long, ObjectSearchSyncStatus> statusMap = objectSearchIndexQueryService.statusByDataSourceIds(dataSourceIds);
+        List<ObjectSearchIndexItem> indexedItems = objectSearchIndexQueryService.listByDataSourceIds(dataSourceIds);
+
         List<String> requestTypes = normalizeTypes(request.getTypes());
-        List<Callable<DataSourceSearchResult>> tasks = dataSources.stream()
-            .map(dataSource -> (Callable<DataSourceSearchResult>) () -> searchInDataSource(
-                dataSource,
-                requestTypes,
-                StringUtils.trimToEmpty(request.getKeyword()),
-                Boolean.TRUE.equals(request.getRefresh())
-            ))
+        String keyword = StringUtils.trimToEmpty(request.getKeyword());
+        List<GlobalObjectSearchItemVO> aggregated = indexedItems.stream()
+            .map(item -> toItemVO(item, dataSourceMap.get(item.getDataSourceId())))
+            .filter(Objects::nonNull)
+            .filter(item -> matchesKeyword(item.getObjectName(), item.getComment(), keyword))
             .toList();
-
-        List<Future<DataSourceSearchResult>> futures;
-        try {
-            futures = executorService.invokeAll(tasks, SEARCH_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-        } catch (InterruptedException exception) {
-            Thread.currentThread().interrupt();
-            return emptyResponse();
-        }
-
-        List<GlobalObjectSearchItemVO> aggregated = new ArrayList<>();
-        List<String> warnings = new ArrayList<>();
-        boolean partial = false;
-
-        for (int i = 0; i < futures.size(); i++) {
-            Future<DataSourceSearchResult> future = futures.get(i);
-            DataSource dataSource = dataSources.get(i);
-            if (future.isCancelled()) {
-                partial = true;
-                warnings.add(String.format("Datasource [%s] search timeout", dataSource.getAlias()));
-                continue;
-            }
-            try {
-                DataSourceSearchResult result = future.get();
-                if (result == null) {
-                    continue;
-                }
-                aggregated.addAll(result.items());
-                if (CollectionUtils.isNotEmpty(result.warnings())) {
-                    partial = true;
-                    warnings.addAll(result.warnings());
-                }
-            } catch (Exception exception) {
-                partial = true;
-                warnings.add(String.format("Datasource [%s] search failed", dataSource.getAlias()));
-                log.debug("Global object search failed for datasource {}", dataSource.getId(), exception);
-            }
-        }
 
         List<GlobalObjectSearchItemVO> deduplicated = deduplicate(aggregated);
         Map<String, Long> countsByType = countByType(deduplicated);
-        List<GlobalObjectSearchItemVO> sorted = sortResults(deduplicated, StringUtils.trimToEmpty(request.getKeyword()));
+        List<GlobalObjectSearchItemVO> sorted = sortResults(deduplicated, keyword);
         List<GlobalObjectSearchItemVO> filtered = filterByTypes(sorted, requestTypes);
         List<GlobalObjectSearchItemVO> paged = paginate(filtered, request.getPageNo(), request.getPageSize());
 
+        WarningState warningState = buildWarnings(dataSources, statusMap);
         return GlobalObjectSearchResponse.builder()
             .data(paged)
             .total((long) filtered.size())
-            .partial(partial)
-            .warnings(warnings)
+            .partial(warningState.partial())
+            .warnings(warningState.warnings())
             .countsByType(countsByType)
             .build();
     }
@@ -157,282 +104,40 @@ public class GlobalObjectSearchServiceImpl implements GlobalObjectSearchService 
         return pageResult == null ? List.of() : pageResult.getData();
     }
 
-    private DataSourceSearchResult searchInDataSource(
-        DataSource dataSource,
-        List<String> requestTypes,
-        String keyword,
-        boolean refresh
-    ) {
-        List<GlobalObjectSearchItemVO> items = new ArrayList<>();
+    private WarningState buildWarnings(List<DataSource> dataSources, Map<Long, ObjectSearchSyncStatus> statusMap) {
         List<String> warnings = new ArrayList<>();
-        List<String> databases;
-        try {
-            databases = resolveDatabases(dataSource, refresh);
-        } catch (Exception exception) {
-            log.debug("Resolve databases failed for datasource {}", dataSource.getId(), exception);
-            databases = fallbackDatabases(dataSource);
-            warnings.add(String.format(
-                "Datasource [%s] database enumeration failed, fallback to current database context",
-                dataSource.getAlias()
-            ));
-        }
-
-        for (String databaseName : databases) {
-            List<String> schemas;
-            try {
-                schemas = resolveSchemas(dataSource, databaseName, refresh);
-            } catch (Exception exception) {
-                log.debug("Resolve schemas failed for datasource {}", dataSource.getId(), exception);
-                warnings.add(String.format(
-                    "Datasource [%s] schema enumeration failed for database [%s]",
-                    dataSource.getAlias(),
-                    StringUtils.defaultIfBlank(databaseName, "-")
-                ));
+        boolean partial = false;
+        for (DataSource dataSource : dataSources) {
+            ObjectSearchSyncStatus status = statusMap.get(dataSource.getId());
+            String alias = StringUtils.defaultIfBlank(dataSource.getAlias(), "DataSource " + dataSource.getId());
+            if (status == null || status.getLastSyncVersion() == null) {
+                partial = true;
+                warnings.add(String.format("Datasource [%s] object index has not been synced yet", alias));
                 continue;
             }
-            for (String schemaName : schemas) {
-                try {
-                    items.addAll(searchInScope(dataSource, databaseName, schemaName, requestTypes, keyword, refresh));
-                } catch (Exception exception) {
-                    log.debug(
-                        "Search scope failed for datasource {}, database {}, schema {}",
-                        dataSource.getId(),
-                        databaseName,
-                        schemaName,
-                        exception
-                    );
-                    warnings.add(String.format(
-                        "Datasource [%s] scope search failed for [%s/%s]",
-                        dataSource.getAlias(),
-                        StringUtils.defaultIfBlank(databaseName, "-"),
-                        StringUtils.defaultIfBlank(schemaName, "-")
-                    ));
-                }
+            if (STATUS_FAILED.equalsIgnoreCase(status.getLastSyncStatus())) {
+                partial = true;
+                warnings.add(String.format("Datasource [%s] object index sync failed recently", alias));
             }
         }
-        return new DataSourceSearchResult(items, warnings);
+        return new WarningState(partial, warnings);
     }
 
-    private List<String> resolveDatabases(DataSource dataSource, boolean refresh) {
-        if (!dataSource.isSupportDatabase()) {
-            return Collections.singletonList(null);
-        }
-        List<Database> databases = runWithContext(dataSource, null, null, () ->
-            databaseService.queryAll(DatabaseQueryAllParam.builder()
-                .dataSourceId(dataSource.getId())
-                .refresh(refresh)
-                .dbType(dataSource.getType())
-                .build())
-                .getData()
-        );
-        List<String> names = Optional.ofNullable(databases).orElse(List.of()).stream()
-            .map(Database::getName)
-            .map(StringUtils::trimToNull)
-            .filter(Objects::nonNull)
-            .distinct()
-            .toList();
-        return names.isEmpty() ? Collections.singletonList(null) : names;
-    }
-
-    private List<String> resolveSchemas(DataSource dataSource, String databaseName, boolean refresh) {
-        if (!dataSource.isSupportSchema()) {
-            return Collections.singletonList(null);
-        }
-        List<Schema> schemas = runWithContext(dataSource, databaseName, null, () ->
-            databaseService.querySchema(SchemaQueryParam.builder()
-                .dataSourceId(dataSource.getId())
-                .dataBaseName(databaseName)
-                .refresh(refresh)
-                .build())
-                .getData()
-        );
-        List<String> names = Optional.ofNullable(schemas).orElse(List.of()).stream()
-            .map(Schema::getName)
-            .map(StringUtils::trimToNull)
-            .filter(Objects::nonNull)
-            .distinct()
-            .toList();
-        return names.isEmpty() ? Collections.singletonList(null) : names;
-    }
-
-    private List<String> fallbackDatabases(DataSource dataSource) {
-        if (!dataSource.isSupportDatabase()) {
-            return Collections.singletonList(null);
-        }
-        return runWithContext(dataSource, null, null, () -> {
-            LinkedHashSet<String> names = new LinkedHashSet<>();
-            addIfPresent(names, getCurrentCatalog(Chat2DBContext.getConnection()));
-            addIfPresent(names, getDatabaseFromUrl(dataSource.getUrl()));
-            if (names.isEmpty()) {
-                names.add(null);
-            }
-            return new ArrayList<>(names);
-        });
-    }
-
-    private String getCurrentCatalog(Connection connection) {
-        if (connection == null) {
+    private GlobalObjectSearchItemVO toItemVO(ObjectSearchIndexItem item, DataSource dataSource) {
+        if (item == null || dataSource == null || StringUtils.isBlank(item.getObjectName())) {
             return null;
         }
-        try {
-            return StringUtils.trimToNull(connection.getCatalog());
-        } catch (SQLException exception) {
-            log.debug("Get current catalog failed", exception);
-            return null;
-        }
-    }
-
-    private String getDatabaseFromUrl(String url) {
-        String normalizedUrl = StringUtils.trimToNull(url);
-        if (normalizedUrl == null) {
-            return null;
-        }
-        int queryIndex = normalizedUrl.indexOf('?');
-        String withoutQuery = queryIndex >= 0 ? normalizedUrl.substring(0, queryIndex) : normalizedUrl;
-        int slashIndex = withoutQuery.lastIndexOf('/');
-        if (slashIndex < 0 || slashIndex >= withoutQuery.length() - 1) {
-            return null;
-        }
-        String candidate = withoutQuery.substring(slashIndex + 1);
-        if (candidate.contains(":")) {
-            return null;
-        }
-        return StringUtils.trimToNull(candidate);
-    }
-
-    private void addIfPresent(Set<String> names, String name) {
-        String normalized = StringUtils.trimToNull(name);
-        if (normalized != null) {
-            names.add(normalized);
-        }
-    }
-
-    private List<GlobalObjectSearchItemVO> searchInScope(
-        DataSource dataSource,
-        String databaseName,
-        String schemaName,
-        List<String> requestTypes,
-        String keyword,
-        boolean refresh
-    ) {
-        return runWithContext(dataSource, databaseName, schemaName, () -> {
-            List<GlobalObjectSearchItemVO> items = new ArrayList<>();
-            if (requestTypes.contains(TYPE_TABLE)) {
-                List<SimpleTable> tables = Optional.ofNullable(tableService.queryTables(TablePageQueryParam.builder()
-                    .dataSourceId(dataSource.getId())
-                    .databaseName(databaseName)
-                    .schemaName(schemaName)
-                    .refresh(refresh)
-                    .build()))
-                    .map(ListResult::getData)
-                    .orElse(List.of());
-                for (SimpleTable table : tables) {
-                    String objectName = StringUtils.trimToNull(table.getName());
-                    if (!matchesKeyword(objectName, table.getComment(), keyword)) {
-                        continue;
-                    }
-                    items.add(buildItem(dataSource, databaseName, schemaName, TYPE_TABLE, objectName, table.getComment()));
-                }
-            }
-            if (requestTypes.contains(TYPE_VIEW)) {
-                List<Table> views = Optional.ofNullable(viewService.views(databaseName, schemaName))
-                    .map(ListResult::getData)
-                    .orElse(List.of());
-                for (Table view : views) {
-                    String objectName = StringUtils.trimToNull(view.getName());
-                    if (!matchesKeyword(objectName, view.getComment(), keyword)) {
-                        continue;
-                    }
-                    items.add(buildItem(
-                        dataSource,
-                        StringUtils.defaultIfBlank(view.getDatabaseName(), databaseName),
-                        StringUtils.defaultIfBlank(view.getSchemaName(), schemaName),
-                        TYPE_VIEW,
-                        objectName,
-                        view.getComment()
-                    ));
-                }
-            }
-            if (requestTypes.contains(TYPE_FUNCTION)) {
-                List<Function> functions = Optional.ofNullable(functionService.functions(databaseName, schemaName))
-                    .map(ListResult::getData)
-                    .orElse(List.of());
-                for (Function function : functions) {
-                    String objectName = StringUtils.trimToNull(function.getFunctionName());
-                    if (!matchesKeyword(objectName, function.getRemarks(), keyword)) {
-                        continue;
-                    }
-                    items.add(buildItem(
-                        dataSource,
-                        StringUtils.defaultIfBlank(function.getDatabaseName(), databaseName),
-                        StringUtils.defaultIfBlank(function.getSchemaName(), schemaName),
-                        TYPE_FUNCTION,
-                        objectName,
-                        function.getRemarks()
-                    ));
-                }
-            }
-            if (requestTypes.contains(TYPE_PROCEDURE)) {
-                List<Procedure> procedures = Optional.ofNullable(procedureService.procedures(databaseName, schemaName))
-                    .map(ListResult::getData)
-                    .orElse(List.of());
-                for (Procedure procedure : procedures) {
-                    String objectName = StringUtils.trimToNull(procedure.getProcedureName());
-                    if (!matchesKeyword(objectName, procedure.getRemarks(), keyword)) {
-                        continue;
-                    }
-                    items.add(buildItem(
-                        dataSource,
-                        StringUtils.defaultIfBlank(procedure.getDatabaseName(), databaseName),
-                        StringUtils.defaultIfBlank(procedure.getSchemaName(), schemaName),
-                        TYPE_PROCEDURE,
-                        objectName,
-                        procedure.getRemarks()
-                    ));
-                }
-            }
-            if (requestTypes.contains(TYPE_TRIGGER)) {
-                List<Trigger> triggers = Optional.ofNullable(triggerService.triggers(databaseName, schemaName))
-                    .map(ListResult::getData)
-                    .orElse(List.of());
-                for (Trigger trigger : triggers) {
-                    String objectName = StringUtils.trimToNull(trigger.getTriggerName());
-                    if (!matchesKeyword(objectName, null, keyword)) {
-                        continue;
-                    }
-                    items.add(buildItem(
-                        dataSource,
-                        StringUtils.defaultIfBlank(trigger.getDatabaseName(), databaseName),
-                        StringUtils.defaultIfBlank(trigger.getSchemaName(), schemaName),
-                        TYPE_TRIGGER,
-                        objectName,
-                        null
-                    ));
-                }
-            }
-            return items;
-        });
-    }
-
-    private GlobalObjectSearchItemVO buildItem(
-        DataSource dataSource,
-        String databaseName,
-        String schemaName,
-        String objectType,
-        String objectName,
-        String comment
-    ) {
         return GlobalObjectSearchItemVO.builder()
-            .dataSourceId(dataSource.getId())
-            .dataSourceName(StringUtils.defaultIfBlank(dataSource.getAlias(), "DataSource " + dataSource.getId()))
-            .databaseType(dataSource.getType())
+            .dataSourceId(item.getDataSourceId())
+            .dataSourceName(StringUtils.defaultIfBlank(dataSource.getAlias(), item.getDataSourceName()))
+            .databaseType(StringUtils.defaultIfBlank(dataSource.getType(), item.getDatabaseType()))
             .supportDatabase(dataSource.isSupportDatabase())
             .supportSchema(dataSource.isSupportSchema())
-            .databaseName(StringUtils.trimToNull(databaseName))
-            .schemaName(StringUtils.trimToNull(schemaName))
-            .objectType(objectType)
-            .objectName(StringUtils.trimToNull(objectName))
-            .comment(StringUtils.trimToNull(comment))
+            .databaseName(StringUtils.trimToNull(item.getDatabaseName()))
+            .schemaName(StringUtils.trimToNull(item.getSchemaName()))
+            .objectType(item.getObjectType())
+            .objectName(StringUtils.trimToNull(item.getObjectName()))
+            .comment(StringUtils.trimToNull(item.getComment()))
             .build();
     }
 
@@ -558,20 +263,6 @@ public class GlobalObjectSearchServiceImpl implements GlobalObjectSearchService 
             .build();
     }
 
-    private <T> T runWithContext(DataSource dataSource, String databaseName, String schemaName, ContextSupplier<T> supplier) {
-        try {
-            Chat2DBContext.putContext(connectionInfoHandler.toInfo(dataSource.getId(), databaseName, null, schemaName));
-            return supplier.get();
-        } finally {
-            Chat2DBContext.removeContext();
-        }
-    }
-
-    @FunctionalInterface
-    private interface ContextSupplier<T> {
-        T get();
-    }
-
-    private record DataSourceSearchResult(List<GlobalObjectSearchItemVO> items, List<String> warnings) {
+    private record WarningState(boolean partial, List<String> warnings) {
     }
 }

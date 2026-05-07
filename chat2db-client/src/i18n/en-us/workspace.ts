@@ -59,7 +59,7 @@ export default {
   'workspace.objectSearch.type.table': 'Table',
   'workspace.objectSearch.selectDatabase': 'Select a database in the current workspace first.',
   'workspace.objectSearch.unsupported': 'Object search is not supported for the current connection type.',
-  'workspace.objectSearch.partialWarning': 'Some data sources failed or timed out. Results may be incomplete.',
+  'workspace.objectSearch.partialWarning': 'Some data source indexes are not synced successfully yet. Results may be incomplete.',
   'workspace.redis.allData': 'All Data',
   'workspace.redis.key': 'Key',
   'workspace.redis.type': 'Type',

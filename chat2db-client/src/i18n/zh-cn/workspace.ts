@@ -58,7 +58,7 @@ export default {
   'workspace.objectSearch.type.table': '表',
   'workspace.objectSearch.selectDatabase': '请先在当前工作台选择数据库',
   'workspace.objectSearch.unsupported': '当前连接类型暂不支持对象搜索',
-  'workspace.objectSearch.partialWarning': '部分数据源搜索失败或超时，结果可能不完整',
+  'workspace.objectSearch.partialWarning': '部分数据源对象索引尚未同步成功，结果可能不完整',
   'workspace.redis.allData': '全部数据',
   'workspace.redis.key': '键',
   'workspace.redis.type': '类型',

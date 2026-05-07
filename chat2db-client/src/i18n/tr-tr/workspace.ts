@@ -56,7 +56,7 @@ export default {
   'workspace.objectSearch.type.table': 'Tablo',
   'workspace.objectSearch.selectDatabase': 'Önce geçerli çalışma alanında bir veritabanı seçin.',
   'workspace.objectSearch.unsupported': 'Geçerli bağlantı türü için nesne arama desteklenmiyor.',
-  'workspace.objectSearch.partialWarning': 'Bazı veri kaynakları başarısız oldu veya zaman aşımına uğradı.',
+  'workspace.objectSearch.partialWarning': 'Bazı veri kaynağı dizinleri henüz başarıyla senkronize edilmedi.',
   'workspace.redis.allData': 'Tüm Veriler',
   'workspace.redis.key': 'Anahtar',
   'workspace.redis.type': 'Tür',

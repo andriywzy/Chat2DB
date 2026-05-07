@@ -13,6 +13,7 @@ import ai.chat2db.server.domain.api.param.datasource.access.DataSourceAccessCrea
 import ai.chat2db.server.domain.api.param.datasource.access.DataSourceAccessPageQueryParam;
 import ai.chat2db.server.domain.api.param.datasource.access.DataSourceAccessSelector;
 import ai.chat2db.server.domain.api.service.DataSourceAccessService;
+import ai.chat2db.server.domain.api.service.ObjectSearchSyncService;
 import ai.chat2db.server.domain.api.service.TeamService;
 import ai.chat2db.server.domain.api.service.UserService;
 import ai.chat2db.server.domain.core.converter.DataSourceAccessConverter;
@@ -62,6 +63,8 @@ public class DataSourceAccessServiceImpl implements DataSourceAccessService {
     private UserService userService;
     @Resource
     private TeamService teamService;
+    @Resource
+    private ObjectSearchSyncService objectSearchSyncService;
 
     @Override
     public PageResult<DataSourceAccess> pageQuery(DataSourceAccessPageQueryParam param, DataSourceAccessSelector selector) {
@@ -104,12 +107,17 @@ public class DataSourceAccessServiceImpl implements DataSourceAccessService {
         DataSourceAccessDO data = dataSourceAccessConverter.param2do(param, ContextUtils.getUserId());
 
         getAccessMapper().insert(data);
+        objectSearchSyncService.requestSync(data.getDataSourceId());
         return DataResult.of(data.getId());
     }
 
     @Override
     public ActionResult delete(Long id) {
+        DataSourceAccessDO dataSourceAccessDO = getAccessMapper().selectById(id);
         getAccessMapper().deleteById(id);
+        if (dataSourceAccessDO != null) {
+            objectSearchSyncService.requestSync(dataSourceAccessDO.getDataSourceId());
+        }
         return ActionResult.isSuccess();
     }
 

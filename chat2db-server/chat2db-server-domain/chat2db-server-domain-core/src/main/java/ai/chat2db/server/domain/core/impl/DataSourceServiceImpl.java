@@ -18,6 +18,7 @@ import ai.chat2db.server.domain.api.param.datasource.DataSourceUpdateParam;
 import ai.chat2db.server.domain.api.param.datasource.DatabaseQueryAllParam;
 import ai.chat2db.server.domain.api.service.DataSourceService;
 import ai.chat2db.server.domain.api.service.DatabaseService;
+import ai.chat2db.server.domain.api.service.ObjectSearchSyncService;
 import ai.chat2db.server.domain.api.service.ProjectService;
 import ai.chat2db.server.domain.core.converter.DataSourceConverter;
 import ai.chat2db.server.domain.core.converter.EnvironmentConverter;
@@ -85,6 +86,9 @@ public class DataSourceServiceImpl implements DataSourceService {
     @Autowired
     private ProjectService projectService;
 
+    @Autowired
+    private ObjectSearchSyncService objectSearchSyncService;
+
 
     private DataSourceCustomMapper getCustomMapper() {
         return Dbutils.getMapper(DataSourceCustomMapper.class);
@@ -112,6 +116,7 @@ public class DataSourceServiceImpl implements DataSourceService {
         dataSourceDO.setProjectId(resolveProjectId(param.getProjectId()));
         getMapper().insert(dataSourceDO);
         preWarmingData(dataSourceDO.getId());
+        objectSearchSyncService.requestSync(dataSourceDO.getId());
         return DataResult.of(dataSourceDO.getId());
     }
 
@@ -148,6 +153,7 @@ public class DataSourceServiceImpl implements DataSourceService {
         dataSourceDO.setProjectId(resolveProjectId(param.getProjectId()));
         getMapper().updateById(dataSourceDO);
         ConnectionPool.removeConnection(param.getId());
+        objectSearchSyncService.requestSync(dataSourceDO.getId());
         return DataResult.of(dataSourceDO.getId());
     }
 
@@ -162,6 +168,7 @@ public class DataSourceServiceImpl implements DataSourceService {
         dataSourceAccessQueryWrapper.eq(DataSourceAccessDO::getDataSourceId, id)
         ;
         getAccessMapper().delete(dataSourceAccessQueryWrapper);
+        objectSearchSyncService.removeDataSource(id);
         return ActionResult.isSuccess();
     }
 
@@ -197,6 +204,7 @@ public class DataSourceServiceImpl implements DataSourceService {
         dataSourceDO.setGmtModified(DateUtil.date());
         getMapper().insert(dataSourceDO);
         cloneProjectRelation(id, dataSourceDO.getId());
+        objectSearchSyncService.requestSync(dataSourceDO.getId());
         return DataResult.of(dataSourceDO.getId());
     }
 
