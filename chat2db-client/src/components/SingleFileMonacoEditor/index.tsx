@@ -44,6 +44,7 @@ const SingleFileMonacoEditor = forwardRef(
     const { className, handelEnter, focusChange, defaultValue, placeholder, disabled, onChange } = props;
     const editorRef = useRef<any>(null);
     const monacoEditorRef = useRef<IExportRefFunction>(null);
+    const changeListenerRef = useRef<{ dispose: () => void } | null>(null);
     const [value, setValue] = useState(defaultValue || '');
     const [isFocused, setIsFocused] = useState(false);
 
@@ -98,6 +99,12 @@ const SingleFileMonacoEditor = forwardRef(
       });
     }, [disabled]);
 
+    useEffect(() => {
+      return () => {
+        changeListenerRef.current?.dispose();
+      };
+    }, []);
+
     useImperativeHandle(ref, () => ({
       getAllContent,
       setValue: setEditorValue,
@@ -121,8 +128,26 @@ const SingleFileMonacoEditor = forwardRef(
             focusChange?.(active);
           }}
           didMount={(editor) => {
+            editorRef.current = editor;
             editor.updateOptions({
               readOnly: !!disabled,
+            });
+            changeListenerRef.current?.dispose();
+            changeListenerRef.current = editor.onDidChangeModelContent((event) => {
+              if (disabled || event.isFlush) {
+                return;
+              }
+              const shouldTriggerSuggest = event.changes.some((change) => {
+                const insertedText = change.text || '';
+                if (!insertedText || insertedText.includes('\n')) {
+                  return false;
+                }
+                return /[A-Za-z_]$/.test(insertedText);
+              });
+
+              if (shouldTriggerSuggest) {
+                editor.trigger('chat-input', 'editor.action.triggerSuggest', {});
+              }
             });
           }}
         />
