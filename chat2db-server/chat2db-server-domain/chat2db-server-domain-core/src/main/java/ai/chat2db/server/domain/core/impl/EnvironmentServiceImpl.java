@@ -216,14 +216,14 @@ public class EnvironmentServiceImpl implements EnvironmentService {
         if (PermissionUtils.hasDeskTopOrAdminPermission()) {
             return true;
         }
+        if (environmentDO.getProjectId() == null) {
+            return false;
+        }
         Long userId = ContextUtils.getUserId();
         if (Objects.equals(userId, environmentDO.getCreateUserId())) {
             return true;
         }
         ReadableEnvironmentScope readableScope = getReadableEnvironmentScope();
-        if (environmentDO.getProjectId() == null) {
-            return false;
-        }
         if (readableScope.unrestrictedProjectIds.contains(environmentDO.getProjectId())) {
             return true;
         }
@@ -234,6 +234,7 @@ public class EnvironmentServiceImpl implements EnvironmentService {
         if (PermissionUtils.hasDeskTopOrAdminPermission()) {
             return;
         }
+        queryWrapper.isNotNull(EnvironmentDO::getProjectId);
         Long userId = ContextUtils.getUserId();
         ReadableEnvironmentScope readableScope = getReadableEnvironmentScope();
         queryWrapper.and(wrapper -> wrapper.eq(EnvironmentDO::getCreateUserId, userId)
