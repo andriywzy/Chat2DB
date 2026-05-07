@@ -12,4 +12,6 @@ export default {
   'chat.scope.sources': 'AI reference tables',
   'chat.scope.current': 'Current datasource',
   'chat.scope.projectHint': 'Project peer',
+  'chat.input.suggest.database': 'Database',
+  'chat.input.suggest.table': 'Table',
 };

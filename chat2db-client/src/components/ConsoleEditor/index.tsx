@@ -15,7 +15,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { IAiConfig, IBoundInfo } from '@/typings';
 import Popularize from '@/components/Popularize';
 import OperationLine from './components/OperationLine';
-import { AIType } from '@/typings/ai';
+import { AIType, IAiScopeEntity } from '@/typings/ai';
 import i18n from '@/i18n';
 import configService from '@/service/config';
 import styles from './index.less';
@@ -97,6 +97,8 @@ function ConsoleEditor(props: IProps, ref: ForwardedRef<IConsoleRef>) {
   const importInputRef = useRef<HTMLInputElement>(null);
   const scriptValidationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [selectedTables, setSelectedTables] = useState<string[]>([]);
+  const [selectedDatabaseScopes, setSelectedDatabaseScopes] = useState<IAiScopeEntity[]>([]);
+  const [selectedTableScopes, setSelectedTableScopes] = useState<IAiScopeEntity[]>([]);
   const [tableNameList, setTableNameList] = useState<string[]>([]);
   const [syncTableModel, setSyncTableModel] = useState<number>(SyncModelType.AUTO);
   const [scriptValidationEnabled, setScriptValidationEnabled] = useState(false);
@@ -176,6 +178,15 @@ function ConsoleEditor(props: IProps, ref: ForwardedRef<IConsoleRef>) {
     }
   }, [appendValue]);
 
+  useEffect(() => {
+    setSelectedDatabaseScopes([]);
+    setSelectedTableScopes([]);
+  }, [boundInfo?.dataSourceId]);
+
+  useEffect(() => {
+    setSelectedTableScopes((prev) => prev.filter((item) => selectedTables.includes(item.name)));
+  }, [selectedTables]);
+
   useImperativeHandle(
     ref,
     () => ({
@@ -197,10 +208,13 @@ function ConsoleEditor(props: IProps, ref: ForwardedRef<IConsoleRef>) {
     }
 
     const isNL2SQL = promptType === IPromptType.NL_2_SQL;
+    const databaseScopeText = selectedDatabaseScopes.length
+      ? `\n\n参考库范围: ${selectedDatabaseScopes.map((item) => item.name).join(', ')}`
+      : '';
     startChat({
       apiKey,
       boundInfo,
-      content,
+      content: `${content}${databaseScopeText}`,
       ext,
       mode: isNL2SQL ? 'editor' : 'drawer',
       promptType,
@@ -346,9 +360,51 @@ function ConsoleEditor(props: IProps, ref: ForwardedRef<IConsoleRef>) {
     }));
   }, [boundInfo?.dataSourceName, boundInfo?.databaseName, boundInfo?.schemaName, selectedTables]);
 
+  const displayedLocalScopes = useMemo<IAiScopeEntity[]>(() => {
+    const fallbackTableScopes = selectedTables
+      .filter((tableName) => !selectedTableScopes.some((item) => item.name === tableName))
+      .map((tableName) => ({
+        entityType: 'table' as const,
+        name: tableName,
+        dataSourceId: boundInfo?.dataSourceId,
+        dataSourceAlias: boundInfo?.dataSourceName,
+        databaseName: boundInfo?.databaseName,
+        schemaName: boundInfo?.schemaName,
+        currentDataSource: true,
+        sourceType: 'SELECTED',
+      }));
+
+    return [...selectedDatabaseScopes, ...selectedTableScopes, ...fallbackTableScopes].reduce<IAiScopeEntity[]>(
+      (acc, current) => {
+        const exists = acc.some((item) => {
+          return (
+            item.entityType === current.entityType &&
+            item.name === current.name &&
+            item.databaseName === current.databaseName &&
+            item.schemaName === current.schemaName
+          );
+        });
+        if (!exists) {
+          acc.push(current);
+        }
+        return acc;
+      },
+      [],
+    );
+  }, [
+    boundInfo?.dataSourceId,
+    boundInfo?.dataSourceName,
+    boundInfo?.databaseName,
+    boundInfo?.schemaName,
+    selectedDatabaseScopes,
+    selectedTableScopes,
+    selectedTables,
+  ]);
+
   const displayedSchemaSources = sqlSchemaSources.length ? sqlSchemaSources : fallbackScopeSources;
   const hasSchemaScope = hasAiChat && displayedSchemaSources.length > 0;
-  const hasTopConsolePanel = hasSchemaScope || isMysqlWorkspaceConsole;
+  const hasEntityScope = hasAiChat && displayedLocalScopes.length > 0;
+  const hasTopConsolePanel = hasSchemaScope || hasEntityScope || isMysqlWorkspaceConsole;
 
   const renderScriptActions = () => {
     if (!isMysqlWorkspaceConsole) {
@@ -387,7 +443,34 @@ function ConsoleEditor(props: IProps, ref: ForwardedRef<IConsoleRef>) {
           </div>
           {renderScriptActions()}
         </div>
-        {hasSchemaScope && (
+        {!sqlSchemaSources.length && hasEntityScope && (
+          <div className={styles.schemaScopeTags}>
+            {displayedLocalScopes.map((scopeEntity, index) => {
+              const scopeType = i18n('chat.scope.current');
+              const entityTypeLabel =
+                scopeEntity.entityType === 'database'
+                  ? i18n('chat.input.suggest.database')
+                  : i18n('chat.input.suggest.table');
+              const dataSourceAlias = scopeEntity.dataSourceAlias ? `${scopeEntity.dataSourceAlias} / ` : '';
+              const databaseName =
+                scopeEntity.entityType === 'table' && scopeEntity.databaseName ? `${scopeEntity.databaseName}.` : '';
+              const label =
+                scopeEntity.entityType === 'database'
+                  ? `${dataSourceAlias}${scopeEntity.name}`
+                  : `${dataSourceAlias}${databaseName}${scopeEntity.name}`;
+              return (
+                <Tag
+                  key={`${scopeEntity.entityType}-${scopeEntity.name}-${scopeEntity.databaseName || 'local'}-${index}`}
+                  color="blue"
+                  className={styles.schemaScopeTag}
+                >
+                  {scopeType} {entityTypeLabel}: {label}
+                </Tag>
+              );
+            })}
+          </div>
+        )}
+        {sqlSchemaSources.length > 0 && hasSchemaScope && (
           <div className={styles.schemaScopeTags}>
             {displayedSchemaSources.map((schemaSource, index) => {
               const scopeType = schemaSource.currentDataSource
@@ -431,12 +514,49 @@ function ConsoleEditor(props: IProps, ref: ForwardedRef<IConsoleRef>) {
               aiType={aiConfig?.aiSqlSource}
               scopeHint={i18n('chat.input.scopeHint', boundInfo.databaseType || 'SQL')}
               tables={tableNameList}
+              boundInfo={{
+                dataSourceId: boundInfo.dataSourceId,
+                dataSourceName: boundInfo.dataSourceName,
+                databaseName: boundInfo.databaseName,
+                schemaName: boundInfo.schemaName,
+              }}
               onPressEnter={(value: string) => {
                 handleAiChat(value, IPromptType.NL_2_SQL);
               }}
               selectedTables={selectedTables}
               onSelectTables={(tables: string[]) => {
                 setSelectedTables(tables);
+              }}
+              onSelectScopeEntity={(entity) => {
+                if (entity.entityType === 'database') {
+                  setSelectedDatabaseScopes((prev) => {
+                    const exists = prev.some((item) => item.name === entity.name && item.entityType === 'database');
+                    if (exists) {
+                      return prev;
+                    }
+                    return [...prev, entity];
+                  });
+                  return;
+                }
+                setSelectedTables((prev) => {
+                  if (prev.includes(entity.name)) {
+                    return prev;
+                  }
+                  return [...prev, entity.name];
+                });
+                setSelectedTableScopes((prev) => {
+                  const exists = prev.some((item) => {
+                    return (
+                      item.name === entity.name &&
+                      item.databaseName === entity.databaseName &&
+                      item.schemaName === entity.schemaName
+                    );
+                  });
+                  if (exists) {
+                    return prev;
+                  }
+                  return [...prev, entity];
+                });
               }}
               syncTableModel={syncTableModel}
               onSelectTableSyncModel={(model: number) => {
@@ -455,7 +575,7 @@ function ConsoleEditor(props: IProps, ref: ForwardedRef<IConsoleRef>) {
             ref={editorRef as any}
             className={
               hasAiChat
-                ? hasSchemaScope
+                ? hasSchemaScope || hasEntityScope
                   ? styles.consoleEditorWithChatAndScope
                   : hasTopConsolePanel
                     ? styles.consoleEditorWithChatAndToolbar
@@ -468,7 +588,6 @@ function ConsoleEditor(props: IProps, ref: ForwardedRef<IConsoleRef>) {
             options={props.editorOptions}
             shortcutKey={registerShortcutKey}
             onChange={handleEditorChange}
-            isActive={isActive}
           />
           <Drawer
             open={isAiDrawerOpen}

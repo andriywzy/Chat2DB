@@ -10,4 +10,6 @@ export default {
   'chat.scope.sources': 'AI 参考表',
   'chat.scope.current': '当前数据源',
   'chat.scope.projectHint': '项目同环境',
+  'chat.input.suggest.database': '库',
+  'chat.input.suggest.table': '表',
 };

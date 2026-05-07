@@ -12,4 +12,6 @@ export default {
   'chat.scope.sources': 'AI referans tabloları',
   'chat.scope.current': 'Mevcut bağlantı',
   'chat.scope.projectHint': 'Proje eşlemesi',
+  'chat.input.suggest.database': 'Veritabanı',
+  'chat.input.suggest.table': 'Tablo',
 };

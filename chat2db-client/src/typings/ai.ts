@@ -27,3 +27,16 @@ export interface IInviteQrCode {
   wechatQrCodeUrl: string;
   tip: string;
 }
+
+export type IAiScopeEntityType = 'database' | 'table';
+
+export interface IAiScopeEntity {
+  entityType: IAiScopeEntityType;
+  name: string;
+  dataSourceId?: number;
+  dataSourceAlias?: string;
+  databaseName?: string;
+  schemaName?: string;
+  currentDataSource?: boolean;
+  sourceType?: string;
+}

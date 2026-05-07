@@ -10,4 +10,6 @@ export default {
   'chat.scope.sources': 'AI 参照テーブル',
   'chat.scope.current': '現在のデータソース',
   'chat.scope.projectHint': '同一プロジェクト',
+  'chat.input.suggest.database': 'データベース',
+  'chat.input.suggest.table': 'テーブル',
 };
