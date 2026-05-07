@@ -21,6 +21,8 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
@@ -168,10 +170,11 @@ public class GlobalObjectSearchServiceImpl implements GlobalObjectSearchService 
             databases = resolveDatabases(dataSource, refresh);
         } catch (Exception exception) {
             log.debug("Resolve databases failed for datasource {}", dataSource.getId(), exception);
-            return new DataSourceSearchResult(
-                List.of(),
-                List.of(String.format("Datasource [%s] database enumeration failed", dataSource.getAlias()))
-            );
+            databases = fallbackDatabases(dataSource);
+            warnings.add(String.format(
+                "Datasource [%s] database enumeration failed, fallback to current database context",
+                dataSource.getAlias()
+            ));
         }
 
         for (String databaseName : databases) {
@@ -250,6 +253,58 @@ public class GlobalObjectSearchServiceImpl implements GlobalObjectSearchService 
             .distinct()
             .toList();
         return names.isEmpty() ? Collections.singletonList(null) : names;
+    }
+
+    private List<String> fallbackDatabases(DataSource dataSource) {
+        if (!dataSource.isSupportDatabase()) {
+            return Collections.singletonList(null);
+        }
+        return runWithContext(dataSource, null, null, () -> {
+            LinkedHashSet<String> names = new LinkedHashSet<>();
+            addIfPresent(names, getCurrentCatalog(Chat2DBContext.getConnection()));
+            addIfPresent(names, getDatabaseFromUrl(dataSource.getUrl()));
+            if (names.isEmpty()) {
+                names.add(null);
+            }
+            return new ArrayList<>(names);
+        });
+    }
+
+    private String getCurrentCatalog(Connection connection) {
+        if (connection == null) {
+            return null;
+        }
+        try {
+            return StringUtils.trimToNull(connection.getCatalog());
+        } catch (SQLException exception) {
+            log.debug("Get current catalog failed", exception);
+            return null;
+        }
+    }
+
+    private String getDatabaseFromUrl(String url) {
+        String normalizedUrl = StringUtils.trimToNull(url);
+        if (normalizedUrl == null) {
+            return null;
+        }
+        int queryIndex = normalizedUrl.indexOf('?');
+        String withoutQuery = queryIndex >= 0 ? normalizedUrl.substring(0, queryIndex) : normalizedUrl;
+        int slashIndex = withoutQuery.lastIndexOf('/');
+        if (slashIndex < 0 || slashIndex >= withoutQuery.length() - 1) {
+            return null;
+        }
+        String candidate = withoutQuery.substring(slashIndex + 1);
+        if (candidate.contains(":")) {
+            return null;
+        }
+        return StringUtils.trimToNull(candidate);
+    }
+
+    private void addIfPresent(Set<String> names, String name) {
+        String normalized = StringUtils.trimToNull(name);
+        if (normalized != null) {
+            names.add(normalized);
+        }
     }
 
     private List<GlobalObjectSearchItemVO> searchInScope(
