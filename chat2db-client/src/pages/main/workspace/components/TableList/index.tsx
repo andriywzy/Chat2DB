@@ -410,183 +410,185 @@ export default memo<IProps>((props) => {
         setSearchValue={setSearchValue}
         onCreateProject={handleCreateProject}
       />
-      {!groupedTreeData.length ? (
-        <div className={styles.emptyState}>{i18n('workspace.tips.noConnection')}</div>
-      ) : (
-        groupedTreeData.map((project) => {
-          const projectExpanded = expandedProjects[project.key] !== false;
-          const isProjectEditing = editingProjectKey === project.key;
-          return (
-            <div key={project.key} className={styles.groupBlock}>
-              <div
-                className={styles.groupRow}
-                onClick={() => {
-                  if (!isProjectEditing) {
-                    setExpandedProjects((prev) => ({ ...prev, [project.key]: !projectExpanded }));
-                  }
-                }}
-              >
-                <div className={classnames(styles.groupArrow, { [styles.groupArrowExpanded]: projectExpanded })}>
-                  <Iconfont code="&#xe641;" />
-                </div>
-                <Iconfont className={styles.groupIcon} code="&#xe63f;" />
-                {renderEditableTitle(
-                  isProjectEditing,
-                  editingProjectName,
-                  setEditingProjectName,
-                  () => submitEditProject(project),
-                  cancelEditProject,
-                ) || (
-                  <>
-                    <span className={styles.treeNodeName} title={project.name}>
-                      {project.name}
-                    </span>
-                    {project.id && project.canManage ? (
-                      <>
-                        <div
-                          className={styles.groupAction}
-                          title={i18n('workspace.database.newEnvironment')}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            handleCreateEnvironment(project);
-                          }}
-                        >
-                          <PlusOutlined />
-                        </div>
-                        <div
-                          className={styles.groupAction}
-                          title={i18n('common.button.delete')}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            handleDeleteProject(project);
-                          }}
-                        >
-                          <DeleteOutlined />
-                        </div>
-                        <div
-                          className={styles.groupAction}
-                          title={i18n('common.button.edit')}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            startEditProject(project);
-                          }}
-                        >
-                          <EditOutlined />
-                        </div>
-                      </>
-                    ) : null}
-                  </>
-                )}
-              </div>
-              {projectExpanded
-                ? project.environments.map((environment) => {
-                    const environmentExpanded = expandedEnvironments[environment.key] !== false;
-                    const isEnvironmentEditing = editingEnvironmentKey === environment.key;
-                    return (
-                      <div key={environment.key} className={styles.environmentBlock}>
-                        <div
-                          className={classnames(styles.environmentRow, {
-                            [styles.groupRowDroppable]: draggingConnectionId,
-                            [styles.groupRowDropActive]: dropTargetKey === environment.key,
-                          })}
-                          onClick={() => {
-                            if (!isEnvironmentEditing) {
-                              setExpandedEnvironments((prev) => ({
-                                ...prev,
-                                [environment.key]: !environmentExpanded,
-                              }));
-                            }
-                          }}
-                          onDragOver={(event) => {
-                            if (!draggingConnectionId || isEnvironmentEditing) {
-                              return;
-                            }
-                            event.preventDefault();
-                            event.dataTransfer.dropEffect = 'move';
-                            if (dropTargetKey !== environment.key) {
-                              setDropTargetKey(environment.key);
-                            }
-                          }}
-                          onDragLeave={() => {
-                            if (dropTargetKey === environment.key) {
-                              setDropTargetKey(null);
-                            }
-                          }}
-                          onDrop={(event) => {
-                            if (!draggingConnectionId || isEnvironmentEditing) {
-                              return;
-                            }
-                            event.preventDefault();
-                            handleEnvironmentDrop(project, environment);
-                          }}
-                        >
+      <div className={styles.treeScrollArea}>
+        {!groupedTreeData.length ? (
+          <div className={styles.emptyState}>{i18n('workspace.tips.noConnection')}</div>
+        ) : (
+          groupedTreeData.map((project) => {
+            const projectExpanded = expandedProjects[project.key] !== false;
+            const isProjectEditing = editingProjectKey === project.key;
+            return (
+              <div key={project.key} className={styles.groupBlock}>
+                <div
+                  className={styles.groupRow}
+                  onClick={() => {
+                    if (!isProjectEditing) {
+                      setExpandedProjects((prev) => ({ ...prev, [project.key]: !projectExpanded }));
+                    }
+                  }}
+                >
+                  <div className={classnames(styles.groupArrow, { [styles.groupArrowExpanded]: projectExpanded })}>
+                    <Iconfont code="&#xe641;" />
+                  </div>
+                  <Iconfont className={styles.groupIcon} code="&#xe63f;" />
+                  {renderEditableTitle(
+                    isProjectEditing,
+                    editingProjectName,
+                    setEditingProjectName,
+                    () => submitEditProject(project),
+                    cancelEditProject,
+                  ) || (
+                    <>
+                      <span className={styles.treeNodeName} title={project.name}>
+                        {project.name}
+                      </span>
+                      {project.id && project.canManage ? (
+                        <>
                           <div
-                            className={classnames(styles.groupArrow, {
-                              [styles.groupArrowExpanded]: environmentExpanded,
-                            })}
+                            className={styles.groupAction}
+                            title={i18n('workspace.database.newEnvironment')}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleCreateEnvironment(project);
+                            }}
                           >
-                            <Iconfont code="&#xe641;" />
+                            <PlusOutlined />
                           </div>
-                          <span
-                            className={styles.environmentDot}
-                            style={{ backgroundColor: environment.color || 'var(--color-primary)' }}
-                          />
-                          {renderEditableTitle(
-                            isEnvironmentEditing,
-                            editingEnvironmentName,
-                            setEditingEnvironmentName,
-                            () => submitEditEnvironment(environment),
-                            cancelEditEnvironment,
-                          ) || (
-                            <>
-                              <span className={styles.treeNodeName} title={environment.name}>
-                                {environment.name}
-                              </span>
-                              {environment.id && environment.canManage ? (
-                                <>
-                                  <div
-                                    className={styles.groupAction}
-                                    title={i18n('common.button.delete')}
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      handleDeleteEnvironment(environment);
-                                    }}
-                                  >
-                                    <DeleteOutlined />
-                                  </div>
-                                  <div
-                                    className={styles.groupAction}
-                                    title={i18n('common.button.edit')}
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      startEditEnvironment(environment);
-                                    }}
-                                  >
-                                    <EditOutlined />
-                                  </div>
-                                </>
-                              ) : null}
-                            </>
-                          )}
+                          <div
+                            className={styles.groupAction}
+                            title={i18n('common.button.delete')}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleDeleteProject(project);
+                            }}
+                          >
+                            <DeleteOutlined />
+                          </div>
+                          <div
+                            className={styles.groupAction}
+                            title={i18n('common.button.edit')}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              startEditProject(project);
+                            }}
+                          >
+                            <EditOutlined />
+                          </div>
+                        </>
+                      ) : null}
+                    </>
+                  )}
+                </div>
+                {projectExpanded
+                  ? project.environments.map((environment) => {
+                      const environmentExpanded = expandedEnvironments[environment.key] !== false;
+                      const isEnvironmentEditing = editingEnvironmentKey === environment.key;
+                      return (
+                        <div key={environment.key} className={styles.environmentBlock}>
+                          <div
+                            className={classnames(styles.environmentRow, {
+                              [styles.groupRowDroppable]: draggingConnectionId,
+                              [styles.groupRowDropActive]: dropTargetKey === environment.key,
+                            })}
+                            onClick={() => {
+                              if (!isEnvironmentEditing) {
+                                setExpandedEnvironments((prev) => ({
+                                  ...prev,
+                                  [environment.key]: !environmentExpanded,
+                                }));
+                              }
+                            }}
+                            onDragOver={(event) => {
+                              if (!draggingConnectionId || isEnvironmentEditing) {
+                                return;
+                              }
+                              event.preventDefault();
+                              event.dataTransfer.dropEffect = 'move';
+                              if (dropTargetKey !== environment.key) {
+                                setDropTargetKey(environment.key);
+                              }
+                            }}
+                            onDragLeave={() => {
+                              if (dropTargetKey === environment.key) {
+                                setDropTargetKey(null);
+                              }
+                            }}
+                            onDrop={(event) => {
+                              if (!draggingConnectionId || isEnvironmentEditing) {
+                                return;
+                              }
+                              event.preventDefault();
+                              handleEnvironmentDrop(project, environment);
+                            }}
+                          >
+                            <div
+                              className={classnames(styles.groupArrow, {
+                                [styles.groupArrowExpanded]: environmentExpanded,
+                              })}
+                            >
+                              <Iconfont code="&#xe641;" />
+                            </div>
+                            <span
+                              className={styles.environmentDot}
+                              style={{ backgroundColor: environment.color || 'var(--color-primary)' }}
+                            />
+                            {renderEditableTitle(
+                              isEnvironmentEditing,
+                              editingEnvironmentName,
+                              setEditingEnvironmentName,
+                              () => submitEditEnvironment(environment),
+                              cancelEditEnvironment,
+                            ) || (
+                              <>
+                                <span className={styles.treeNodeName} title={environment.name}>
+                                  {environment.name}
+                                </span>
+                                {environment.id && environment.canManage ? (
+                                  <>
+                                    <div
+                                      className={styles.groupAction}
+                                      title={i18n('common.button.delete')}
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        handleDeleteEnvironment(environment);
+                                      }}
+                                    >
+                                      <DeleteOutlined />
+                                    </div>
+                                    <div
+                                      className={styles.groupAction}
+                                      title={i18n('common.button.edit')}
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        startEditEnvironment(environment);
+                                      }}
+                                    >
+                                      <EditOutlined />
+                                    </div>
+                                  </>
+                                ) : null}
+                              </>
+                            )}
+                          </div>
+                          {environmentExpanded ? (
+                            <Tree
+                              className={styles.treeBox}
+                              searchValue={searchValue}
+                              treeData={environment.treeData}
+                              getNodeDraggable={(node) => node.treeNodeType === TreeNodeType.DATA_SOURCE}
+                              onNodeDragStart={handleConnectionDragStart}
+                              onNodeDragEnd={handleConnectionDragEnd}
+                            />
+                          ) : null}
                         </div>
-                        {environmentExpanded ? (
-                          <Tree
-                            className={styles.treeBox}
-                            searchValue={searchValue}
-                            treeData={environment.treeData}
-                            getNodeDraggable={(node) => node.treeNodeType === TreeNodeType.DATA_SOURCE}
-                            onNodeDragStart={handleConnectionDragStart}
-                            onNodeDragEnd={handleConnectionDragEnd}
-                          />
-                        ) : null}
-                      </div>
-                    );
-                  })
-                : null}
-            </div>
-          );
-        })
-      )}
+                      );
+                    })
+                  : null}
+              </div>
+            );
+          })
+        )}
+      </div>
     </div>
   );
 });
