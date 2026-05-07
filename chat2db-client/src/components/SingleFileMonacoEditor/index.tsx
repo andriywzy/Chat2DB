@@ -45,6 +45,9 @@ const SingleFileMonacoEditor = forwardRef(
     const editorRef = useRef<any>(null);
     const monacoEditorRef = useRef<IExportRefFunction>(null);
     const changeListenerRef = useRef<{ dispose: () => void } | null>(null);
+    const compositionStartListenerRef = useRef<{ dispose: () => void } | null>(null);
+    const compositionEndListenerRef = useRef<{ dispose: () => void } | null>(null);
+    const isComposingRef = useRef(false);
     const [value, setValue] = useState(defaultValue || '');
     const [isFocused, setIsFocused] = useState(false);
 
@@ -102,6 +105,8 @@ const SingleFileMonacoEditor = forwardRef(
     useEffect(() => {
       return () => {
         changeListenerRef.current?.dispose();
+        compositionStartListenerRef.current?.dispose();
+        compositionEndListenerRef.current?.dispose();
       };
     }, []);
 
@@ -132,9 +137,19 @@ const SingleFileMonacoEditor = forwardRef(
             editor.updateOptions({
               readOnly: !!disabled,
             });
+            compositionStartListenerRef.current?.dispose();
+            compositionEndListenerRef.current?.dispose();
+            compositionStartListenerRef.current = editor.onDidCompositionStart(() => {
+              isComposingRef.current = true;
+              const controller = editor.getContribution('editor.contrib.suggestController') as any;
+              controller?.cancelSuggestWidget?.();
+            });
+            compositionEndListenerRef.current = editor.onDidCompositionEnd(() => {
+              isComposingRef.current = false;
+            });
             changeListenerRef.current?.dispose();
             changeListenerRef.current = editor.onDidChangeModelContent((event) => {
-              if (disabled || event.isFlush) {
+              if (disabled || event.isFlush || isComposingRef.current) {
                 return;
               }
               const shouldTriggerSuggest = event.changes.some((change) => {
@@ -142,7 +157,21 @@ const SingleFileMonacoEditor = forwardRef(
                 if (!insertedText || insertedText.includes('\n')) {
                   return false;
                 }
-                return /[A-Za-z_]$/.test(insertedText);
+                if (!/[A-Za-z_]$/.test(insertedText)) {
+                  return false;
+                }
+                const model = editor.getModel();
+                const position = editor.getPosition();
+                if (!model || !position) {
+                  return false;
+                }
+                const lineContentUntilPosition = model.getValueInRange({
+                  startLineNumber: position.lineNumber,
+                  startColumn: 1,
+                  endLineNumber: position.lineNumber,
+                  endColumn: position.column,
+                });
+                return /[A-Za-z_][A-Za-z0-9_]*$/.test(lineContentUntilPosition);
               });
 
               if (shouldTriggerSuggest) {
