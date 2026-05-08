@@ -157,7 +157,8 @@ public class AdminAuditAspect {
     }
 
     private String resolveTargetName(Map<String, Object> afterSnapshot, Map<String, Object> beforeSnapshot) {
-        for (Map<String, Object> snapshot : List.of(afterSnapshot, beforeSnapshot)) {
+        Map<String, Object>[] snapshots = new Map[] {afterSnapshot, beforeSnapshot};
+        for (Map<String, Object> snapshot : snapshots) {
             if (snapshot == null) {
                 continue;
             }
