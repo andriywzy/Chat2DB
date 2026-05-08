@@ -26,11 +26,6 @@ function AuditManagement() {
   const columns = useMemo(
     () => [
       {
-        title: i18n('team.audit.category'),
-        dataIndex: 'category',
-        key: 'category',
-      },
-      {
         title: i18n('team.audit.actionType'),
         dataIndex: 'actionType',
         key: 'actionType',
