@@ -453,6 +453,11 @@ function ConsoleEditor(props: IProps, ref: ForwardedRef<IConsoleRef>) {
         if (right.score !== left.score) {
           return right.score - left.score;
         }
+        const leftCurrentDataSource = left.item.dataSourceId === boundInfo.dataSourceId ? 0 : 1;
+        const rightCurrentDataSource = right.item.dataSourceId === boundInfo.dataSourceId ? 0 : 1;
+        if (leftCurrentDataSource !== rightCurrentDataSource) {
+          return leftCurrentDataSource - rightCurrentDataSource;
+        }
         return (
           (left.item.projectName || '').localeCompare(right.item.projectName || '') ||
           (left.item.environmentName || '').localeCompare(right.item.environmentName || '') ||
@@ -462,7 +467,7 @@ function ConsoleEditor(props: IProps, ref: ForwardedRef<IConsoleRef>) {
       });
 
     return scoredList.map((item) => item.item);
-  }, [databaseSearchKeyword, databaseSearchList]);
+  }, [boundInfo.dataSourceId, databaseSearchKeyword, databaseSearchList]);
 
   const confirmImportRun = () => {
     if (!importRunFile || !selectedImportRunTarget) {
