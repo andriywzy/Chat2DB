@@ -235,6 +235,10 @@ public class AuditServiceImpl implements AuditService {
     }
 
     private String buildDatabaseSummary(DatabaseAuditEvent event) {
+        String sql = StringUtils.normalizeSpace(event.getSql());
+        if (StringUtils.isNotBlank(sql)) {
+            return StringUtils.abbreviate(sql, 200);
+        }
         return String.format("%s %s [%s/%s]",
             StringUtils.defaultIfBlank(event.getSqlType(), "SQL"),
             StringUtils.defaultIfBlank(event.getDataSourceName(), "-"),
