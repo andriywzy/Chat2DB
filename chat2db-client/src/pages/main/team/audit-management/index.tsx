@@ -148,7 +148,10 @@ function AuditManagement() {
       endTime: query.endTime,
     });
     if (res) {
-      setRecords(res.data || []);
+      const nextRecords = (res.data || []).filter(
+        (record) => !(query.category === AuditCategory.DATABASE && (record.detailSummary || '').trim() === '-'),
+      );
+      setRecords(nextRecords);
       setQuery((prev) => ({ ...prev, total: res.total || 0 }));
     }
   }
