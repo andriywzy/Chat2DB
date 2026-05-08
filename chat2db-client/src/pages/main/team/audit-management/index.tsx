@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { DatePicker, Drawer, Input, Select, Space, Table, Tag } from 'antd';
+import { DatePicker, Drawer, Input, Select, Space, Table, Tabs, Tag } from 'antd';
 import { getAuditDetail, getAuditList } from '@/service/team';
 import { AuditCategory, AuditResourceType, IAuditRecord } from '@/typings/team';
 import i18n from '@/i18n';
@@ -50,6 +50,7 @@ function AuditManagement() {
   const [records, setRecords] = useState<IAuditRecord[]>([]);
   const [detail, setDetail] = useState<IAuditRecord>();
   const [detailOpen, setDetailOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<AuditCategory>(AuditCategory.CONSOLE);
   const [query, setQuery] = useState({
     category: AuditCategory.CONSOLE,
     resourceType: undefined as AuditResourceType | undefined,
@@ -166,16 +167,19 @@ function AuditManagement() {
 
   return (
     <div>
+      <Tabs
+        activeKey={activeTab}
+        onChange={(value) => {
+          const category = value as AuditCategory;
+          setActiveTab(category);
+          setQuery((prev) => ({ ...prev, category, current: 1 }));
+        }}
+        items={[
+          { key: AuditCategory.CONSOLE, label: i18n('team.audit.category.console') },
+          { key: AuditCategory.DATABASE, label: i18n('team.audit.category.database') },
+        ]}
+      />
       <Space style={{ marginBottom: 16 }}>
-        <Select
-          value={query.category}
-          style={{ width: 220 }}
-          onChange={(value) => setQuery((prev) => ({ ...prev, current: 1, category: value }))}
-          options={[
-            { label: i18n('team.audit.category.console'), value: AuditCategory.CONSOLE },
-            { label: i18n('team.audit.category.database'), value: AuditCategory.DATABASE },
-          ]}
-        />
         <Select
           allowClear
           placeholder={i18n('team.audit.resourceType')}
