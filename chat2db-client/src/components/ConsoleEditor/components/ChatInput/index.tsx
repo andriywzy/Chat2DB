@@ -208,8 +208,10 @@ const ChatInput = (props: IProps) => {
     const currentValue = value || '';
     const prefix = currentValue.slice(0, selectionStart).replace(/[A-Za-z_][A-Za-z0-9_]*$/, '');
     const suffix = currentValue.slice(selectionEnd);
-    const insertedValue = `${prefix}${item.name} ${suffix}`;
-    const nextCursor = prefix.length + item.name.length + 1;
+    const insertedText =
+      item.entityType === 'table' && item.databaseName ? `${item.databaseName}.${item.name}` : item.name;
+    const insertedValue = `${prefix}${insertedText} ${suffix}`;
+    const nextCursor = prefix.length + insertedText.length + 1;
 
     setValue(insertedValue);
     props.onSelectScopeEntity?.(item);
