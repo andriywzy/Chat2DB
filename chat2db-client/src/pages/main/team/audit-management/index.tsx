@@ -10,7 +10,7 @@ const { RangePicker } = DatePicker;
 const TIME_COLUMN_WIDTH = 180;
 const STATUS_COLUMN_WIDTH = 100;
 const MIN_TEXT_COLUMN_WIDTH = 96;
-const MAX_TEXT_COLUMN_WIDTH = 320;
+const MAX_TEXT_COLUMN_WIDTH = 220;
 const TEXT_MEASURE_FONT =
   '14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 let textMeasureCanvas: HTMLCanvasElement | null = null;
@@ -40,6 +40,21 @@ function calcAutoTextWidth(values: Array<string | undefined>) {
     return Math.max(max, currentWidth);
   }, 0);
   return Math.min(Math.max(Math.ceil(widestText) + 32, MIN_TEXT_COLUMN_WIDTH), MAX_TEXT_COLUMN_WIDTH);
+}
+
+function getDetailContent(record?: IAuditRecord) {
+  if (!record) {
+    return '-';
+  }
+  if (record.category === AuditCategory.DATABASE) {
+    try {
+      const payload = record.detailPayload ? JSON.parse(record.detailPayload) : null;
+      return payload?.sql || record.detailSummary || '-';
+    } catch (error) {
+      return record.detailSummary || '-';
+    }
+  }
+  return record.detailSummary || '-';
 }
 
 function AuditManagement() {
@@ -222,7 +237,8 @@ function AuditManagement() {
         rowKey="id"
         dataSource={records}
         columns={columns}
-        scroll={{ x: 'max-content', y: 'calc(100vh - 360px)' }}
+        tableLayout="fixed"
+        scroll={{ y: 'calc(100vh - 360px)' }}
         pagination={{
           current: query.current,
           pageSize: query.pageSize,
@@ -242,7 +258,7 @@ function AuditManagement() {
         }
       />
       <Drawer open={detailOpen} title={i18n('team.audit.detailTitle')} width={720} onClose={() => setDetailOpen(false)}>
-        <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{detail?.detailPayload || '-'}</pre>
+        <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{getDetailContent(detail)}</pre>
       </Drawer>
     </div>
   );
