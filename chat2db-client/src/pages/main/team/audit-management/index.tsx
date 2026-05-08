@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Button, DatePicker, Drawer, Input, Select, Space, Table, Tag } from 'antd';
+import { DatePicker, Drawer, Input, Select, Space, Table, Tag } from 'antd';
 import { getAuditDetail, getAuditList } from '@/service/team';
 import { AuditCategory, AuditResourceType, IAuditRecord } from '@/typings/team';
 import i18n from '@/i18n';
@@ -9,7 +9,6 @@ import dayjs from 'dayjs';
 const { RangePicker } = DatePicker;
 const TIME_COLUMN_WIDTH = 180;
 const STATUS_COLUMN_WIDTH = 100;
-const ACTION_COLUMN_WIDTH = 88;
 const MIN_TEXT_COLUMN_WIDTH = 96;
 const MAX_TEXT_COLUMN_WIDTH = 320;
 
@@ -91,7 +90,11 @@ function AuditManagement() {
         title: i18n('team.audit.summary'),
         dataIndex: 'detailSummary',
         key: 'detailSummary',
-        ellipsis: true,
+        render: (value?: string) => (
+          <div style={{ whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: 1.5 }}>
+            {value || '-'}
+          </div>
+        ),
       },
       {
         title: i18n('team.audit.status'),
@@ -101,18 +104,6 @@ function AuditManagement() {
         render: (value: string) => (
           <span style={{ whiteSpace: 'nowrap' }}>
             <Tag color={value === 'SUCCESS' ? 'green' : 'red'}>{value}</Tag>
-          </span>
-        ),
-      },
-      {
-        title: i18n('common.text.action'),
-        key: 'action',
-        width: ACTION_COLUMN_WIDTH,
-        render: (_: unknown, record: IAuditRecord) => (
-          <span style={{ whiteSpace: 'nowrap' }}>
-            <Button type="link" onClick={() => openDetail(record.id)}>
-              {i18n('team.audit.detail')}
-            </Button>
           </span>
         ),
       },
@@ -199,12 +190,17 @@ function AuditManagement() {
         rowKey="id"
         dataSource={records}
         columns={columns}
+        scroll={{ x: 'max-content', y: 'calc(100vh - 360px)' }}
         pagination={{
           current: query.current,
           pageSize: query.pageSize,
           total: query.total,
           showQuickJumper: true,
         }}
+        onRow={(record) => ({
+          onClick: () => openDetail(record.id),
+          style: { cursor: 'pointer' },
+        })}
         onChange={(pagination) =>
           setQuery((prev) => ({
             ...prev,
