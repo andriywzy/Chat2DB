@@ -11,10 +11,35 @@ const TIME_COLUMN_WIDTH = 180;
 const STATUS_COLUMN_WIDTH = 100;
 const MIN_TEXT_COLUMN_WIDTH = 96;
 const MAX_TEXT_COLUMN_WIDTH = 320;
+const TEXT_MEASURE_FONT =
+  '14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+let textMeasureCanvas: HTMLCanvasElement | null = null;
+
+function getTextMeasureContext() {
+  if (typeof document === 'undefined') {
+    return null;
+  }
+  if (!textMeasureCanvas) {
+    textMeasureCanvas = document.createElement('canvas');
+  }
+  const context = textMeasureCanvas.getContext('2d');
+  if (!context) {
+    return null;
+  }
+  context.font = TEXT_MEASURE_FONT;
+  return context;
+}
 
 function calcAutoTextWidth(values: Array<string | undefined>) {
-  const longestLength = values.reduce((max, value) => Math.max(max, (value || '-').length), 0);
-  return Math.min(Math.max(longestLength * 14 + 32, MIN_TEXT_COLUMN_WIDTH), MAX_TEXT_COLUMN_WIDTH);
+  const context = getTextMeasureContext();
+  if (!context) {
+    return MIN_TEXT_COLUMN_WIDTH;
+  }
+  const widestText = values.reduce((max, value) => {
+    const currentWidth = context.measureText(value || '-').width;
+    return Math.max(max, currentWidth);
+  }, 0);
+  return Math.min(Math.max(Math.ceil(widestText) + 32, MIN_TEXT_COLUMN_WIDTH), MAX_TEXT_COLUMN_WIDTH);
 }
 
 function AuditManagement() {
