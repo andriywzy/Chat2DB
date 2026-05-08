@@ -1,11 +1,18 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Button, Drawer, Input, Select, Space, Table, Tag } from 'antd';
+import { Button, DatePicker, Drawer, Input, Select, Space, Table, Tag } from 'antd';
 import { getAuditDetail, getAuditList } from '@/service/team';
 import { AuditCategory, AuditResourceType, IAuditRecord } from '@/typings/team';
 import i18n from '@/i18n';
 import { formatDate } from '@/utils/date';
+import dayjs from 'dayjs';
+
+const { RangePicker } = DatePicker;
 
 function AuditManagement() {
+  const defaultStartTime = dayjs()
+    .subtract(180, 'day')
+    .startOf('day');
+  const defaultEndTime = dayjs().endOf('day');
   const [records, setRecords] = useState<IAuditRecord[]>([]);
   const [detail, setDetail] = useState<IAuditRecord>();
   const [detailOpen, setDetailOpen] = useState(false);
@@ -14,26 +21,33 @@ function AuditManagement() {
     resourceType: undefined as AuditResourceType | undefined,
     status: undefined as string | undefined,
     searchKey: '',
+    startTime: defaultStartTime.valueOf(),
+    endTime: defaultEndTime.valueOf(),
     current: 1,
-    pageSize: 10,
+    pageSize: 30,
     total: 0,
   });
 
   useEffect(() => {
     fetchList();
-  }, [query.current, query.pageSize, query.category, query.resourceType, query.status, query.searchKey]);
+  }, [
+    query.current,
+    query.pageSize,
+    query.category,
+    query.resourceType,
+    query.status,
+    query.searchKey,
+    query.startTime,
+    query.endTime,
+  ]);
 
   const columns = useMemo(
     () => [
       {
-        title: i18n('team.audit.actionType'),
-        dataIndex: 'actionType',
-        key: 'actionType',
-      },
-      {
-        title: i18n('team.audit.resourceType'),
-        dataIndex: 'resourceType',
-        key: 'resourceType',
+        title: i18n('team.audit.occurredAt'),
+        dataIndex: 'occurredAt',
+        key: 'occurredAt',
+        render: (value: string) => formatDate(value, 'yyyy-MM-dd hh:mm:ss'),
       },
       {
         title: i18n('team.audit.operator'),
@@ -47,22 +61,16 @@ function AuditManagement() {
         render: (_: string, record: IAuditRecord) => record.targetName || record.targetId || '-',
       },
       {
-        title: i18n('team.audit.status'),
-        dataIndex: 'status',
-        key: 'status',
-        render: (value: string) => <Tag color={value === 'SUCCESS' ? 'green' : 'red'}>{value}</Tag>,
-      },
-      {
-        title: i18n('team.audit.occurredAt'),
-        dataIndex: 'occurredAt',
-        key: 'occurredAt',
-        render: (value: string) => formatDate(value, 'yyyy-MM-dd hh:mm:ss'),
-      },
-      {
         title: i18n('team.audit.summary'),
         dataIndex: 'detailSummary',
         key: 'detailSummary',
         ellipsis: true,
+      },
+      {
+        title: i18n('team.audit.status'),
+        dataIndex: 'status',
+        key: 'status',
+        render: (value: string) => <Tag color={value === 'SUCCESS' ? 'green' : 'red'}>{value}</Tag>,
       },
       {
         title: i18n('common.text.action'),
@@ -85,6 +93,8 @@ function AuditManagement() {
       resourceType: query.resourceType,
       status: query.status,
       searchKey: query.searchKey,
+      startTime: query.startTime,
+      endTime: query.endTime,
     });
     if (res) {
       setRecords(res.data || []);
@@ -131,6 +141,18 @@ function AuditManagement() {
             { label: 'FAILED', value: 'FAILED' },
           ]}
         />
+        <RangePicker
+          value={[dayjs(query.startTime), dayjs(query.endTime)]}
+          showTime
+          onChange={(value) =>
+            setQuery((prev) => ({
+              ...prev,
+              current: 1,
+              startTime: value?.[0]?.valueOf() || defaultStartTime.valueOf(),
+              endTime: value?.[1]?.valueOf() || defaultEndTime.valueOf(),
+            }))
+          }
+        />
         <Input.Search
           allowClear
           style={{ width: 320 }}
@@ -146,14 +168,13 @@ function AuditManagement() {
           current: query.current,
           pageSize: query.pageSize,
           total: query.total,
-          showSizeChanger: true,
           showQuickJumper: true,
         }}
         onChange={(pagination) =>
           setQuery((prev) => ({
             ...prev,
             current: pagination.current || 1,
-            pageSize: pagination.pageSize || 10,
+            pageSize: Math.min(pagination.pageSize || 30, 30),
           }))
         }
       />
