@@ -47,18 +47,26 @@ function AuditManagement() {
         title: i18n('team.audit.occurredAt'),
         dataIndex: 'occurredAt',
         key: 'occurredAt',
-        render: (value: string) => formatDate(value, 'yyyy-MM-dd hh:mm:ss'),
+        width: '1%',
+        render: (value: string) => (
+          <span style={{ whiteSpace: 'nowrap' }}>{formatDate(value, 'yyyy-MM-dd hh:mm:ss')}</span>
+        ),
       },
       {
         title: i18n('team.audit.operator'),
         dataIndex: 'operatorUserName',
         key: 'operatorUserName',
+        width: '1%',
+        render: (value?: string) => <span style={{ whiteSpace: 'nowrap' }}>{value || '-'}</span>,
       },
       {
         title: i18n('team.audit.target'),
         dataIndex: 'targetName',
         key: 'targetName',
-        render: (_: string, record: IAuditRecord) => record.targetName || record.targetId || '-',
+        width: '1%',
+        render: (_: string, record: IAuditRecord) => (
+          <span style={{ whiteSpace: 'nowrap' }}>{record.targetName || record.targetId || '-'}</span>
+        ),
       },
       {
         title: i18n('team.audit.summary'),
@@ -70,15 +78,23 @@ function AuditManagement() {
         title: i18n('team.audit.status'),
         dataIndex: 'status',
         key: 'status',
-        render: (value: string) => <Tag color={value === 'SUCCESS' ? 'green' : 'red'}>{value}</Tag>,
+        width: '1%',
+        render: (value: string) => (
+          <span style={{ whiteSpace: 'nowrap' }}>
+            <Tag color={value === 'SUCCESS' ? 'green' : 'red'}>{value}</Tag>
+          </span>
+        ),
       },
       {
         title: i18n('common.text.action'),
         key: 'action',
+        width: '1%',
         render: (_: unknown, record: IAuditRecord) => (
-          <Button type="link" onClick={() => openDetail(record.id)}>
-            {i18n('team.audit.detail')}
-          </Button>
+          <span style={{ whiteSpace: 'nowrap' }}>
+            <Button type="link" onClick={() => openDetail(record.id)}>
+              {i18n('team.audit.detail')}
+            </Button>
+          </span>
         ),
       },
     ],
