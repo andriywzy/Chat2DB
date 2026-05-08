@@ -7,6 +7,16 @@ import { formatDate } from '@/utils/date';
 import dayjs from 'dayjs';
 
 const { RangePicker } = DatePicker;
+const TIME_COLUMN_WIDTH = 180;
+const STATUS_COLUMN_WIDTH = 100;
+const ACTION_COLUMN_WIDTH = 88;
+const MIN_TEXT_COLUMN_WIDTH = 96;
+const MAX_TEXT_COLUMN_WIDTH = 320;
+
+function calcAutoTextWidth(values: Array<string | undefined>) {
+  const longestLength = values.reduce((max, value) => Math.max(max, (value || '-').length), 0);
+  return Math.min(Math.max(longestLength * 14 + 32, MIN_TEXT_COLUMN_WIDTH), MAX_TEXT_COLUMN_WIDTH);
+}
 
 function AuditManagement() {
   const defaultStartTime = dayjs()
@@ -41,13 +51,22 @@ function AuditManagement() {
     query.endTime,
   ]);
 
+  const operatorColumnWidth = useMemo(
+    () => calcAutoTextWidth(records.map((record) => record.operatorUserName)),
+    [records],
+  );
+  const targetColumnWidth = useMemo(
+    () => calcAutoTextWidth(records.map((record) => record.targetName || record.targetId)),
+    [records],
+  );
+
   const columns = useMemo(
     () => [
       {
         title: i18n('team.audit.occurredAt'),
         dataIndex: 'occurredAt',
         key: 'occurredAt',
-        width: '1%',
+        width: TIME_COLUMN_WIDTH,
         render: (value: string) => (
           <span style={{ whiteSpace: 'nowrap' }}>{formatDate(value, 'yyyy-MM-dd hh:mm:ss')}</span>
         ),
@@ -56,14 +75,14 @@ function AuditManagement() {
         title: i18n('team.audit.operator'),
         dataIndex: 'operatorUserName',
         key: 'operatorUserName',
-        width: '1%',
+        width: operatorColumnWidth,
         render: (value?: string) => <span style={{ whiteSpace: 'nowrap' }}>{value || '-'}</span>,
       },
       {
         title: i18n('team.audit.target'),
         dataIndex: 'targetName',
         key: 'targetName',
-        width: '1%',
+        width: targetColumnWidth,
         render: (_: string, record: IAuditRecord) => (
           <span style={{ whiteSpace: 'nowrap' }}>{record.targetName || record.targetId || '-'}</span>
         ),
@@ -78,7 +97,7 @@ function AuditManagement() {
         title: i18n('team.audit.status'),
         dataIndex: 'status',
         key: 'status',
-        width: '1%',
+        width: STATUS_COLUMN_WIDTH,
         render: (value: string) => (
           <span style={{ whiteSpace: 'nowrap' }}>
             <Tag color={value === 'SUCCESS' ? 'green' : 'red'}>{value}</Tag>
@@ -88,7 +107,7 @@ function AuditManagement() {
       {
         title: i18n('common.text.action'),
         key: 'action',
-        width: '1%',
+        width: ACTION_COLUMN_WIDTH,
         render: (_: unknown, record: IAuditRecord) => (
           <span style={{ whiteSpace: 'nowrap' }}>
             <Button type="link" onClick={() => openDetail(record.id)}>
@@ -98,7 +117,7 @@ function AuditManagement() {
         ),
       },
     ],
-    [],
+    [operatorColumnWidth, targetColumnWidth],
   );
 
   async function fetchList() {
