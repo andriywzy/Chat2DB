@@ -8,13 +8,21 @@ import ai.chat2db.server.domain.api.model.DatabaseAuditEvent;
 import ai.chat2db.server.domain.api.param.audit.AuditPageQueryParam;
 import ai.chat2db.server.domain.api.service.AuditService;
 import ai.chat2db.server.domain.api.service.ConsoleAuditWriter;
+import ai.chat2db.server.domain.api.service.DataSourceService;
+import ai.chat2db.server.domain.api.service.UserService;
 import ai.chat2db.server.domain.repository.Dbutils;
 import ai.chat2db.server.domain.repository.entity.AuditLogDO;
+import ai.chat2db.server.domain.repository.entity.OperationLogDO;
 import ai.chat2db.server.domain.repository.mapper.AuditLogMapper;
+import ai.chat2db.server.domain.repository.mapper.OperationLogMapper;
 import ai.chat2db.server.tools.base.wrapper.result.DataResult;
 import ai.chat2db.server.tools.base.wrapper.result.PageResult;
+import java.time.ZoneId;
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -30,8 +38,18 @@ public class AuditServiceImpl implements AuditService {
     @Resource
     private ConsoleAuditWriter consoleAuditWriter;
 
+    @Resource
+    private UserService userService;
+
+    @Resource
+    private DataSourceService dataSourceService;
+
     private AuditLogMapper getMapper() {
         return Dbutils.getMapper(AuditLogMapper.class);
+    }
+
+    private OperationLogMapper getOperationLogMapper() {
+        return Dbutils.getMapper(OperationLogMapper.class);
     }
 
     @Override
@@ -41,6 +59,9 @@ public class AuditServiceImpl implements AuditService {
 
     @Override
     public PageResult<AuditRecord> queryPage(AuditPageQueryParam param) {
+        if (AuditCategoryEnum.DATABASE.getCode().equalsIgnoreCase(param.getCategory())) {
+            return queryDatabasePage(param);
+        }
         LambdaQueryWrapper<AuditLogDO> queryWrapper = buildQueryWrapper(param);
         Page<AuditLogDO> page = new Page<>(param.getPageNo(), param.getPageSize());
         IPage<AuditLogDO> pageResult = getMapper().selectPage(page, queryWrapper);
@@ -50,6 +71,15 @@ public class AuditServiceImpl implements AuditService {
 
     @Override
     public DataResult<AuditRecord> queryDetail(String id) {
+        if (StringUtils.startsWith(id, "D_")) {
+            String rawId = StringUtils.removeStart(id, "D_");
+            if (StringUtils.isBlank(rawId)) {
+                return DataResult.of(null);
+            }
+            OperationLogDO data = getOperationLogMapper().selectById(Long.parseLong(rawId));
+            return DataResult.of(data == null ? null : toDatabaseAuditRecord(data, loadUserNameMap(List.of(data.getUserId())),
+                loadDataSourceNameMap(List.of(data.getDataSourceId()))));
+        }
         String rawId = extractRawId(id);
         if (StringUtils.isBlank(rawId)) {
             return DataResult.of(null);
@@ -77,6 +107,37 @@ public class AuditServiceImpl implements AuditService {
                 .or().like(AuditLogDO::getDetailSummary, param.getSearchKey())
                 .or().like(AuditLogDO::getDetailPayload, param.getSearchKey())
                 .or().like(AuditLogDO::getRequestId, param.getSearchKey()));
+        }
+        return queryWrapper;
+    }
+
+    private PageResult<AuditRecord> queryDatabasePage(AuditPageQueryParam param) {
+        LambdaQueryWrapper<OperationLogDO> queryWrapper = buildDatabaseQueryWrapper(param);
+        Page<OperationLogDO> page = new Page<>(param.getPageNo(), param.getPageSize());
+        IPage<OperationLogDO> pageResult = getOperationLogMapper().selectPage(page, queryWrapper);
+        List<OperationLogDO> records = pageResult.getRecords();
+        Map<Long, String> userNameMap = loadUserNameMap(records.stream().map(OperationLogDO::getUserId).toList());
+        Map<Long, String> dataSourceNameMap = loadDataSourceNameMap(records.stream().map(OperationLogDO::getDataSourceId).toList());
+        List<AuditRecord> rows = records.stream()
+            .map(record -> toDatabaseAuditRecord(record, userNameMap, dataSourceNameMap))
+            .toList();
+        return PageResult.of(rows, pageResult.getTotal(), param);
+    }
+
+    private LambdaQueryWrapper<OperationLogDO> buildDatabaseQueryWrapper(AuditPageQueryParam param) {
+        LambdaQueryWrapper<OperationLogDO> queryWrapper = new LambdaQueryWrapper<>();
+        Date startTime = param.getStartTime() == null ? null : new Date(param.getStartTime());
+        Date endTime = param.getEndTime() == null ? null : new Date(param.getEndTime());
+        queryWrapper.eq(param.getOperatorUserId() != null, OperationLogDO::getUserId, param.getOperatorUserId())
+            .eq(param.getDataSourceId() != null, OperationLogDO::getDataSourceId, param.getDataSourceId())
+            .eq(StringUtils.isNotBlank(param.getStatus()), OperationLogDO::getStatus, toOperationLogStatus(param.getStatus()))
+            .ge(startTime != null, OperationLogDO::getGmtCreate, toLocalDateTime(startTime))
+            .le(endTime != null, OperationLogDO::getGmtCreate, toLocalDateTime(endTime))
+            .orderByDesc(OperationLogDO::getGmtCreate, OperationLogDO::getId);
+        if (StringUtils.isNotBlank(param.getSearchKey())) {
+            queryWrapper.and(wrapper -> wrapper.like(OperationLogDO::getDdl, param.getSearchKey())
+                .or().like(OperationLogDO::getDatabaseName, param.getSearchKey())
+                .or().like(OperationLogDO::getSchemaName, param.getSearchKey()));
         }
         return queryWrapper;
     }
@@ -116,6 +177,27 @@ public class AuditServiceImpl implements AuditService {
         return record;
     }
 
+    private AuditRecord toDatabaseAuditRecord(OperationLogDO data, Map<Long, String> userNameMap, Map<Long, String> dataSourceNameMap) {
+        AuditRecord record = new AuditRecord();
+        record.setId("D_" + data.getId());
+        record.setCategory(AuditCategoryEnum.DATABASE.getCode());
+        record.setActionType("EXECUTE");
+        record.setResourceType("DATABASE");
+        record.setOperatorUserId(data.getUserId());
+        record.setOperatorUserName(userNameMap.getOrDefault(data.getUserId(), data.getUserId() == null ? null : String.valueOf(data.getUserId())));
+        record.setTargetId(data.getDataSourceId() == null ? null : String.valueOf(data.getDataSourceId()));
+        record.setTargetName(dataSourceNameMap.getOrDefault(data.getDataSourceId(), record.getTargetId()));
+        record.setStatus(fromOperationLogStatus(data.getStatus()));
+        record.setOccurredAt(data.getGmtCreate() == null ? null : Date.from(data.getGmtCreate().atZone(ZoneId.systemDefault()).toInstant()));
+        record.setDetailSummary(buildOperationLogSummary(data.getDdl()));
+        record.setDetailPayload(buildOperationLogPayload(data));
+        record.setDataSourceId(data.getDataSourceId());
+        record.setDataSourceName(record.getTargetName());
+        record.setDurationMs(data.getUseTime());
+        record.setOperationRows(data.getOperationRows());
+        return record;
+    }
+
     private DatabaseAuditEvent parseDatabaseEvent(String payload) {
         if (StringUtils.isBlank(payload)) {
             return null;
@@ -136,5 +218,73 @@ public class AuditServiceImpl implements AuditService {
             return StringUtils.removeStart(id, "D_");
         }
         return null;
+    }
+
+    private Map<Long, String> loadUserNameMap(List<Long> userIds) {
+        List<Long> filteredIds = userIds.stream().filter(java.util.Objects::nonNull).distinct().toList();
+        if (filteredIds.isEmpty()) {
+            return Map.of();
+        }
+        return userService.listQuery(filteredIds).getData().stream().collect(Collectors.toMap(
+            user -> user.getId(),
+            user -> StringUtils.defaultIfBlank(user.getNickName(), user.getUserName()),
+            (left, right) -> left
+        ));
+    }
+
+    private Map<Long, String> loadDataSourceNameMap(List<Long> dataSourceIds) {
+        List<Long> filteredIds = dataSourceIds.stream().filter(java.util.Objects::nonNull).distinct().toList();
+        if (filteredIds.isEmpty()) {
+            return Map.of();
+        }
+        return dataSourceService.queryByIds(filteredIds).getData().stream().collect(Collectors.toMap(
+            dataSource -> dataSource.getId(),
+            dataSource -> dataSource.getAlias(),
+            (left, right) -> left
+        ));
+    }
+
+    private String toOperationLogStatus(String auditStatus) {
+        if (StringUtils.equalsIgnoreCase("SUCCESS", auditStatus)) {
+            return "success";
+        }
+        if (StringUtils.equalsIgnoreCase("FAILED", auditStatus)) {
+            return "fail";
+        }
+        return auditStatus;
+    }
+
+    private String fromOperationLogStatus(String status) {
+        if (StringUtils.equalsIgnoreCase("success", status)) {
+            return "SUCCESS";
+        }
+        if (StringUtils.equalsIgnoreCase("fail", status)) {
+            return "FAILED";
+        }
+        return StringUtils.upperCase(status);
+    }
+
+    private java.time.LocalDateTime toLocalDateTime(Date date) {
+        return date.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
+    }
+
+    private String buildOperationLogSummary(String ddl) {
+        String sql = StringUtils.normalizeSpace(ddl);
+        return StringUtils.isBlank(sql) ? "-" : StringUtils.abbreviate(sql, 200);
+    }
+
+    private String buildOperationLogPayload(OperationLogDO data) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("id", data.getId());
+        payload.put("dataSourceId", data.getDataSourceId());
+        payload.put("databaseName", data.getDatabaseName());
+        payload.put("schemaName", data.getSchemaName());
+        payload.put("sql", data.getDdl());
+        payload.put("status", data.getStatus());
+        payload.put("operationRows", data.getOperationRows());
+        payload.put("durationMs", data.getUseTime());
+        payload.put("extendInfo", data.getExtendInfo());
+        payload.put("gmtCreate", data.getGmtCreate());
+        return JSON.toJSONString(payload);
     }
 }
