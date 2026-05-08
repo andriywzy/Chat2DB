@@ -2,6 +2,9 @@ package ai.chat2db.server.web.api.controller.project;
 
 import java.util.List;
 
+import ai.chat2db.server.common.api.audit.AdminAudit;
+import ai.chat2db.server.domain.api.enums.AuditActionTypeEnum;
+import ai.chat2db.server.domain.api.enums.AuditResourceTypeEnum;
 import ai.chat2db.server.domain.api.model.Project;
 import ai.chat2db.server.domain.api.param.project.ProjectCreateParam;
 import ai.chat2db.server.domain.api.param.project.ProjectUpdateParam;
@@ -39,6 +42,7 @@ public class ProjectController {
     }
 
     @PostMapping("/create")
+    @AdminAudit(actionType = AuditActionTypeEnum.CREATE, resourceType = AuditResourceTypeEnum.PROJECT)
     public DataResult<Long> create(@RequestBody ProjectCreateRequest request) {
         ProjectCreateParam param = new ProjectCreateParam();
         param.setName(request.getName());
@@ -49,6 +53,7 @@ public class ProjectController {
     }
 
     @PostMapping("/update")
+    @AdminAudit(actionType = AuditActionTypeEnum.UPDATE, resourceType = AuditResourceTypeEnum.PROJECT)
     public DataResult<Long> update(@RequestBody ProjectUpdateRequest request) {
         ProjectUpdateParam param = new ProjectUpdateParam();
         param.setId(request.getId());
@@ -58,6 +63,7 @@ public class ProjectController {
     }
 
     @DeleteMapping("/{id}")
+    @AdminAudit(actionType = AuditActionTypeEnum.DELETE, resourceType = AuditResourceTypeEnum.PROJECT)
     public ActionResult delete(@PathVariable("id") Long id) {
         return projectService.delete(id);
     }

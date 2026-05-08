@@ -6,6 +6,30 @@ export enum ManagementType {
   USER = 'USER',
 }
 
+export enum AuditCategory {
+  CONSOLE = 'CONSOLE',
+  DATABASE = 'DATABASE',
+}
+
+export enum AuditActionType {
+  CREATE = 'CREATE',
+  UPDATE = 'UPDATE',
+  DELETE = 'DELETE',
+  GRANT = 'GRANT',
+  EXECUTE = 'EXECUTE',
+}
+
+export enum AuditResourceType {
+  USER = 'USER',
+  TEAM = 'TEAM',
+  PROJECT = 'PROJECT',
+  ENVIRONMENT = 'ENVIRONMENT',
+  DATASOURCE = 'DATASOURCE',
+  TEAM_USER = 'TEAM_USER',
+  TEAM_PROJECT = 'TEAM_PROJECT',
+  DATABASE = 'DATABASE',
+}
+
 export enum AffiliationType {
   'USER_TEAM' = 'USER_TEAM',
   'TEAM_USER' = 'TEAM_USER',
@@ -159,4 +183,43 @@ export interface ITeamWithProjectVO {
 export interface ITeamProjectGrantPayload {
   projectId: number;
   environmentIdList?: number[];
+}
+
+export interface IAuditQuery extends IPageParams {
+  category?: AuditCategory;
+  resourceType?: AuditResourceType;
+  status?: string;
+  searchKey?: string;
+  operatorUserId?: number;
+  targetId?: string;
+  dataSourceId?: number;
+  startTime?: number;
+  endTime?: number;
+}
+
+export interface IAuditRecord {
+  id: string;
+  category: AuditCategory;
+  actionType: AuditActionType;
+  resourceType: AuditResourceType;
+  operatorUserId?: number;
+  operatorUserName?: string;
+  roleCode?: string;
+  targetId?: string;
+  targetName?: string;
+  status?: string;
+  occurredAt?: string | number;
+  detailSummary?: string;
+  detailPayload?: string;
+  requestId?: string;
+  requestPath?: string;
+  requestMethod?: string;
+  clientIp?: string;
+  userAgent?: string;
+  dataSourceId?: number;
+  dataSourceName?: string;
+  sqlType?: string;
+  durationMs?: number;
+  operationRows?: number;
+  errorMessage?: string;
 }

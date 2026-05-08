@@ -10,12 +10,15 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 import ai.chat2db.server.admin.api.controller.project.vo.SimpleProjectVO;
+import ai.chat2db.server.common.api.audit.AdminAudit;
 import ai.chat2db.server.admin.api.controller.team.request.TeamPageCommonQueryRequest;
 import ai.chat2db.server.admin.api.controller.team.request.TeamProjectBatchCreateRequest;
 import ai.chat2db.server.admin.api.controller.team.request.TeamProjectGrantRequest;
 import ai.chat2db.server.admin.api.controller.team.vo.TeamProjectPageQueryVO;
 import ai.chat2db.server.common.api.controller.vo.SimpleEnvironmentVO;
 import ai.chat2db.server.domain.api.enums.AccessObjectTypeEnum;
+import ai.chat2db.server.domain.api.enums.AuditActionTypeEnum;
+import ai.chat2db.server.domain.api.enums.AuditResourceTypeEnum;
 import ai.chat2db.server.domain.api.model.Environment;
 import ai.chat2db.server.domain.api.model.Project;
 import ai.chat2db.server.domain.api.service.EnvironmentService;
@@ -105,6 +108,7 @@ public class TeamProjectAdminController {
     }
 
     @PostMapping("/batch_create")
+    @AdminAudit(actionType = AuditActionTypeEnum.GRANT, resourceType = AuditResourceTypeEnum.TEAM_PROJECT)
     public ActionResult create(@Valid @RequestBody TeamProjectBatchCreateRequest request) {
         for (TeamProjectGrantRequest grant : normalizeRequest(request)) {
             validateGrant(grant);
@@ -128,6 +132,7 @@ public class TeamProjectAdminController {
     }
 
     @DeleteMapping("/{id}")
+    @AdminAudit(actionType = AuditActionTypeEnum.DELETE, resourceType = AuditResourceTypeEnum.TEAM_PROJECT)
     public DataResult<Boolean> delete(@PathVariable Long id) {
         LambdaQueryWrapper<ProjectAccessEnvironmentDO> environmentQueryWrapper = new LambdaQueryWrapper<>();
         environmentQueryWrapper.eq(ProjectAccessEnvironmentDO::getProjectAccessId, id);

@@ -2,6 +2,9 @@ package ai.chat2db.server.web.api.controller.environment;
 
 import java.util.List;
 
+import ai.chat2db.server.common.api.audit.AdminAudit;
+import ai.chat2db.server.domain.api.enums.AuditActionTypeEnum;
+import ai.chat2db.server.domain.api.enums.AuditResourceTypeEnum;
 import ai.chat2db.server.domain.api.model.Environment;
 import ai.chat2db.server.domain.api.service.EnvironmentService;
 import ai.chat2db.server.tools.base.wrapper.result.ActionResult;
@@ -38,6 +41,7 @@ public class EnvironmentController {
     }
 
     @PostMapping("/create")
+    @AdminAudit(actionType = AuditActionTypeEnum.CREATE, resourceType = AuditResourceTypeEnum.ENVIRONMENT)
     public DataResult<Long> create(@RequestBody EnvironmentCreateRequest request) {
         Environment environment = new Environment();
         environment.setName(request.getName());
@@ -50,6 +54,7 @@ public class EnvironmentController {
     }
 
     @PostMapping("/update")
+    @AdminAudit(actionType = AuditActionTypeEnum.UPDATE, resourceType = AuditResourceTypeEnum.ENVIRONMENT)
     public DataResult<Long> update(@RequestBody EnvironmentUpdateRequest request) {
         Environment environment = new Environment();
         environment.setId(request.getId());
@@ -63,6 +68,7 @@ public class EnvironmentController {
     }
 
     @DeleteMapping("/{id}")
+    @AdminAudit(actionType = AuditActionTypeEnum.DELETE, resourceType = AuditResourceTypeEnum.ENVIRONMENT)
     public ActionResult delete(@PathVariable("id") Long id) {
         return environmentService.delete(id);
     }

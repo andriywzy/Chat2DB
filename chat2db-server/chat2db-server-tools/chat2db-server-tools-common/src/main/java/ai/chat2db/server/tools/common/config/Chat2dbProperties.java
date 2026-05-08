@@ -30,6 +30,22 @@ public class Chat2dbProperties {
      */
     private ModeEnum mode;
 
+    private AuditProperties audit = new AuditProperties();
+
+    @Data
+    public static class AuditProperties {
+        private Boolean consoleEnabled = Boolean.TRUE;
+        private DbFileProperties dbFile = new DbFileProperties();
+    }
+
+    @Data
+    public static class DbFileProperties {
+        private Boolean enabled = Boolean.TRUE;
+        private String basePath = "~/.chat2db/audit/db";
+        private Integer retentionDays = 30;
+        private Integer maxSqlLength = 20000;
+    }
+
     @Data
     public static class GatewayProperties {
 

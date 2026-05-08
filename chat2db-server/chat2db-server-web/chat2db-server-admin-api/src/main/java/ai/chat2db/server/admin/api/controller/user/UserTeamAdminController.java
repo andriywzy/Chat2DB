@@ -1,9 +1,12 @@
 package ai.chat2db.server.admin.api.controller.user;
 
+import ai.chat2db.server.common.api.audit.AdminAudit;
 import ai.chat2db.server.admin.api.controller.user.converter.UserTeamAdminConverter;
 import ai.chat2db.server.admin.api.controller.user.request.UserPageCommonQueryRequest;
 import ai.chat2db.server.admin.api.controller.user.request.UserTeamBatchCreateRequest;
 import ai.chat2db.server.admin.api.controller.user.vo.UserTeamPageQueryVO;
+import ai.chat2db.server.domain.api.enums.AuditActionTypeEnum;
+import ai.chat2db.server.domain.api.enums.AuditResourceTypeEnum;
 import ai.chat2db.server.domain.api.param.team.user.TeamUserCreatParam;
 import ai.chat2db.server.domain.api.param.team.user.TeamUserPageQueryParam;
 import ai.chat2db.server.domain.api.param.team.user.TeamUserSelector;
@@ -58,6 +61,7 @@ public class UserTeamAdminController {
      * @version 2.1.0
      */
     @PostMapping("/batch_create")
+    @AdminAudit(actionType = AuditActionTypeEnum.GRANT, resourceType = AuditResourceTypeEnum.TEAM_USER)
     public ActionResult batchCreate(@Valid @RequestBody UserTeamBatchCreateRequest request) {
         request.getTeamIdList()
             .forEach(teamId -> {
@@ -83,6 +87,7 @@ public class UserTeamAdminController {
      * @return
      */
     @DeleteMapping("/{id}")
+    @AdminAudit(actionType = AuditActionTypeEnum.DELETE, resourceType = AuditResourceTypeEnum.TEAM_USER)
     public DataResult<Boolean> delete(@PathVariable Long id) {
         return teamUserService.delete(id).toBooleaSuccessnDataResult();
     }

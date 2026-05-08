@@ -1,7 +1,9 @@
 package ai.chat2db.server.domain.core.impl;
 
 import ai.chat2db.server.domain.api.param.*;
+import ai.chat2db.server.domain.api.model.DatabaseAuditEvent;
 import ai.chat2db.server.domain.api.param.operation.OperationLogCreateParam;
+import ai.chat2db.server.domain.api.service.DatabaseAuditWriter;
 import ai.chat2db.server.domain.api.service.DlTemplateService;
 import ai.chat2db.server.domain.api.service.OperationLogService;
 import ai.chat2db.server.domain.api.service.TableService;
@@ -11,6 +13,7 @@ import ai.chat2db.server.tools.base.excption.BusinessException;
 import ai.chat2db.server.tools.base.wrapper.result.DataResult;
 import ai.chat2db.server.tools.base.wrapper.result.ListResult;
 import ai.chat2db.server.tools.common.util.EasyCollectionUtils;
+import ai.chat2db.server.tools.common.util.EasyStringUtils;
 import ai.chat2db.spi.CommandExecutor;
 import ai.chat2db.spi.SqlBuilder;
 import ai.chat2db.spi.model.*;
@@ -29,13 +32,17 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.Date;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -55,6 +62,9 @@ public class DlTemplateServiceImpl implements DlTemplateService {
 
     @Autowired
     private CommandConverter commandConverter;
+
+    @Autowired
+    private DatabaseAuditWriter databaseAuditWriter;
 
     @Override
     public ListResult<ExecuteResult> execute(DlExecuteParam param) {
@@ -257,9 +267,46 @@ public class DlTemplateServiceImpl implements DlTemplateService {
             createParam.setOperationRows(
                     executeResult.getUpdateCount() != null ? Long.valueOf(executeResult.getUpdateCount()) : null);
             operationLogService.create(createParam);
+            addDatabaseAuditLog(executeResult, connectInfo);
         } catch (Exception e) {
             log.error("addOperationLog error:", e);
         }
+    }
+
+    private void addDatabaseAuditLog(ExecuteResult executeResult, ConnectInfo connectInfo) {
+        String sql = StringUtils.defaultIfBlank(executeResult.getOriginalSql(), executeResult.getSql());
+        String clientIp = null;
+        String clientType = "web";
+        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        if (attributes != null && attributes.getRequest() != null) {
+            clientIp = attributes.getRequest().getRemoteAddr();
+        }
+        if (connectInfo == null) {
+            return;
+        }
+        databaseAuditWriter.write(DatabaseAuditEvent.builder()
+            .id(UUID.randomUUID().toString().replace("-", ""))
+            .timestamp(new Date())
+            .requestId(ai.chat2db.server.tools.common.util.LogUtils.getTraceId())
+            .userId(ai.chat2db.server.tools.common.util.ContextUtils.getUserId())
+            .userName(ai.chat2db.server.tools.common.util.ContextUtils.getLoginUser() == null ? null
+                : ai.chat2db.server.tools.common.util.ContextUtils.getLoginUser().getNickName())
+            .roleCode(ai.chat2db.server.tools.common.util.ContextUtils.getLoginUser() == null ? null
+                : ai.chat2db.server.tools.common.util.ContextUtils.getLoginUser().getRoleCode())
+            .dataSourceId(connectInfo.getDataSourceId())
+            .dataSourceName(connectInfo.getAlias())
+            .dbType(connectInfo.getDbType())
+            .databaseName(connectInfo.getDatabaseName())
+            .schemaName(connectInfo.getSchemaName())
+            .sql(EasyStringUtils.limitString(sql, 20000))
+            .sqlType(executeResult.getSqlType())
+            .status(Boolean.TRUE.equals(executeResult.getSuccess()) ? "SUCCESS" : "FAILED")
+            .durationMs(executeResult.getDuration())
+            .operationRows(executeResult.getUpdateCount() == null ? null : Long.valueOf(executeResult.getUpdateCount()))
+            .clientIp(clientIp)
+            .clientType(clientType)
+            .errorMessage(executeResult.getMessage())
+            .build());
     }
 
     private void invalidateTableCacheIfNeeded(ExecuteResult executeResult) {

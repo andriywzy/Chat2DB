@@ -1,6 +1,6 @@
 import createRequest from './base';
 import { IPageParams, IPageResponse } from '@/typings';
-import { IProjectVO, ITeamProjectGrantPayload, ITeamVO, ITeamWithProjectVO, ITeamWithUserVO, IUserVO, IUserWithTeamVO } from '@/typings/team';
+import { IAuditQuery, IAuditRecord, IProjectVO, ITeamProjectGrantPayload, ITeamVO, ITeamWithProjectVO, ITeamWithUserVO, IUserVO, IUserWithTeamVO } from '@/typings/team';
 // ====================== User ======================
 
 /** 用户-用户管理列表查询 */
@@ -117,6 +117,14 @@ const getCommonProjectList = createRequest<{ searchKey: string }, IProjectVO[]>(
   },
 );
 
+const getAuditList = createRequest<IAuditQuery, IPageResponse<IAuditRecord>>('/api/admin/audit/page', {
+  method: 'get',
+});
+
+const getAuditDetail = createRequest<{ id: string }, IAuditRecord>('/api/admin/audit/:id', {
+  method: 'get',
+});
+
 export {
   // user
   getUserManagementList,
@@ -141,4 +149,7 @@ export {
   getCommonUserList,
   getCommonTeamList,
   getCommonProjectList,
+  // audit
+  getAuditList,
+  getAuditDetail,
 };

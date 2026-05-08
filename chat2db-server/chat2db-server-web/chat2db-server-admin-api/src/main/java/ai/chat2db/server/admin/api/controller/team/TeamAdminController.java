@@ -1,11 +1,14 @@
 
 package ai.chat2db.server.admin.api.controller.team;
 
+import ai.chat2db.server.common.api.audit.AdminAudit;
 import ai.chat2db.server.admin.api.controller.team.converter.TeamAdminConverter;
 import ai.chat2db.server.admin.api.controller.team.request.TeamCreateRequest;
 import ai.chat2db.server.admin.api.controller.team.request.TeamUpdateRequest;
 import ai.chat2db.server.admin.api.controller.team.vo.TeamPageQueryVO;
 import ai.chat2db.server.common.api.controller.request.CommonPageQueryRequest;
+import ai.chat2db.server.domain.api.enums.AuditActionTypeEnum;
+import ai.chat2db.server.domain.api.enums.AuditResourceTypeEnum;
 import ai.chat2db.server.domain.api.param.team.TeamPageQueryParam;
 import ai.chat2db.server.domain.api.param.team.TeamPageQueryParam.OrderCondition;
 import ai.chat2db.server.domain.api.param.team.TeamSelector;
@@ -62,6 +65,7 @@ public class TeamAdminController {
      * @version 2.1.0
      */
     @PostMapping("/create")
+    @AdminAudit(actionType = AuditActionTypeEnum.CREATE, resourceType = AuditResourceTypeEnum.TEAM)
     public DataResult<Long> create(@RequestBody TeamCreateRequest request) {
         return teamService.create(teamAdminConverter.request2param(request));
     }
@@ -74,6 +78,7 @@ public class TeamAdminController {
      * @version 2.1.0
      */
     @PostMapping("/update")
+    @AdminAudit(actionType = AuditActionTypeEnum.UPDATE, resourceType = AuditResourceTypeEnum.TEAM)
     public DataResult<Long> update(@RequestBody TeamUpdateRequest request) {
         return teamService.update(teamAdminConverter.request2param(request));
     }
@@ -85,6 +90,7 @@ public class TeamAdminController {
      * @return
      */
     @DeleteMapping("/{id}")
+    @AdminAudit(actionType = AuditActionTypeEnum.DELETE, resourceType = AuditResourceTypeEnum.TEAM)
     public DataResult<Boolean> delete(@PathVariable Long id) {
         return teamService.delete(id).toBooleaSuccessnDataResult();
     }

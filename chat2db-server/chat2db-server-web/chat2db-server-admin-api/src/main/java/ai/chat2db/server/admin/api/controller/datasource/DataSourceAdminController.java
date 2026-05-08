@@ -6,7 +6,10 @@ import ai.chat2db.server.admin.api.controller.datasource.request.DataSourceClone
 import ai.chat2db.server.admin.api.controller.datasource.request.DataSourceCreateRequest;
 import ai.chat2db.server.admin.api.controller.datasource.request.DataSourceUpdateRequest;
 import ai.chat2db.server.admin.api.controller.datasource.vo.DataSourcePageQueryVO;
+import ai.chat2db.server.common.api.audit.AdminAudit;
 import ai.chat2db.server.common.api.controller.request.CommonPageQueryRequest;
+import ai.chat2db.server.domain.api.enums.AuditActionTypeEnum;
+import ai.chat2db.server.domain.api.enums.AuditResourceTypeEnum;
 import ai.chat2db.server.domain.api.param.datasource.DataSourceCreateParam;
 import ai.chat2db.server.domain.api.param.datasource.DataSourcePageQueryParam;
 import ai.chat2db.server.domain.api.param.datasource.DataSourcePageQueryParam.OrderCondition;
@@ -65,6 +68,7 @@ public class DataSourceAdminController {
      * @version 2.1.0
      */
     @PostMapping("/create")
+    @AdminAudit(actionType = AuditActionTypeEnum.CREATE, resourceType = AuditResourceTypeEnum.DATASOURCE)
     public DataResult<Long> create(@Valid @RequestBody DataSourceCreateRequest request) {
         DataSourceCreateParam param = dataSourceAdminConverter.createReq2param(request);
         return dataSourceService.createWithPermission(param);
@@ -78,6 +82,7 @@ public class DataSourceAdminController {
      * @version 2.1.0
      */
     @PostMapping("/update")
+    @AdminAudit(actionType = AuditActionTypeEnum.UPDATE, resourceType = AuditResourceTypeEnum.DATASOURCE)
     public DataResult<Long> update(@Valid @RequestBody DataSourceUpdateRequest request) {
         DataSourceUpdateParam param = dataSourceAdminConverter.updateReq2param(request);
         return dataSourceService.updateWithPermission(param);
@@ -91,6 +96,7 @@ public class DataSourceAdminController {
      * @version 2.1.0
      */
     @PostMapping("/clone")
+    @AdminAudit(actionType = AuditActionTypeEnum.CREATE, resourceType = AuditResourceTypeEnum.DATASOURCE)
     public DataResult<Long> clone(@RequestBody DataSourceCloneRequest request) {
         return dataSourceService.copyByIdWithPermission(request.getId());
     }
@@ -103,6 +109,7 @@ public class DataSourceAdminController {
      * @version 2.1.0
      */
     @DeleteMapping("/{id}")
+    @AdminAudit(actionType = AuditActionTypeEnum.DELETE, resourceType = AuditResourceTypeEnum.DATASOURCE)
     public DataResult<Boolean> delete(@PathVariable Long id) {
         return dataSourceService.deleteWithPermission(id).toBooleaSuccessnDataResult();
     }

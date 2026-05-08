@@ -1,10 +1,13 @@
 package ai.chat2db.server.admin.api.controller.user;
 
+import ai.chat2db.server.common.api.audit.AdminAudit;
 import ai.chat2db.server.admin.api.controller.user.converter.UserAdminConverter;
 import ai.chat2db.server.admin.api.controller.user.request.UserCreateRequest;
 import ai.chat2db.server.admin.api.controller.user.request.UserUpdateRequest;
 import ai.chat2db.server.admin.api.controller.user.vo.UserPageQueryVO;
 import ai.chat2db.server.common.api.controller.request.CommonPageQueryRequest;
+import ai.chat2db.server.domain.api.enums.AuditActionTypeEnum;
+import ai.chat2db.server.domain.api.enums.AuditResourceTypeEnum;
 import ai.chat2db.server.domain.api.param.team.TeamPageQueryParam.OrderCondition;
 import ai.chat2db.server.domain.api.param.user.UserPageQueryParam;
 import ai.chat2db.server.domain.api.param.user.UserSelector;
@@ -72,6 +75,7 @@ public class UserAdminController {
      * @version 2.1.0
      */
     @PostMapping("/create")
+    @AdminAudit(actionType = AuditActionTypeEnum.CREATE, resourceType = AuditResourceTypeEnum.USER)
     public DataResult<Long> create(@Valid @RequestBody UserCreateRequest request) {
         return userService.create(userAdminConverter.request2param(request));
     }
@@ -84,6 +88,7 @@ public class UserAdminController {
      * @version 2.1.0
      */
     @PostMapping("/update")
+    @AdminAudit(actionType = AuditActionTypeEnum.UPDATE, resourceType = AuditResourceTypeEnum.USER)
     public DataResult<Long> update(@RequestBody UserUpdateRequest request) {
         return userService.update(userAdminConverter.request2param(request));
     }
@@ -95,6 +100,7 @@ public class UserAdminController {
      * @return
      */
     @DeleteMapping("/{id}")
+    @AdminAudit(actionType = AuditActionTypeEnum.DELETE, resourceType = AuditResourceTypeEnum.USER)
     public DataResult<Boolean> delete(@PathVariable Long id) {
         return userService.delete(id).toBooleaSuccessnDataResult();
     }

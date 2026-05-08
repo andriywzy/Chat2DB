@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { UserOutlined, TeamOutlined } from '@ant-design/icons';
+import { FileSearchOutlined, UserOutlined, TeamOutlined } from '@ant-design/icons';
 import { Tabs } from 'antd';
 import UserManagement from './user-management';
 import TeamManagement from './team-management';
+import AuditManagement from './audit-management';
 import i18n from '@/i18n';
 import styles from './index.less';
 
@@ -19,6 +20,11 @@ const Team = () => {
         label: i18n('team.tab.team'),
         icon: <TeamOutlined />,
         children: <TeamManagement />,
+      },
+      {
+        label: i18n('team.tab.audit'),
+        icon: <FileSearchOutlined />,
+        children: <AuditManagement />,
       },
     ],
     [],
