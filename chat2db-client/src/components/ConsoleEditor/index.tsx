@@ -8,7 +8,7 @@ import React, {
   forwardRef,
   createContext,
 } from 'react';
-import { Button, Spin, Drawer, Modal, Tag, message } from 'antd';
+import { Button, Spin, Drawer, Modal, Tag, message, Input, Empty } from 'antd';
 import ChatInput, { SyncModelType } from './components/ChatInput';
 import MonacoEditor, { IEditorOptions, IExportRefFunction, IRangeType } from '../MonacoEditor';
 import { v4 as uuidv4 } from 'uuid';
@@ -22,6 +22,7 @@ import styles from './index.less';
 import { IAiSchemaSource } from '@/utils/aiStream';
 import { DatabaseTypeCode } from '@/constants';
 import { validateSqlScript } from './utils/sqlScriptValidation';
+import connectionService from '@/service/connection';
 
 // ----- hooks -----
 import { useSaveEditorData } from './hooks/useSaveEditorData';
@@ -30,6 +31,7 @@ import { useChat2dbAiAuth } from './hooks/useChat2dbAiAuth';
 
 // ----- store -----
 import { useSettingStore, fetchRemainingUse } from '@/store/setting';
+import { useConnectionStore } from '@/pages/main/store/connection';
 
 // ----- function -----
 import { handelCreateConsole } from '@/pages/main/workspace/functions/shortcutKeyCreateConsole';
@@ -81,6 +83,28 @@ interface IIntelligentEditorContext {
 
 export const IntelligentEditorContext = createContext<IIntelligentEditorContext>({} as any);
 
+interface IImportRunFilePayload {
+  fileName: string;
+  script: string;
+}
+
+interface IDatabaseSearchItem {
+  key: string;
+  dataSourceId: number;
+  dataSourceName: string;
+  databaseType: DatabaseTypeCode;
+  databaseName: string;
+  projectName?: string;
+  environmentName?: string;
+  supportSchema: boolean;
+  supportDatabase: boolean;
+}
+
+interface IPendingImportRun {
+  script: string;
+  targetKey: string;
+}
+
 function ConsoleEditor(props: IProps, ref: ForwardedRef<IConsoleRef>) {
   const {
     hasAiChat = true,
@@ -95,6 +119,7 @@ function ConsoleEditor(props: IProps, ref: ForwardedRef<IConsoleRef>) {
   const uid = useMemo(() => uuidv4(), []);
   const editorRef = useRef<IExportRefFunction>();
   const importInputRef = useRef<HTMLInputElement>(null);
+  const importRunInputRef = useRef<HTMLInputElement>(null);
   const scriptValidationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [selectedTables, setSelectedTables] = useState<string[]>([]);
   const [selectedDatabaseScopes, setSelectedDatabaseScopes] = useState<IAiScopeEntity[]>([]);
@@ -102,12 +127,22 @@ function ConsoleEditor(props: IProps, ref: ForwardedRef<IConsoleRef>) {
   const [tableNameList, setTableNameList] = useState<string[]>([]);
   const [syncTableModel, setSyncTableModel] = useState<number>(SyncModelType.AUTO);
   const [scriptValidationEnabled, setScriptValidationEnabled] = useState(false);
+  const [importRunModalOpen, setImportRunModalOpen] = useState(false);
+  const [importRunFile, setImportRunFile] = useState<IImportRunFilePayload | null>(null);
+  const [databaseSearchKeyword, setDatabaseSearchKeyword] = useState('');
+  const [databaseSearchLoading, setDatabaseSearchLoading] = useState(false);
+  const [databaseSearchError, setDatabaseSearchError] = useState('');
+  const [databaseSearchList, setDatabaseSearchList] = useState<IDatabaseSearchItem[]>([]);
+  const [selectedImportRunTargetKey, setSelectedImportRunTargetKey] = useState<string>();
+  const [importRunExecuting, setImportRunExecuting] = useState(false);
+  const [pendingImportRun, setPendingImportRun] = useState<IPendingImportRun | null>(null);
   const { aiConfig, remainingUse } = useSettingStore((state) => {
     return {
       aiConfig: state.aiConfig,
       remainingUse: state.remainingUse,
     };
   });
+  const connectionList = useConnectionStore((state) => state.connectionList);
 
   // ---------------- new-code ----------------
   const { saveConsole } = useSaveEditorData({
@@ -182,6 +217,19 @@ function ConsoleEditor(props: IProps, ref: ForwardedRef<IConsoleRef>) {
     setSelectedDatabaseScopes([]);
     setSelectedTableScopes([]);
   }, [boundInfo?.dataSourceId]);
+
+  useEffect(() => {
+    if (!pendingImportRun) {
+      return;
+    }
+    const currentTargetKey = `${boundInfo.dataSourceId}-${boundInfo.databaseName || ''}-${boundInfo.schemaName || ''}`;
+    if (currentTargetKey !== pendingImportRun.targetKey) {
+      return;
+    }
+    props.onExecuteSQL?.(pendingImportRun.script);
+    setPendingImportRun(null);
+    setImportRunExecuting(false);
+  }, [boundInfo.dataSourceId, boundInfo.databaseName, boundInfo.schemaName, pendingImportRun, props.onExecuteSQL]);
 
   useEffect(() => {
     setSelectedTableScopes((prev) => prev.filter((item) => selectedTables.includes(item.name)));
@@ -281,6 +329,172 @@ function ConsoleEditor(props: IProps, ref: ForwardedRef<IConsoleRef>) {
         message.success('SQL script imported.');
       }
     }, 0);
+  };
+
+  const loadDatabaseSearchList = async () => {
+    const availableConnections = (connectionList || []).filter((item) => item.supportDatabase);
+    if (!availableConnections.length) {
+      setDatabaseSearchList([]);
+      return;
+    }
+
+    setDatabaseSearchLoading(true);
+    setDatabaseSearchError('');
+    setSelectedImportRunTargetKey(undefined);
+
+    try {
+      const databaseResults = await Promise.all(
+        availableConnections.map(async (connection) => {
+          const databases = await connectionService.getDatabaseList({
+            dataSourceId: connection.id,
+            refresh: false,
+          });
+          return (databases || [])
+            .filter((item) => item?.name)
+            .map((item) => {
+              const environmentName = connection.environment?.shortName || connection.environment?.name;
+              return {
+                key: `${connection.id}-${item.name}`,
+                dataSourceId: connection.id,
+                dataSourceName: connection.alias,
+                databaseType: connection.type,
+                databaseName: item.name,
+                projectName: connection.projectName,
+                environmentName,
+                supportSchema: connection.supportSchema,
+                supportDatabase: connection.supportDatabase,
+              } satisfies IDatabaseSearchItem;
+            });
+        }),
+      );
+      setDatabaseSearchList(databaseResults.flat());
+    } catch (_error) {
+      setDatabaseSearchList([]);
+      setDatabaseSearchError(i18n('common.tips.importRun.databaseLoadFailed'));
+    } finally {
+      setDatabaseSearchLoading(false);
+    }
+  };
+
+  const handleImportRunFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) {
+      return;
+    }
+
+    try {
+      const script = await file.text();
+      if (!script.trim()) {
+        message.warning(i18n('common.tips.importRun.emptyFile'));
+        return;
+      }
+      setImportRunFile({
+        fileName: file.name,
+        script,
+      });
+      setDatabaseSearchKeyword('');
+      setImportRunModalOpen(true);
+      loadDatabaseSearchList();
+    } catch (_error) {
+      message.error(i18n('common.tips.importRun.readFailed'));
+    }
+  };
+
+  const closeImportRunModal = () => {
+    if (importRunExecuting) {
+      return;
+    }
+    setImportRunModalOpen(false);
+    setImportRunFile(null);
+    setDatabaseSearchKeyword('');
+    setSelectedImportRunTargetKey(undefined);
+    setDatabaseSearchError('');
+  };
+
+  const selectedImportRunTarget = useMemo(() => {
+    return databaseSearchList.find((item) => item.key === selectedImportRunTargetKey);
+  }, [databaseSearchList, selectedImportRunTargetKey]);
+
+  const filteredDatabaseSearchList = useMemo(() => {
+    const keyword = databaseSearchKeyword.trim().toLowerCase();
+    const scoredList = databaseSearchList
+      .filter((item) => {
+        if (!keyword) {
+          return true;
+        }
+        return [
+          item.databaseName,
+          item.projectName,
+          item.environmentName,
+          item.dataSourceName,
+        ]
+          .filter(Boolean)
+          .some((text) => text!.toLowerCase().includes(keyword));
+      })
+      .map((item) => {
+        const normalizedName = item.databaseName.toLowerCase();
+        let score = 0;
+        if (keyword) {
+          if (normalizedName === keyword) {
+            score = 300;
+          } else if (normalizedName.startsWith(keyword)) {
+            score = 200;
+          } else if (normalizedName.includes(keyword)) {
+            score = 100;
+          }
+        }
+        return {
+          item,
+          score,
+        };
+      })
+      .sort((left, right) => {
+        if (right.score !== left.score) {
+          return right.score - left.score;
+        }
+        return (
+          (left.item.projectName || '').localeCompare(right.item.projectName || '') ||
+          (left.item.environmentName || '').localeCompare(right.item.environmentName || '') ||
+          left.item.dataSourceName.localeCompare(right.item.dataSourceName) ||
+          left.item.databaseName.localeCompare(right.item.databaseName)
+        );
+      });
+
+    return scoredList.map((item) => item.item);
+  }, [databaseSearchKeyword, databaseSearchList]);
+
+  const confirmImportRun = () => {
+    if (!importRunFile || !selectedImportRunTarget) {
+      return;
+    }
+
+    setImportRunExecuting(true);
+    editorRef.current?.setValue(importRunFile.script, 'cover');
+    setScriptValidationEnabled(true);
+    setTimeout(() => {
+      applySqlScriptValidation(importRunFile.script);
+    }, 0);
+
+    setPendingImportRun({
+      script: importRunFile.script,
+      targetKey: `${selectedImportRunTarget.dataSourceId}-${selectedImportRunTarget.databaseName}-`,
+    });
+    setBoundInfo({
+      ...boundInfo,
+      dataSourceId: selectedImportRunTarget.dataSourceId,
+      dataSourceName: selectedImportRunTarget.dataSourceName,
+      databaseType: selectedImportRunTarget.databaseType,
+      databaseName: selectedImportRunTarget.databaseName,
+      schemaName: undefined,
+      supportDatabase: selectedImportRunTarget.supportDatabase,
+      supportSchema: selectedImportRunTarget.supportSchema,
+    });
+    setImportRunModalOpen(false);
+    setImportRunFile(null);
+    setDatabaseSearchKeyword('');
+    setSelectedImportRunTargetKey(undefined);
+    setDatabaseSearchError('');
   };
 
   const handleExportScript = () => {
@@ -419,6 +633,16 @@ function ConsoleEditor(props: IProps, ref: ForwardedRef<IConsoleRef>) {
           className={styles.scriptFileInput}
           onChange={handleImportScript}
         />
+        <input
+          ref={importRunInputRef}
+          type="file"
+          accept=".sql,.txt,text/plain,text/sql,application/sql"
+          className={styles.scriptFileInput}
+          onChange={handleImportRunFile}
+        />
+        <Button size="small" className={styles.scriptActionButton} onClick={() => importRunInputRef.current?.click()}>
+          import and run
+        </Button>
         <Button size="small" className={styles.scriptActionButton} onClick={() => importInputRef.current?.click()}>
           import
         </Button>
@@ -618,6 +842,76 @@ function ConsoleEditor(props: IProps, ref: ForwardedRef<IConsoleRef>) {
           }}
         >
           <Popularize {...modalProps} />
+        </Modal>
+        <Modal
+          title={i18n('common.title.importRun')}
+          open={importRunModalOpen}
+          onCancel={closeImportRunModal}
+          onOk={confirmImportRun}
+          okText={i18n('common.button.execute')}
+          cancelText={i18n('common.button.cancel')}
+          confirmLoading={importRunExecuting}
+          okButtonProps={{
+            disabled:
+              !importRunFile || !selectedImportRunTarget || databaseSearchLoading || importRunExecuting,
+          }}
+        >
+          <div className={styles.importRunModal}>
+            <div className={styles.importRunSummary}>
+              <span className={styles.importRunLabel}>{i18n('common.label.file')}</span>
+              <span className={styles.importRunValue}>{importRunFile?.fileName}</span>
+            </div>
+            <Input
+              allowClear
+              value={databaseSearchKeyword}
+              onChange={(event) => setDatabaseSearchKeyword(event.target.value)}
+              placeholder={i18n('common.placeholder.searchDatabase')}
+            />
+            {databaseSearchError ? <div className={styles.importRunError}>{databaseSearchError}</div> : null}
+            <div className={styles.importRunList}>
+              {databaseSearchLoading ? (
+                <div className={styles.importRunState}>
+                  <Spin />
+                </div>
+              ) : !filteredDatabaseSearchList.length ? (
+                <div className={styles.importRunState}>
+                  <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={i18n('common.text.noData')} />
+                </div>
+              ) : (
+                filteredDatabaseSearchList.map((item) => {
+                  const selected = item.key === selectedImportRunTargetKey;
+                  return (
+                    <button
+                      key={item.key}
+                      type="button"
+                      className={`${styles.importRunItem} ${selected ? styles.importRunItemActive : ''}`}
+                      onClick={() => setSelectedImportRunTargetKey(item.key)}
+                    >
+                      <div className={styles.importRunItemMain}>
+                        <div className={styles.importRunItemName}>{item.databaseName}</div>
+                        <div className={styles.importRunItemMeta}>
+                          <span>{item.dataSourceName}</span>
+                          {item.projectName ? <span>{item.projectName}</span> : null}
+                          {item.environmentName ? <span>{item.environmentName}</span> : null}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+            {selectedImportRunTarget ? (
+              <div className={styles.importRunTarget}>
+                <div className={styles.importRunLabel}>{i18n('common.label.targetDatabase')}</div>
+                <div className={styles.importRunTargetValue}>
+                  {[
+                    selectedImportRunTarget.dataSourceName,
+                    selectedImportRunTarget.databaseName,
+                  ].join(' / ')}
+                </div>
+              </div>
+            ) : null}
+          </div>
         </Modal>
       </div>
     </IntelligentEditorContext.Provider>

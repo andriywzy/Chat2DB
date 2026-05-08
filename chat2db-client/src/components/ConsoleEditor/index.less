@@ -103,6 +103,98 @@
   }
 }
 
+.importRunModal {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.importRunSummary,
+.importRunTarget {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.importRunLabel {
+  color: var(--color-text-secondary, #666);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.importRunValue,
+.importRunTargetValue {
+  color: var(--color-text, #333);
+  font-size: 13px;
+  line-height: 20px;
+  word-break: break-all;
+}
+
+.importRunError {
+  color: #cf1322;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.importRunList {
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border-secondary, #f0f0f0);
+  border-radius: 8px;
+  background: var(--color-bg-base, #fff);
+}
+
+.importRunState {
+  min-height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.importRunItem {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--color-border-secondary, #f0f0f0);
+  background: transparent;
+  text-align: left;
+  padding: 10px 12px;
+  cursor: pointer;
+
+  &:last-child {
+    border-bottom: 0;
+  }
+
+  &:hover {
+    background: var(--color-fill-secondary, #fafafa);
+  }
+}
+
+.importRunItemActive {
+  background: rgba(97, 92, 237, 0.08);
+}
+
+.importRunItemMain {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.importRunItemName {
+  color: var(--color-text, #333);
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 500;
+}
+
+.importRunItemMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--color-text-secondary, #666);
+  font-size: 12px;
+  line-height: 18px;
+}
+
 .aiBlock {
   font-size: 14px;
   line-height: 20px;

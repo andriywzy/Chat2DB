@@ -97,8 +97,11 @@ export default {
   'common.title.preview' : '预览',
   'common.title.errorMessage': '错误信息',
   'common.label.comment': '备注',
+  'common.label.file': '文件',
   'common.label.name': '名称',
+  'common.label.targetDatabase': '目标库',
   'common.title.create': '创建',
+  'common.title.importRun': '导入并执行',
   'common.title.executiveLogging': '执行记录',
   'common.text.executionTime': '{1}ms 执行完毕',
   'common.button.copyRowAs': '复制行为',
@@ -119,5 +122,9 @@ export default {
   'common.label.LocalFile': '本地',
   'common.text.rename': '重命名',
   'common.title.info': '信息',
+  'common.placeholder.searchDatabase': '搜索库名、实例、项目或环境',
+  'common.tips.importRun.emptyFile': '文件内容为空，请重新选择 SQL 文件',
+  'common.tips.importRun.readFailed': '读取 SQL 文件失败',
+  'common.tips.importRun.databaseLoadFailed': '加载库列表失败，请稍后重试',
 
 };
