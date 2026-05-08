@@ -1,25 +1,20 @@
 package ai.chat2db.server.domain.core.impl;
 
 import com.alibaba.fastjson2.JSON;
+import ai.chat2db.server.domain.api.enums.AuditCategoryEnum;
 import ai.chat2db.server.domain.api.model.DatabaseAuditEvent;
 import ai.chat2db.server.domain.api.service.DatabaseAuditWriter;
-import ai.chat2db.server.tools.common.config.Chat2dbProperties;
+import ai.chat2db.server.domain.repository.Dbutils;
+import ai.chat2db.server.domain.repository.entity.AuditLogDO;
+import ai.chat2db.server.domain.repository.mapper.AuditLogMapper;
 import jakarta.annotation.PreDestroy;
-import jakarta.annotation.Resource;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
-import java.time.LocalDate;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
-import java.util.Comparator;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.Date;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -27,19 +22,20 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class DatabaseAuditWriterImpl implements DatabaseAuditWriter {
 
-    private static final DateTimeFormatter FILE_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final int RETENTION_DAYS = 180;
     private final ExecutorService executorService = Executors.newSingleThreadExecutor(r -> {
         Thread thread = new Thread(r, "chat2db-db-audit-writer");
         thread.setDaemon(true);
         return thread;
     });
 
-    @Resource
-    private Chat2dbProperties chat2dbProperties;
+    private AuditLogMapper getMapper() {
+        return Dbutils.getMapper(AuditLogMapper.class);
+    }
 
     @Override
     public void write(DatabaseAuditEvent event) {
-        if (Boolean.FALSE.equals(chat2dbProperties.getAudit().getDbFile().getEnabled())) {
+        if (event == null) {
             return;
         }
         executorService.submit(() -> doWrite(event));
@@ -47,67 +43,50 @@ public class DatabaseAuditWriterImpl implements DatabaseAuditWriter {
 
     private void doWrite(DatabaseAuditEvent event) {
         try {
-            Files.createDirectories(getBasePath());
-            Path filePath = getBasePath().resolve("db-audit-" + getFileDate(event) + ".log");
-            Files.writeString(filePath, JSON.toJSONString(event) + System.lineSeparator(),
-                StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.APPEND);
+            AuditLogDO data = new AuditLogDO();
+            Date occurredAt = event.getTimestamp() == null ? new Date() : event.getTimestamp();
+            data.setGmtCreate(occurredAt);
+            data.setGmtModified(occurredAt);
+            data.setCategory(AuditCategoryEnum.DATABASE.getCode());
+            data.setActionType("EXECUTE");
+            data.setResourceType("DATABASE");
+            data.setOperatorUserId(event.getUserId());
+            data.setOperatorUserName(event.getUserName());
+            data.setRoleCode(event.getRoleCode());
+            data.setTargetId(event.getDataSourceId() == null ? null : String.valueOf(event.getDataSourceId()));
+            data.setTargetName(event.getDataSourceName());
+            data.setRequestId(event.getRequestId());
+            data.setClientIp(event.getClientIp());
+            data.setUserAgent(event.getClientType());
+            data.setStatus(event.getStatus());
+            data.setDetailSummary(buildDatabaseSummary(event));
+            data.setDetailPayload(JSON.toJSONString(event));
+            data.setErrorMessage(event.getErrorMessage());
+            getMapper().insert(data);
         } catch (Exception e) {
             log.error("write database audit log error", e);
         }
     }
 
     @Scheduled(initialDelay = 60000L, fixedDelay = 86400000L)
-    public void cleanupExpiredFiles() {
-        if (Boolean.FALSE.equals(chat2dbProperties.getAudit().getDbFile().getEnabled())) {
-            return;
-        }
-        Integer retentionDays = chat2dbProperties.getAudit().getDbFile().getRetentionDays();
-        if (retentionDays == null || retentionDays <= 0) {
-            return;
-        }
-        Path basePath = getBasePath();
-        if (!Files.exists(basePath)) {
-            return;
-        }
-        LocalDate expireBefore = LocalDate.now().minusDays(retentionDays.longValue());
-        try (var paths = Files.list(basePath)) {
-            paths.filter(path -> path.getFileName().toString().startsWith("db-audit-"))
-                .sorted(Comparator.naturalOrder())
-                .forEach(path -> deleteIfExpired(path, expireBefore));
-        } catch (Exception e) {
-            log.error("cleanup database audit log error", e);
-        }
-    }
-
-    private void deleteIfExpired(Path path, LocalDate expireBefore) {
-        String fileName = path.getFileName().toString();
-        String datePart = StringUtils.removeStart(fileName, "db-audit-");
-        datePart = StringUtils.removeEnd(datePart, ".log");
+    public void cleanupExpiredRecords() {
+        Date expireBefore = Date.from(Instant.now().minus(RETENTION_DAYS, ChronoUnit.DAYS));
         try {
-            LocalDate fileDate = LocalDate.parse(datePart, FILE_DATE_FORMATTER);
-            if (fileDate.isBefore(expireBefore)) {
-                Files.deleteIfExists(path);
-            }
+            LambdaQueryWrapper<AuditLogDO> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.eq(AuditLogDO::getCategory, AuditCategoryEnum.DATABASE.getCode())
+                .lt(AuditLogDO::getGmtCreate, expireBefore);
+            getMapper().delete(queryWrapper);
         } catch (Exception e) {
-            log.warn("skip invalid audit file {}", fileName, e);
+            log.error("cleanup database audit records error", e);
         }
     }
 
-    private String getFileDate(DatabaseAuditEvent event) {
-        return event.getTimestamp()
-            .toInstant()
-            .atZone(ZoneId.systemDefault())
-            .toLocalDate()
-            .format(FILE_DATE_FORMATTER);
-    }
-
-    private Path getBasePath() {
-        String basePath = StringUtils.defaultIfBlank(chat2dbProperties.getAudit().getDbFile().getBasePath(),
-            "~/.chat2db/audit/db");
-        if (basePath.startsWith("~/")) {
-            basePath = System.getProperty("user.home") + basePath.substring(1);
+    private String buildDatabaseSummary(DatabaseAuditEvent event) {
+        String sql = org.apache.commons.lang3.StringUtils.normalizeSpace(event.getSql());
+        if (org.apache.commons.lang3.StringUtils.isNotBlank(sql)) {
+            return org.apache.commons.lang3.StringUtils.abbreviate(sql, 200);
         }
-        return Paths.get(basePath);
+        return org.apache.commons.lang3.StringUtils.defaultIfBlank(event.getSqlType(), "SQL");
     }
 
     @PreDestroy
