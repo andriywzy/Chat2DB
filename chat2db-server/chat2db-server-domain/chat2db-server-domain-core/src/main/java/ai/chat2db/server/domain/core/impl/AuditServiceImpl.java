@@ -85,13 +85,15 @@ public class AuditServiceImpl implements AuditService {
 
     private List<AuditRecord> queryConsoleRecords(AuditPageQueryParam param) {
         LambdaQueryWrapper<AuditLogDO> queryWrapper = new LambdaQueryWrapper<>();
+        Date startTime = param.getStartTime() == null ? null : new Date(param.getStartTime());
+        Date endTime = param.getEndTime() == null ? null : new Date(param.getEndTime());
         queryWrapper.eq(AuditLogDO::getCategory, AuditCategoryEnum.CONSOLE.getCode())
             .eq(StringUtils.isNotBlank(param.getResourceType()), AuditLogDO::getResourceType, param.getResourceType())
             .eq(StringUtils.isNotBlank(param.getStatus()), AuditLogDO::getStatus, param.getStatus())
             .eq(param.getOperatorUserId() != null, AuditLogDO::getOperatorUserId, param.getOperatorUserId())
             .eq(StringUtils.isNotBlank(param.getTargetId()), AuditLogDO::getTargetId, param.getTargetId())
-            .ge(param.getStartTime() != null, AuditLogDO::getGmtCreate, new Date(param.getStartTime()))
-            .le(param.getEndTime() != null, AuditLogDO::getGmtCreate, new Date(param.getEndTime()))
+            .ge(startTime != null, AuditLogDO::getGmtCreate, startTime)
+            .le(endTime != null, AuditLogDO::getGmtCreate, endTime)
             .orderByDesc(AuditLogDO::getGmtCreate, AuditLogDO::getId);
         if (StringUtils.isNotBlank(param.getSearchKey())) {
             queryWrapper.and(wrapper -> wrapper.like(AuditLogDO::getOperatorUserName, param.getSearchKey())
