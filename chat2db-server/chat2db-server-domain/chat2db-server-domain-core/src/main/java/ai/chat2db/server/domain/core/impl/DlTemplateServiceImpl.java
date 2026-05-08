@@ -32,8 +32,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -275,12 +273,7 @@ public class DlTemplateServiceImpl implements DlTemplateService {
 
     private void addDatabaseAuditLog(ExecuteResult executeResult, ConnectInfo connectInfo) {
         String sql = StringUtils.defaultIfBlank(executeResult.getOriginalSql(), executeResult.getSql());
-        String clientIp = null;
         String clientType = "web";
-        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-        if (attributes != null && attributes.getRequest() != null) {
-            clientIp = attributes.getRequest().getRemoteAddr();
-        }
         if (connectInfo == null) {
             return;
         }
@@ -303,7 +296,7 @@ public class DlTemplateServiceImpl implements DlTemplateService {
             .status(Boolean.TRUE.equals(executeResult.getSuccess()) ? "SUCCESS" : "FAILED")
             .durationMs(executeResult.getDuration())
             .operationRows(executeResult.getUpdateCount() == null ? null : Long.valueOf(executeResult.getUpdateCount()))
-            .clientIp(clientIp)
+            .clientIp(null)
             .clientType(clientType)
             .errorMessage(executeResult.getMessage())
             .build());
