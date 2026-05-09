@@ -15,5 +15,7 @@ public class TeamProjectPageQueryVO {
 
     private SimpleProjectVO project;
 
+    private String permissionType;
+
     private List<SimpleEnvironmentVO> environmentList;
 }

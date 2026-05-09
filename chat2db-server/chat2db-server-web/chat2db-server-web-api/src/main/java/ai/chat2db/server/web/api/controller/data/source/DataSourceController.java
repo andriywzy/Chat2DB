@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -22,6 +23,7 @@ import ai.chat2db.server.domain.api.service.DataSourceService;
 import ai.chat2db.server.domain.api.service.EnvironmentService;
 import ai.chat2db.server.domain.api.service.ProjectService;
 import ai.chat2db.server.domain.core.util.PermissionUtils;
+import ai.chat2db.server.domain.core.util.ProjectPermissionUtils;
 import ai.chat2db.server.tools.common.exception.ConnectionException;
 import ai.chat2db.server.tools.common.exception.ParamBusinessException;
 import ai.chat2db.spi.model.Database;
@@ -220,7 +222,8 @@ public class DataSourceController {
         } else {
             dataSourceVO.setAuthenticationType("2");
         }
-        dataSourceVO.setCanManage(PermissionUtils.hasDeskTopOrAdminPermission());
+        dataSourceVO.setCanManage(PermissionUtils.hasDeskTopOrAdminPermission()
+            || ProjectPermissionUtils.hasProjectTeamAdminPermission(dataSourceVO.getProjectId()));
         return DataResult.of(dataSourceVO);
     }
 
@@ -446,9 +449,10 @@ public class DataSourceController {
     }
 
     private void fillManagePermission(List<DataSourceVO> dataSourceVOS) {
-        boolean canManage = PermissionUtils.hasDeskTopOrAdminPermission();
+        Set<Long> teamAdminProjectIds = ProjectPermissionUtils.getTeamAdminProjectIds();
         for (DataSourceVO dataSourceVO : dataSourceVOS) {
-            dataSourceVO.setCanManage(canManage);
+            dataSourceVO.setCanManage(PermissionUtils.hasDeskTopOrAdminPermission()
+                || teamAdminProjectIds.contains(dataSourceVO.getProjectId()));
         }
     }
 

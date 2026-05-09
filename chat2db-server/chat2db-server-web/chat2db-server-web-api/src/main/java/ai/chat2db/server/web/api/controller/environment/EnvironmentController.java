@@ -1,12 +1,14 @@
 package ai.chat2db.server.web.api.controller.environment;
 
 import java.util.List;
+import java.util.Set;
 
 import ai.chat2db.server.common.api.audit.AdminAudit;
 import ai.chat2db.server.domain.api.enums.AuditActionTypeEnum;
 import ai.chat2db.server.domain.api.enums.AuditResourceTypeEnum;
 import ai.chat2db.server.domain.api.model.Environment;
 import ai.chat2db.server.domain.api.service.EnvironmentService;
+import ai.chat2db.server.domain.core.util.ProjectPermissionUtils;
 import ai.chat2db.server.tools.base.wrapper.result.ActionResult;
 import ai.chat2db.server.tools.base.wrapper.result.DataResult;
 import ai.chat2db.server.tools.base.wrapper.result.ListResult;
@@ -32,10 +34,11 @@ public class EnvironmentController {
 
     @GetMapping("/list")
     public ListResult<EnvironmentVO> list() {
+        Set<Long> teamAdminProjectIds = ProjectPermissionUtils.getTeamAdminProjectIds();
         List<EnvironmentVO> result = environmentService.queryList()
             .getData()
             .stream()
-            .map(this::toVO)
+            .map(environment -> toVO(environment, teamAdminProjectIds))
             .toList();
         return ListResult.of(result);
     }
@@ -73,7 +76,7 @@ public class EnvironmentController {
         return environmentService.delete(id);
     }
 
-    private EnvironmentVO toVO(Environment environment) {
+    private EnvironmentVO toVO(Environment environment, Set<Long> teamAdminProjectIds) {
         EnvironmentVO vo = new EnvironmentVO();
         vo.setId(environment.getId());
         vo.setName(environment.getName());
@@ -83,7 +86,8 @@ public class EnvironmentController {
         vo.setScopeId(environment.getScopeId());
         vo.setProjectId(environment.getProjectId());
         vo.setCanManage(Boolean.TRUE.equals(ContextUtils.getLoginUser().getAdmin())
-            || ContextUtils.getUserId().equals(environment.getCreateUserId()));
+            || ContextUtils.getUserId().equals(environment.getCreateUserId())
+            || teamAdminProjectIds.contains(environment.getProjectId()));
         return vo;
     }
 }

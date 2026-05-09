@@ -11,5 +11,7 @@ public class TeamProjectGrantRequest {
     @NotNull
     private Long projectId;
 
+    private String permissionType;
+
     private List<Long> environmentIdList;
 }

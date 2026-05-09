@@ -87,6 +87,7 @@ function MainPage() {
       userInfo: state.curUser,
     };
   });
+  const userDisplayName = userInfo?.nickName?.trim() || '个人中心';
   const mainPageActiveTab = useMainStore((state) => state.mainPageActiveTab);
   const [activeNavKey, setActiveNavKey] = useState<string>(
     __ENV__ === 'desktop' ? mainPageActiveTab : window.location.pathname.split('/')[1] || mainPageActiveTab,
@@ -204,7 +205,7 @@ function MainPage() {
           })}
         </ul>
         <div className={styles.footer}>
-          <Tooltip placement="right" title="个人中心">
+          <Tooltip placement="right" title={userDisplayName}>
             {userInfo?.roleCode !== IRole.DESKTOP ? renderUser() : null}
           </Tooltip>
           <Setting className={styles.setIcon} />

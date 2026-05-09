@@ -6,9 +6,11 @@ import {
 } from '@/service/team';
 import { IEnvironmentVO, IProjectVO, ITeamProjectGrantPayload, ITeamVO, IUserVO, SearchType } from '@/typings/team';
 import { Form, Modal, Select, Spin } from 'antd';
+import { Card, Radio, Space, Tag, Typography } from 'antd';
 import debounce from 'lodash/debounce';
 import React, { useEffect, useMemo, useState } from 'react';
 import i18n from '@/i18n';
+import styles from './index.less';
 
 interface IProps {
   open: boolean;
@@ -17,6 +19,7 @@ interface IProps {
   onClose: () => void;
   initialValues?: {
     projectId?: number;
+    permissionType?: 'VIEW' | 'TEAM_ADMIN';
     environmentIdList?: number[];
   };
 }
@@ -71,6 +74,8 @@ function UniversalAddModal(props: IProps) {
   }, [type]);
 
   const selectedProjectId = Form.useWatch('projectId', form);
+  const permissionType = Form.useWatch('permissionType', form);
+  const environmentScope = Form.useWatch('environmentScope', form);
   const availableEnvironmentOptions = useMemo(
     () =>
       environmentList
@@ -90,10 +95,10 @@ function UniversalAddModal(props: IProps) {
       getCommonProjectList({ searchKey: '' }).then((res) => {
         const projectOptions = (res || []).map((i) => ({
           ...i,
-          label: i.name,
-          value: i.id,
-          key: i.id,
-        }));
+          label: i.name || '',
+          value: i.id || 0,
+          key: i.id || 0,
+        })).filter((item) => item.value);
         setOptions(projectOptions);
       });
       connectionService.getEnvList().then((res) => {
@@ -101,6 +106,8 @@ function UniversalAddModal(props: IProps) {
       });
       form.setFieldsValue({
         projectId: props.initialValues?.projectId,
+        permissionType: props.initialValues?.permissionType || 'VIEW',
+        environmentScope: props.initialValues?.environmentIdList?.length ? 'SPECIFIC' : 'ALL',
         environmentIdList: props.initialValues?.environmentIdList || [],
       });
       return;
@@ -134,12 +141,17 @@ function UniversalAddModal(props: IProps) {
     if (type === SearchType.PROJECT) {
       form
         .validateFields()
-        .then((values: ITeamProjectGrantPayload & { environmentIdList?: number[] }) => {
+        .then((values: ITeamProjectGrantPayload & {
+          environmentIdList?: number[];
+          environmentScope?: 'ALL' | 'SPECIFIC';
+          permissionType?: 'VIEW' | 'TEAM_ADMIN';
+        }) => {
           props.onConfirm({
             projectGrantList: [
               {
                 projectId: values.projectId,
-                environmentIdList: values.environmentIdList || [],
+                permissionType: values.permissionType || 'VIEW',
+                environmentIdList: values.environmentScope === 'SPECIFIC' ? (values.environmentIdList || []) : [],
               },
             ],
           });
@@ -171,33 +183,84 @@ function UniversalAddModal(props: IProps) {
     >
       {type === SearchType.PROJECT ? (
         <Form form={form} layout="vertical">
-          <Form.Item
-            label={i18n('team.project.name')}
-            name="projectId"
-            rules={[{ required: true, message: i18n('common.form.error.required') }]}
-          >
-            <Select
-              size="large"
-              showSearch
-              placeholder={i18n('team.action.addProject.placeholder')}
-              options={options}
-              onChange={() => form.setFieldValue('environmentIdList', [])}
-              filterOption={(input, option) =>
-                String(option?.label || '')
-                  .toLowerCase()
-                  .includes(input.toLowerCase())
-              }
-            />
-          </Form.Item>
-          <Form.Item label={i18n('team.project.environments')} name="environmentIdList">
-            <Select
-              size="large"
-              mode="multiple"
-              allowClear
-              placeholder={i18n('team.project.environments.placeholder')}
-              options={availableEnvironmentOptions}
-            />
-          </Form.Item>
+          <Card bordered={false}>
+            <Space direction="vertical" size={20} style={{ width: '100%' }}>
+              <Form.Item
+                label={i18n('team.project.name')}
+                name="projectId"
+                rules={[{ required: true, message: i18n('common.form.error.required') }]}
+              >
+                <Select
+                  size="large"
+                  showSearch
+                  placeholder={i18n('team.action.addProject.placeholder')}
+                  options={options}
+                  onChange={() => {
+                    form.setFieldValue('environmentIdList', []);
+                    form.setFieldValue('environmentScope', 'ALL');
+                  }}
+                  filterOption={(input, option) =>
+                    String(option?.label || '')
+                      .toLowerCase()
+                      .includes(input.toLowerCase())
+                  }
+                />
+              </Form.Item>
+              <Form.Item
+                label={i18n('team.project.permission')}
+                name="permissionType"
+                initialValue="VIEW"
+                rules={[{ required: true, message: i18n('common.form.error.required') }]}
+              >
+                <Radio.Group className={styles.permissionGroup}>
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    <Radio value="VIEW">
+                      <Space>
+                        <span>{i18n('team.project.permission.view')}</span>
+                        <Tag>{i18n('team.project.permission.view.desc')}</Tag>
+                      </Space>
+                    </Radio>
+                    <Radio value="TEAM_ADMIN">
+                      <Space>
+                        <span>{i18n('team.project.permission.teamAdmin')}</span>
+                        <Tag color="processing">{i18n('team.project.permission.teamAdmin.desc')}</Tag>
+                      </Space>
+                    </Radio>
+                  </Space>
+                </Radio.Group>
+              </Form.Item>
+              <Form.Item
+                label={i18n('team.project.environmentScope')}
+                name="environmentScope"
+                initialValue="ALL"
+              >
+                <Radio.Group>
+                  <Radio value="ALL">{i18n('team.project.environments.all')}</Radio>
+                  <Radio value="SPECIFIC">{i18n('team.project.environments.specific')}</Radio>
+                </Radio.Group>
+              </Form.Item>
+              <Form.Item
+                label={i18n('team.project.environments')}
+                name="environmentIdList"
+                extra={
+                  <Typography.Text type="secondary">
+                    {permissionType === 'TEAM_ADMIN'
+                      ? i18n('team.project.permission.teamAdmin.help')
+                      : i18n('team.project.permission.view.help')}
+                  </Typography.Text>
+                }
+              >
+                <Select
+                  size="large"
+                  mode="multiple"
+                  allowClear
+                  disabled={environmentScope !== 'SPECIFIC' || !selectedProjectId}
+                  placeholder={i18n('team.project.environments.placeholder')}
+                  options={availableEnvironmentOptions}
+                />
+              </Form.Item>
+            </Space>
+          </Card>
         </Form>
       ) : (
         <Select

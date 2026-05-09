@@ -12,6 +12,7 @@ import connectionService from '@/service/connection';
 import { downloadJsonFile } from '@/utils/file';
 import { useUserStore } from '@/store/user';
 import { IRole } from '@/typings/user';
+import { useConnectionStore } from '@/pages/main/store/connection';
 
 // IConnectionDetails 全部信息代表修改
 // null 展示因增列表
@@ -33,7 +34,9 @@ export default memo<IProps>((props) => {
   );
   const [isFileUploadModalOpen, setIsFileUploadModalOpen] = useState(false);
   const currentUser = useUserStore((state) => state.curUser);
-  const canManageConnection = currentUser?.admin || currentUser?.roleCode === IRole.DESKTOP;
+  const projectList = useConnectionStore((state) => state.projectList);
+  const canGlobalManageConnection = currentUser?.admin || currentUser?.roleCode === IRole.DESKTOP;
+  const canCreateProjectConnection = canGlobalManageConnection || !!projectList?.some((item) => item.canManage);
 
 
   useEffect(() => {
@@ -43,7 +46,7 @@ export default memo<IProps>((props) => {
   function handleCreateConnections(database: IDatabase) {
     setConnectionDetail({
       type: database.code,
-      canManage: canManageConnection,
+      canManage: canCreateProjectConnection,
     });
   }
 
@@ -78,7 +81,7 @@ export default memo<IProps>((props) => {
         {connectionDetail === null && (
           <div className={styles.dataBaseListBox}>
             <div className={styles.dataBaseList}>
-              {canManageConnection && databaseTypeList.map((t) => {
+              {canCreateProjectConnection && databaseTypeList.map((t) => {
                 return (
                   <div key={t.code} className={styles.databaseItem} onClick={handleCreateConnections.bind(null, t)}>
                     <div className={styles.databaseItemMain}>
@@ -95,7 +98,7 @@ export default memo<IProps>((props) => {
                   </div>
                 );
               })}
-              {canManageConnection && (
+              {canGlobalManageConnection && (
                 <div className={styles.databaseItem} onClick={() => {setIsFileUploadModalOpen(true)}}>
                   <div className={styles.databaseItemMain}>
                     <div className={styles.databaseItemLeft}>
@@ -110,7 +113,7 @@ export default memo<IProps>((props) => {
                   </div>
                 </div>
               )}
-              {canManageConnection && (
+              {canGlobalManageConnection && (
                 <div className={styles.databaseItem} onClick={handleDownloadTemplate}>
                   <div className={styles.databaseItemMain}>
                     <div className={styles.databaseItemLeft}>

@@ -1,6 +1,7 @@
 package ai.chat2db.server.web.api.controller.project;
 
 import java.util.List;
+import java.util.Set;
 
 import ai.chat2db.server.common.api.audit.AdminAudit;
 import ai.chat2db.server.domain.api.enums.AuditActionTypeEnum;
@@ -9,6 +10,7 @@ import ai.chat2db.server.domain.api.model.Project;
 import ai.chat2db.server.domain.api.param.project.ProjectCreateParam;
 import ai.chat2db.server.domain.api.param.project.ProjectUpdateParam;
 import ai.chat2db.server.domain.api.service.ProjectService;
+import ai.chat2db.server.domain.core.util.ProjectPermissionUtils;
 import ai.chat2db.server.tools.base.wrapper.result.ActionResult;
 import ai.chat2db.server.tools.base.wrapper.result.DataResult;
 import ai.chat2db.server.tools.base.wrapper.result.ListResult;
@@ -36,8 +38,11 @@ public class ProjectController {
 
     @GetMapping("/list")
     public ListResult<ProjectVO> list() {
+        Set<Long> teamAdminProjectIds = ProjectPermissionUtils.getTeamAdminProjectIds();
         List<Project> projects = projectService.queryList().getData();
-        List<ProjectVO> result = projects.stream().map(this::toVO).toList();
+        List<ProjectVO> result = projects.stream()
+            .map(project -> toVO(project, teamAdminProjectIds))
+            .toList();
         return ListResult.of(result);
     }
 
@@ -68,14 +73,16 @@ public class ProjectController {
         return projectService.delete(id);
     }
 
-    private ProjectVO toVO(Project project) {
+    private ProjectVO toVO(Project project, Set<Long> teamAdminProjectIds) {
         ProjectVO vo = new ProjectVO();
         vo.setId(project.getId());
         vo.setName(project.getName());
         vo.setDescription(project.getDescription());
         vo.setScopeType(project.getScopeType());
         vo.setScopeId(project.getScopeId());
-        vo.setCanManage(ContextUtils.getLoginUser().getAdmin() || ContextUtils.getUserId().equals(project.getUserId()));
+        vo.setCanManage(ContextUtils.getLoginUser().getAdmin()
+            || ContextUtils.getUserId().equals(project.getUserId())
+            || teamAdminProjectIds.contains(project.getId()));
         return vo;
     }
 }

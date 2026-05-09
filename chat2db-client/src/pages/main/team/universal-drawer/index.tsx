@@ -40,6 +40,7 @@ interface IModalInfo {
   type?: SearchType;
   initialValues?: {
     projectId?: number;
+    permissionType?: 'VIEW' | 'TEAM_ADMIN';
     environmentIdList?: number[];
   };
 }
@@ -178,6 +179,18 @@ function UniversalDrawer(props: IProps) {
             key: 'project.name',
           },
           {
+            title: i18n('team.project.permission'),
+            dataIndex: 'permissionType',
+            key: 'permissionType',
+            render: (permissionType: ITeamWithProjectVO['permissionType']) => (
+              <Tag color={permissionType === 'TEAM_ADMIN' ? 'processing' : 'default'}>
+                {permissionType === 'TEAM_ADMIN'
+                  ? i18n('team.project.permission.teamAdmin')
+                  : i18n('team.project.permission.view')}
+              </Tag>
+            ),
+          },
+          {
             title: i18n('team.project.environments'),
             dataIndex: 'environmentList',
             key: 'environmentList',
@@ -215,6 +228,7 @@ function UniversalDrawer(props: IProps) {
                       type: SearchType.PROJECT,
                       initialValues: {
                         projectId: record.project?.id,
+                        permissionType: record.permissionType,
                         environmentIdList: record.environmentList?.map((environment) => environment.id!).filter(Boolean),
                       },
                     })

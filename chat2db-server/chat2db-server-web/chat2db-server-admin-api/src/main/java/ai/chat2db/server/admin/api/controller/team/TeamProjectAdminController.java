@@ -19,6 +19,7 @@ import ai.chat2db.server.common.api.controller.vo.SimpleEnvironmentVO;
 import ai.chat2db.server.domain.api.enums.AccessObjectTypeEnum;
 import ai.chat2db.server.domain.api.enums.AuditActionTypeEnum;
 import ai.chat2db.server.domain.api.enums.AuditResourceTypeEnum;
+import ai.chat2db.server.domain.api.enums.ProjectPermissionTypeEnum;
 import ai.chat2db.server.domain.api.model.Environment;
 import ai.chat2db.server.domain.api.model.Project;
 import ai.chat2db.server.domain.api.service.EnvironmentService;
@@ -97,6 +98,7 @@ public class TeamProjectAdminController {
             projectVO.setName(project.getName());
             projectVO.setDescription(project.getDescription());
             vo.setProject(projectVO);
+            vo.setPermissionType(ProjectPermissionTypeEnum.normalize(access.getPermissionType()));
             vo.setEnvironmentList(environmentMap.getOrDefault(access.getId(), List.of()));
             rows.add(vo);
         }
@@ -118,11 +120,12 @@ public class TeamProjectAdminController {
                 access.setProjectId(grant.getProjectId());
                 access.setAccessObjectType(AccessObjectTypeEnum.TEAM.getCode());
                 access.setAccessObjectId(request.getTeamId());
-                access.setPermissionType("VIEW");
+                access.setPermissionType(ProjectPermissionTypeEnum.normalize(grant.getPermissionType()));
                 access.setGmtCreate(DateUtil.date());
                 access.setGmtModified(DateUtil.date());
                 getMapper().insert(access);
             } else {
+                access.setPermissionType(ProjectPermissionTypeEnum.normalize(grant.getPermissionType()));
                 access.setGmtModified(DateUtil.date());
                 getMapper().updateById(access);
             }
@@ -152,6 +155,7 @@ public class TeamProjectAdminController {
                 }
                 TeamProjectGrantRequest grant = new TeamProjectGrantRequest();
                 grant.setProjectId(projectId);
+                grant.setPermissionType(ProjectPermissionTypeEnum.VIEW.getCode());
                 grant.setEnvironmentIdList(List.of());
                 grantList.add(grant);
             }

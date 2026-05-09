@@ -1,3 +1,5 @@
+import { IPageParams } from '@/typings';
+
 // ===================== Common ==================
 export enum ManagementType {
   DATASOURCE = 'DATASOURCE',
@@ -177,11 +179,13 @@ export interface ITeamWithProjectVO {
   id: number;
   teamId?: number;
   project?: IProjectVO;
+  permissionType?: 'VIEW' | 'TEAM_ADMIN';
   environmentList?: IEnvironmentVO[];
 }
 
 export interface ITeamProjectGrantPayload {
   projectId: number;
+  permissionType?: 'VIEW' | 'TEAM_ADMIN';
   environmentIdList?: number[];
 }
 

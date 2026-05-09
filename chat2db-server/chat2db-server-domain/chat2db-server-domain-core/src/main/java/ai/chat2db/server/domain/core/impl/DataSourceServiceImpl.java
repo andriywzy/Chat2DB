@@ -23,6 +23,7 @@ import ai.chat2db.server.domain.api.service.ProjectService;
 import ai.chat2db.server.domain.core.converter.DataSourceConverter;
 import ai.chat2db.server.domain.core.converter.EnvironmentConverter;
 import ai.chat2db.server.domain.core.util.PermissionUtils;
+import ai.chat2db.server.domain.core.util.ProjectPermissionUtils;
 import ai.chat2db.server.domain.repository.Dbutils;
 import ai.chat2db.server.domain.repository.entity.DataSourceAccessDO;
 import ai.chat2db.server.domain.repository.entity.DataSourceDO;
@@ -105,7 +106,11 @@ public class DataSourceServiceImpl implements DataSourceService {
 
     @Override
     public DataResult<Long> createWithPermission(DataSourceCreateParam param) {
-        PermissionUtils.checkDeskTopOrAdmin();
+        Long projectId = resolveProjectId(param.getProjectId());
+        if (!PermissionUtils.hasDeskTopOrAdminPermission()
+            && !ProjectPermissionUtils.hasProjectTeamAdminPermission(projectId)) {
+            throw new PermissionDeniedBusinessException();
+        }
         JdbcUtils.removePropertySameAsDefault(param.getDriverConfig());
         DataSourceDO dataSourceDO = dataSourceConverter.param2do(param);
         dataSourceDO.setGmtCreate(DateUtil.date());
@@ -113,7 +118,7 @@ public class DataSourceServiceImpl implements DataSourceService {
         dataSourceDO.setUserId(ContextUtils.getUserId());
         //dataSourceDO.setExtendInfo(null);
 
-        dataSourceDO.setProjectId(resolveProjectId(param.getProjectId()));
+        dataSourceDO.setProjectId(projectId);
         getMapper().insert(dataSourceDO);
         preWarmingData(dataSourceDO.getId());
         objectSearchSyncService.requestSync(dataSourceDO.getId());
@@ -159,8 +164,15 @@ public class DataSourceServiceImpl implements DataSourceService {
 
     @Override
     public ActionResult deleteWithPermission(Long id) {
-        PermissionUtils.checkDeskTopOrAdmin();
-        queryExistent(id, null);
+        DataSourceDO existing = getMapper().selectById(id);
+        if (existing == null) {
+            throw new DataNotFoundException();
+        }
+        checkReadPermission(id);
+        if (!PermissionUtils.hasDeskTopOrAdminPermission()
+            && !ProjectPermissionUtils.hasProjectTeamAdminPermission(existing.getProjectId())) {
+            throw new PermissionDeniedBusinessException();
+        }
 
         getMapper().deleteById(id);
 

@@ -16,6 +16,7 @@ import ai.chat2db.server.domain.api.service.ProjectService;
 import ai.chat2db.server.domain.api.service.EnvironmentService;
 import ai.chat2db.server.domain.core.converter.EnvironmentConverter;
 import ai.chat2db.server.domain.core.util.PermissionUtils;
+import ai.chat2db.server.domain.core.util.ProjectPermissionUtils;
 import ai.chat2db.server.domain.repository.Dbutils;
 import ai.chat2db.server.domain.repository.entity.DataSourceDO;
 import ai.chat2db.server.domain.repository.entity.EnvironmentDO;
@@ -137,9 +138,12 @@ public class EnvironmentServiceImpl implements EnvironmentService {
 
     @Override
     public DataResult<Long> create(Environment environment) {
-        PermissionUtils.checkDeskTopOrAdmin();
         if (environment == null || StringUtils.isBlank(environment.getName())) {
             return DataResult.error("common.paramError", "Environment name is required");
+        }
+        if (!PermissionUtils.hasDeskTopOrAdminPermission()
+            && !ProjectPermissionUtils.hasProjectTeamAdminPermission(environment.getProjectId())) {
+            return DataResult.error("common.forbidden", "No permission to manage this environment");
         }
         EnvironmentDO data = new EnvironmentDO();
         data.setName(environment.getName().trim());
@@ -214,6 +218,7 @@ public class EnvironmentServiceImpl implements EnvironmentService {
             }
         }
         return Boolean.TRUE.equals(ContextUtils.getLoginUser().getAdmin())
+            || ProjectPermissionUtils.hasProjectTeamAdminPermission(environmentDO.getProjectId())
             || Objects.equals(ContextUtils.getUserId(), environmentDO.getCreateUserId())
             || Objects.equals(ContextUtils.getUserId(), projectOwnerId);
     }

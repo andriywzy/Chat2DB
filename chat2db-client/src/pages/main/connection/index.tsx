@@ -40,13 +40,16 @@ const ConnectionsPage = () => {
     return {
       connectionList: state.connectionList,
       connectionManageActiveId: state.connectionManageActiveId,
+      projectList: state.projectList,
     };
   });
+  const projectList = useConnectionStore((state) => state.projectList);
   const volatileRef = useRef<any>();
   const [connectionActiveId, setConnectionActiveId] = useState<IConnectionListItem['id'] | null>(null);
   const [connectionDetail, setConnectionDetail] = useState<IConnectionDetails | null | undefined>(null);
   const currentUser = useUserStore((state) => state.curUser);
-  const canManageConnection = currentUser?.admin || currentUser?.roleCode === IRole.DESKTOP;
+  const canGlobalManageConnection = currentUser?.admin || currentUser?.roleCode === IRole.DESKTOP;
+  const canCreateConnection = canGlobalManageConnection || !!projectList?.some((item) => item.canManage);
 
   // 处理列表单击事件
   const handleMenuItemSingleClick = (t: IConnectionListItem) => {
@@ -142,7 +145,7 @@ const ConnectionsPage = () => {
         label: <MenuLabel icon="&#xec57;" label={i18n('connection.button.connect')} />,
         onClick: enterWorkSpace,
       },
-      ...(canManageConnection
+      ...(canGlobalManageConnection
         ? [
             {
               key: 'copyConnection',
@@ -154,6 +157,10 @@ const ConnectionsPage = () => {
               label: <MenuLabel icon="&#xe601;" label={i18n('connection.button.exportConnection')} />,
               onClick: exportConnection,
             },
+          ]
+        : []),
+      ...(t.canManage
+        ? [
             {
               key: 'delete',
               label: <MenuLabel icon="&#xe6a7;" label={i18n('connection.button.remove')} />,
@@ -231,7 +238,7 @@ const ConnectionsPage = () => {
         <div ref={volatileRef} className={styles.layoutLeft}>
           <div className={styles.pageTitle}>{i18n('connection.title.connections')}</div>
           <div className={styles.menuBox}>{renderConnectionMenuList()}</div>
-          {canManageConnection && connectionActiveId && (
+          {canCreateConnection && connectionActiveId && (
             <Button
               type="primary"
               className={styles.addConnection}
